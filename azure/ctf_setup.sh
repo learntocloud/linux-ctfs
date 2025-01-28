@@ -1,109 +1,185 @@
 #!/bin/bash
 
-# Update package list and install necessary packages
+# System setup
 sudo apt update
-sudo apt install -y netcat
+sudo apt install -y net-tools nmap tree
 
-#
-sudo usermod -aG sudo ctf_user
-
-# Configure SSH to allow password authentication
+# SSH configuration
 sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
 sudo sed -i 's/ChallengeResponseAuthentication no/ChallengeResponseAuthentication yes/' /etc/ssh/sshd_config
-sudo systemctl restart sshd
+sudo systemctl restart ssh
 
-# Create a directory for the CTF challenges
+# Create challenge directory
 sudo -u ctf_user mkdir -p /home/ctf_user/ctf_challenges
 cd /home/ctf_user/ctf_challenges
 
-# Create a welcome file with instructions
-cat << EOT | sudo tee /home/ctf_user/ctf_challenges/welcome.txt
-Welcome to the Linux Command Line CTF Challenge!
+# Create verify script
+cat > /usr/local/bin/verify << 'EOFVERIFY'
+#!/bin/bash
 
-Your goal is to find and collect all the flags hidden in this system.
-Each flag is in the format CTF{some_text_here}.
+ANSWER_HASHES=(
+  
+    "de8f29432e21f56e003c52f71297e7364cea2b750cd2582d62688e311347ff06"  
+    "a48ca3386a76ea8703a6c4e5562832f95364a2dbdaf1c75faae730abd075a23e"  
+    "7e5e6218d604ac7532c7403b6ab4ef41abc45628606abcdb98d6a0c42e2477cb"  
+    "1bb2e87b37adb38fe53f6e71f721e3e9ff00b3f13ce582ce95d4177c3cf49be9" 
+    "0063b9de97d91b65f4abe21f3a426f266fb304b2badc4a93bb80e87dca0ed6b3"  
+    "938d9c97bfc6669e0623a1b6c2f32527fd5b0081c94adb1c65dacbc6cdb04f65"  
+    "04a1503e15934d9442122fd8adb2af6e35c99b41f93728fed691fafe155a1f90" 
+    "4e24fc31e1bd34fd49832226ce10ea6d29fbb49e14792c25a8fa32ddf5ad7df2"  
+    "1605dcdc7e89239383512803f1673cb938467c2916270807e81102894ef15e91" 
 
-Here are your challenges:
+)
 
-1. Find the hidden file in this directory and read its contents.
-2. Locate the file with the word "secret" in its name anywhere in the /home/ctf_user directory.
-3. Find the largest file in the /var/log directory and retrieve the flag from it.
-4. Identify the user with UID 1002 and find the flag in their home directory.
-5. Locate the file owned by root with permissions 777 and read its contents.
-6. Find the process running on port 8080 and retrieve the flag from its command.
-7. Decode the base64 encoded flag in the 'encoded_flag.txt' file.
-8. Configure SSH key authentication and find the hidden flag, check ssh_challenge.txt file in home directory for more details.
+check_flag() {
+    challenge_num=$1
+    submitted_flag=$2
+    
+    submitted_hash=$(echo -n "$submitted_flag" | sha256sum | cut -d' ' -f1)
+    
+    if [ "$submitted_hash" = "${ANSWER_HASHES[$challenge_num]}" ]; then
+        if [ "$challenge_num" -eq 0 ]; then
+            echo "✓ Example flag verified! Now try finding real flags."
+        else
+            echo "✓ Correct flag for Challenge $challenge_num!"
+        fi
+        echo "$challenge_num" >> ~/.completed_challenges
+        sort -u ~/.completed_challenges > ~/.completed_challenges.tmp
+        mv ~/.completed_challenges.tmp ~/.completed_challenges
+    else
+        echo "✗ Incorrect flag. Try again!"
+    fi
+    show_progress
+}
 
-Good luck, and happy hunting!
-EOT
+show_progress() {
+    local completed=0
+    if [ -f ~/.completed_challenges ]; then
+        completed=$(sort -u ~/.completed_challenges | wc -l)
+        completed=$((completed-1)) # Subtract example challenge
+    fi
+    echo "Flags Found: $completed/8"
+    if [ "$completed" -eq 8 ]; then
+        echo "Congratulations! You've completed all challenges!"
+    fi
+}
 
-# Set up the challenges
-# Challenge 1: Hidden file
-echo "CTF{hidden_files_revealed}" > /home/ctf_user/ctf_challenges/.hidden_flag
+case "$1" in
+    "progress")
+        show_progress
+        ;;
+    [0-8])
+        if [ -z "$2" ]; then
+            echo "Usage: verify [challenge_number] [flag]"
+            exit 1
+        fi
+        check_flag "$1" "$2"
+        ;;
+    *)
+        echo "Usage:"
+        echo "  verify [challenge_number] [flag] - Check a flag"
+        echo "  verify progress - Show progress"
+        echo
+        echo "Example: verify 0 CTF{example}"
+        ;;
+esac
+EOFVERIFY
 
-# Challenge 2: File with "secret" in the name
-echo "CTF{grep_is_your_friend}" > /home/ctf_user/very_secret_file.txt
+sudo chmod +x /usr/local/bin/verify
 
-# Challenge 3: Largest file in /var/log
-touch /var/log/large_log_file.log
-chown ctf_user:ctf_user /var/log/large_log_file.log
-fallocate -l 500M /var/log/large_log_file.log
-echo "CTF{size_matters_in_linux}" >> /var/log/large_log_file.log
-
-# Challenge 4: User with UID 1001
-useradd -u 1002 flag_user
-mkdir /home/flag_user
-bash -c 'echo "CTF{user_detective}" >> /home/flag_user/flag.txt'
-chown root:root /home/flag_user/flag.txt
-
-# Challenge 5: File owned by root with 777 permissions
-echo "CTF{permission_granted}" | sudo tee /root/everyone_can_access_me
-chmod 777 /root/everyone_can_access_me
-
-# Challenge 6: Process running on port 8080
-sudo apt install nmap
-echo '#!/bin/bash
-while true; do
-    echo -e "HTTP/1.1 200 OK\n\nCTF{port_explorer}" | nc -l -p 8080
-done' > /home/ctf_user/ctf_challenges/port_8080_service.sh
-chmod +x /home/ctf_user/ctf_challenges/port_8080_service.sh
-nohup /home/ctf_user/ctf_challenges/port_8080_service.sh &
-
-# Challenge 7: Base64 encoded flag
-echo "Q1RGe2Jhc2U2NF9kZWNvZGVyfQ==" > /home/ctf_user/ctf_challenges/encoded_flag.txt
+# Create setup check script
+cat > /usr/local/bin/check_setup << 'EOF'
+#!/bin/bash
+if [ ! -f /var/log/setup_complete ]; then
+    echo "System is still being configured. Please wait..."
+    exit 1
+fi
 EOF
 
-# Challenge 8: SSH Key Authentication
-sudo mkdir -p /home/ctf_user/.ssh
-echo "CTF{ssh_key_master}" > /home/ctf_user/ssh_flag.txt
-sudo bash -c 'echo "Congratulations! Here is your SSH flag: $(cat /home/ctf_user/ssh_flag.txt)" > /home/ctf_user/.ssh/flag_message'
+chmod +x /usr/local/bin/check_setup
+
+# Add to bash profile
+echo "/usr/local/bin/check_setup" >> /home/ctf_user/.profile
+
+# Create MOTD
+cat > /etc/motd << 'EOFMOTD'
++==============================================+
+|  Learn To Cloud - Linux Command Line CTF    |
++==============================================+
+
+Welcome! Here are 8 Progressive Linux Challenges.
+Refer to the readme for information on each challenge.
+
+Once you find a flag, use our verify tool to check your answer
+and review your progress.
+
+Usage:
+  verify [challenge number] [flag] - Submit flag for verification
+  verify 0 CTF{example} - Example flag
+  verify progress     - Shows your progress
+
+  Try it: type in verify 0 CTF{example}
+
+Good luck!
+Team L2C
+
++==============================================+
+EOFMOTD
+
+# Beginner Challenges
+# Challenge 1: Simple hidden file
+echo "CTF{finding_hidden_treasures}" > /home/ctf_user/ctf_challenges/.hidden_flag
+
+# Challenge 2: Basic file search
+mkdir -p /home/ctf_user/documents/projects/backup
+echo "CTF{search_and_discover}" > /home/ctf_user/documents/projects/backup/secret_notes.txt
+
+# Intermediate Challenges
+# Challenge 3: Log analysis
+sudo dd if=/dev/urandom of=/var/log/large_log_file.log bs=1M count=500
+echo "CTF{size_matters_in_linux}" | sudo tee -a /var/log/large_log_file.log
+sudo chown ctf_user:ctf_user /var/log/large_log_file.log
+
+# Challenge 4: User investigation
+sudo useradd -u 1002 -m flag_user
+echo "CTF{user_enumeration_expert}" | sudo tee /home/flag_user/.profile
+sudo chown flag_user:flag_user /home/flag_user/.profile
+
+# Challenge 5: Permission analysis
+sudo mkdir -p /opt/systems/config
+echo "CTF{permission_sleuth}" | sudo tee /opt/systems/config/system.conf
+sudo chmod 777 /opt/systems/config/system.conf
+
+# Advanced Challenges
+# Challenge 6: Service discovery
+cat > /usr/local/bin/secret_service.sh << 'EOF'
+#!/bin/bash
+while true; do
+    echo -e "HTTP/1.1 200 OK\n\nCTF{network_detective}" | nc -l -p 8080
+done
+EOF
+sudo chmod +x /usr/local/bin/secret_service.sh
+sudo nohup /usr/local/bin/secret_service.sh &
+
+# Challenge 7: Encoding challenge
+echo "CTF{decoding_master}" | base64 | base64 > /home/ctf_user/ctf_challenges/encoded_flag.txt
+
+# Challenge 8: Advanced SSH setup
+sudo mkdir -p /home/ctf_user/.ssh/secrets/backup
+echo "CTF{ssh_security_master}" | sudo tee /home/ctf_user/.ssh/secrets/backup/.authorized_keys
 sudo chown -R ctf_user:ctf_user /home/ctf_user/.ssh
 sudo chmod 700 /home/ctf_user/.ssh
+sudo chmod 600 /home/ctf_user/.ssh/secrets/backup/.authorized_keys
 
-# Create a note file with instructions for SSH Challenge
-cat << EOT > /home/ctf_user/ssh_challenge.txt
-SSH Key Challenge:
-
-Your task is to:
-1. Create a new SSH key pair on your local machine
-2. Configure the public key for SSH access
-3. Successfully SSH into this instance using your key
-4. Find the flag message in the .ssh directory
-
-Hint: Look into:
-- ssh-keygen command
-- .ssh/authorized_keys file
-- SSH key permissions on both host and server.
-- The hidden .ssh directory
-
-Remember: The .ssh directory and its contents require specific permissions to work!
-EOT
-
-# Set appropriate permissions
-sudo chown ctf_user:ctf_user /home/ctf_user/ssh_challenge.txt
+# Set permissions
 sudo chown -R ctf_user:ctf_user /home/ctf_user/ctf_challenges
 
-# Add a hint to the motd
-echo "Welcome to the L2C Linux Command Line CTF! Make sure to review the material on learntocloud.guide/phase1 first. Your first challenge awaits in /home/ctf_user/ctf_challenges/welcome.txt" | sudo tee -a /etc/motd
+# Enable MOTD display in PAM
+sudo sed -i 's/#session    optional     pam_motd.so/session    optional     pam_motd.so/' /etc/pam.d/login
+sudo sed -i 's/#session    optional     pam_motd.so/session    optional     pam_motd.so/' /etc/pam.d/sshd
+sudo systemctl restart ssh
+
+# Mark setup as complete
+touch /var/log/setup_complete
 
 echo "CTF environment setup complete!"

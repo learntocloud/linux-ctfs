@@ -1,5 +1,4 @@
-# Variables
-
+# main.tf
 variable "az_region" {
   description = "The region to deploy the CTF lab"
   type        = string
@@ -11,19 +10,16 @@ variable "subscription_id" {
   type = string
 }
 
-# Configure the Azure provider
 provider "azurerm" {
   features {}
   subscription_id = var.subscription_id
 }
 
-# Create a resource group
 resource "azurerm_resource_group" "ctf_rg" {
   name     = "ctf-resources"
   location = var.az_region
 }
 
-# Create a virtual network
 resource "azurerm_virtual_network" "ctf_network" {
   name                = "ctf-network"
   address_space       = ["10.0.0.0/16"]
@@ -31,7 +27,6 @@ resource "azurerm_virtual_network" "ctf_network" {
   resource_group_name = azurerm_resource_group.ctf_rg.name
 }
 
-# Create a subnet
 resource "azurerm_subnet" "ctf_subnet" {
   name                 = "ctf-subnet"
   resource_group_name  = azurerm_resource_group.ctf_rg.name
@@ -39,15 +34,14 @@ resource "azurerm_subnet" "ctf_subnet" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-# Create a public IP
 resource "azurerm_public_ip" "ctf_public_ip" {
   name                = "ctf-public-ip"
   location            = azurerm_resource_group.ctf_rg.location
   resource_group_name = azurerm_resource_group.ctf_rg.name
   allocation_method   = "Static"
+  sku                = "Standard"
 }
 
-# Create a network security group
 resource "azurerm_network_security_group" "ctf_nsg" {
   name                = "ctf-nsg"
   location            = azurerm_resource_group.ctf_rg.location
@@ -66,7 +60,6 @@ resource "azurerm_network_security_group" "ctf_nsg" {
   }
 }
 
-# Create a network interface
 resource "azurerm_network_interface" "ctf_nic" {
   name                = "ctf-nic"
   location            = azurerm_resource_group.ctf_rg.location
@@ -80,13 +73,11 @@ resource "azurerm_network_interface" "ctf_nic" {
   }
 }
 
-# Connect the security group to the network interface
 resource "azurerm_network_interface_security_group_association" "ctf_nic_nsg_assoc" {
   network_interface_id      = azurerm_network_interface.ctf_nic.id
   network_security_group_id = azurerm_network_security_group.ctf_nsg.id
 }
 
-# Create a Linux virtual machine
 resource "azurerm_linux_virtual_machine" "ctf_vm" {
   name                = "ctf-vm"
   resource_group_name = azurerm_resource_group.ctf_rg.name
@@ -112,10 +103,26 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
     version   = "latest"
   }
 
-  custom_data = base64encode(file("ctf_setup.sh"))
+  custom_data = base64encode(file("${path.module}/ctf_setup.sh"))
 }
 
-# Output the public IP address
+resource "null_resource" "wait_for_setup" {
+  depends_on = [azurerm_linux_virtual_machine.ctf_vm]
+  
+  provisioner "remote-exec" {
+    connection {
+      host     = azurerm_linux_virtual_machine.ctf_vm.public_ip_address
+      user     = "ctf_user"
+      password = "CTFpassword123!"
+    }
+    
+    inline = [
+      "while [ ! -f /var/log/setup_complete ]; do sleep 10; done"
+    ]
+  }
+}
+
 output "public_ip_address" {
   value = azurerm_linux_virtual_machine.ctf_vm.public_ip_address
+  depends_on = [null_resource.wait_for_setup]
 }

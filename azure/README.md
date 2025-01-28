@@ -69,24 +69,9 @@ To access your lab environment:
 3. Once logged in, you'll see a welcome message with instructions for your first challenge.
 ![SSH into the instance](./images/ssh-screenshot.png)
 
-## Challenges
-
-Your CTF lab consists of 7 challenges, each testing different Linux command line skills. The challenges are:
-
-1. Find a hidden file
-2. Locate a file with "secret" in its name
-3. Find the largest file in a specific directory
-4. Identify a user with a specific UID
-5. Locate a file with specific permissions
-6. Find a process running on a specific port(you need to install the tools like `netstat`)
-7. Decode a base64 encoded message
-8. Configure SSH key authentication and find the hidden flag
-
-Work through these challenges to improve your command line skills and find all the flags!
-
 ## Cleaning Up
 
-When you're done with the lab, don't forget to destroy the Azure resources to avoid unnecessary charges:
+When you're done with the lab, don't forget to destroy the AWS resources to avoid unnecessary charges:
 
 `terraform destroy`
 
@@ -94,16 +79,15 @@ Type `yes` when prompted to confirm.
 
 ## Security Note
 
-This lab is designed for learning purposes and uses password-based login for simplicity. In real-world scenarios, key-based authentication is recommended for better security.
+This lab is designed for learning purposes and uses a password-based login for simplicity. In real-world scenarios, key-based authentication is recommended for better security.
 
 ## Troubleshooting
 
 If you encounter any issues:
 
-1. Ensure your Azure CLI is correctly installed and configured.
+1. Ensure your Azure CLI is correctly configured with your credentials.
 2. Check that you're using a compatible Terraform version.
 3. Verify that you have the necessary Azure permissions to create the required resources.
-4. If you can't log in immediately after creating the VM, wait a few minutes for the startup script to complete.
 
 If problems persist, please open an issue in this repository.
 

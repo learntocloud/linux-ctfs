@@ -117,6 +117,23 @@ resource "aws_instance" "ctf_instance" {
   }
 }
 
+resource "null_resource" "wait_for_setup" {
+  depends_on = [aws_instance.ctf_instance]
+  
+  provisioner "remote-exec" {
+    connection {
+      type     = "ssh"
+      host     = aws_instance.ctf_instance.public_ip
+      user     = "ctf_user"
+      password = "CTFpassword123!"
+    }
+    
+    inline = [
+      "while [ ! -f /var/log/setup_complete ]; do sleep 10; done"
+    ]
+  }
+}
+
 # Output the public IP of the instance
 output "ctf_instance_public_ip" {
   value = aws_instance.ctf_instance.public_ip

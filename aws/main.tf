@@ -11,6 +11,11 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Fetch availability zones
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
 # Create a VPC
 resource "aws_vpc" "ctf_vpc" {
   cidr_block = "10.0.0.0/16"
@@ -33,6 +38,7 @@ resource "aws_internet_gateway" "ctf_igw" {
 resource "aws_subnet" "ctf_subnet" {
   vpc_id     = aws_vpc.ctf_vpc.id
   cidr_block = "10.0.1.0/24"
+  availability_zone = data.aws_availability_zones.available.names[0]
 
   tags = {
     Name = "CTF Lab Subnet"
@@ -110,7 +116,7 @@ data "aws_ami" "ubuntu" {
 
 resource "aws_instance" "ctf_instance" {
   ami           = data.aws_ami.ubuntu.id 
-  instance_type = "t2.micro"
+  instance_type = "t3.micro"
 
   vpc_security_group_ids = [aws_security_group.ctf_sg.id]
   subnet_id              = aws_subnet.ctf_subnet.id

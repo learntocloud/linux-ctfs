@@ -122,7 +122,7 @@ Usage:
   verify 0 CTF{example} - Example flag
   verify progress     - Shows your progress
 
-  Try it: type in verify 0 CTF{example}
+  To capture first flag, run: verify 0 CTF{example}
 
 Good luck!
 Team L2C

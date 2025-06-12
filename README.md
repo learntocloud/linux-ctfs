@@ -11,13 +11,12 @@ Submit flags using the `verify` command:
 
 - Check progress: `verify progress`
 - Submit a flag: `verify [challenge_number] [flag]`
-- Test the system: `verify 0 CTF{example}`
 
-Example: `verify 0 CTF{example}`
+Try the command and capture first flag: `verify 0 CTF{example}`
 
 ```
 ctf_user@ctf-vm:~$ verify 0 CTF{example}
-✓ Example flag verified! Now try finding real flags.
+✓ Test flag verified! Now try finding real flags.
 ```
 
 ## Environment Setup

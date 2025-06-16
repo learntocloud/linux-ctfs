@@ -14,7 +14,7 @@ Submit flags using the `verify` command:
 
 Try the command and capture first flag: `verify 0 CTF{example}`
 
-```
+``` sh
 ctf_user@ctf-vm:~$ verify 0 CTF{example}
 ✓ Test flag verified! Now try finding real flags.
 ```

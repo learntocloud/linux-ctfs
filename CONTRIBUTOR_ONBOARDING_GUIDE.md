@@ -1,4 +1,4 @@
-# Developer Onboarding Guide for Linux CTF Project
+# Contributor Onboarding Guide for Linux CTF Project
 
 This guide provides a comprehensive list of questions that developers can use with AI assistants (Claude Code, GitHub Copilot Chat, etc.) to quickly familiarize themselves with this Linux Command Line CTF challenge project.
 
@@ -55,10 +55,10 @@ This guide provides a comprehensive list of questions that developers can use wi
 
 ## Integration & Extension
 
-31. **How could this CTF be integrated into a learning management system?**
-32. **What would be required to add support for a new cloud provider (e.g., GCP)?**
-33. **How could the verification system be enhanced to provide hints or partial credit?**
-34. **Could this project be containerized using Docker? What would be the benefits?**
+- **How could this CTF be integrated into a learning management system?**
+- **What would be required to add support for a new cloud provider (e.g., GCP)?**
+- **How could the verification system be enhanced to provide hints or partial credit?**
+- **Could this project be containerized using Docker? What would be the benefits?**
 
 ## Security & Best Practices
 

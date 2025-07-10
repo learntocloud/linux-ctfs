@@ -25,6 +25,7 @@ Follow the setup guide for your preferred cloud provider:
 
 - [AWS](./aws/README.md)
 - [Azure](./azure/README.md)
+- [GCP](./gcp/README.md)
 
 ## Challenges
 

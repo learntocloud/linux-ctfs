@@ -170,7 +170,6 @@ while true; do
 done
 EOF
 sudo chmod +x /usr/local/bin/secret_service.sh
-#sudo nohup /usr/local/bin/secret_service.sh &
 
 # Challenge 7: Encoding challenge
 echo "CTF{decoding_master}" | base64 | base64 > /home/ctf_user/ctf_challenges/encoded_flag.txt
@@ -197,7 +196,6 @@ done
 EOF
 
 sudo chmod +x /usr/local/bin/monitor_directory.sh
-#sudo nohup /usr/local/bin/monitor_directory.sh > /var/log/monitor_directory.log 2>&1 &
 
 # Challenge 11: Web Configuration
 sudo mkdir -p /var/www/html
@@ -217,7 +215,6 @@ done
 EOF
 
 sudo chmod +x /usr/local/bin/ping_message.sh
-#sudo nohup /usr/local/bin/ping_message.sh > /var/log/ping_message.log 2>&1 &
 
 # Systemd service for secret_service.sh
 cat > /etc/systemd/system/secret_service.service << 'EOF'

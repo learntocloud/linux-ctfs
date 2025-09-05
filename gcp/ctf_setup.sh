@@ -169,7 +169,6 @@ while true; do
 done
 EOF
 sudo chmod +x /usr/local/bin/secret_service.sh
-sudo nohup /usr/local/bin/secret_service.sh &
 
 # Challenge 7: Encoding challenge
 echo "CTF{decoding_master}" | base64 | base64 > /home/ctf_user/ctf_challenges/encoded_flag.txt
@@ -196,7 +195,6 @@ done
 EOF
 
 sudo chmod +x /usr/local/bin/monitor_directory.sh
-sudo nohup /usr/local/bin/monitor_directory.sh > /var/log/monitor_directory.log 2>&1 &
 
 # Challenge 11: Web Configuration
 sudo mkdir -p /var/www/html
@@ -216,7 +214,59 @@ done
 EOF
 
 sudo chmod +x /usr/local/bin/ping_message.sh
-sudo nohup /usr/local/bin/ping_message.sh > /var/log/ping_message.log 2>&1 &
+
+# Systemd service for secret_service.sh
+cat > /etc/systemd/system/secret_service.service << 'EOF'
+[Unit]
+Description=CTF Secret Service Challenge
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/secret_service.sh
+Restart=always
+User=ctf_user
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Systemd service for monitor_directory.sh
+cat > /etc/systemd/system/monitor_directory.service << 'EOF'
+[Unit]
+Description=CTF Monitor Directory Challenge
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/monitor_directory.sh
+Restart=always
+User=ctf_user
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Systemd service for ping_message.sh
+cat > /etc/systemd/system/ping_message.service << 'EOF'
+[Unit]
+Description=CTF Ping Message Challenge
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ping_message.sh
+Restart=always
+User=ctf_user
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Reload systemd and enable/start services
+sudo systemctl daemon-reload
+sudo systemctl enable secret_service monitor_directory ping_message
+sudo systemctl start secret_service monitor_directory ping_message
 
 # Set permissions
 sudo chown -R ctf_user:ctf_user /home/ctf_user/ctf_challenges

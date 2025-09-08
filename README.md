@@ -1,6 +1,6 @@
 # Phase 1: Linux Command Line CTF Challenge
 
-This set of progressive Capture The Flag (CTF) challenges will test your Linux command line skills. Each challenge builds upon previous concepts while introducing new ones. All flags follow the format `CTF{some_text_here}`.
+This set of progressive Capture The Flag (CTF) challenges will test your Linux command line skills. Each challenge builds upon previous concepts while introducing new ones. All flags follow the format `CTF{some_text_here}`. This is meant to mimic an exam situation and test your skills. Once you launch the lab, you cannot shut it down without losing your progress.
 
 > [!IMPORTANT]  
 > Please complete [Phase 1 Guide](https://learntocloud.guide/phase1/) before attempting these challenges. Do not share solutions publicly - focus on sharing your learning journey instead.
@@ -124,4 +124,4 @@ Someone is sending secret messages via ping packets.
 
 ## Contributing
 
-Please only submit issues with the lab and not if you are having difficulties completing any challenge. That is the point, to learn.
+Please only submit issues with the lab and not if you are having difficulties completing any challenge. That is the point, to learn. Please also open issues before PRs so we can discuss potential work beforehand.

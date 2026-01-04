@@ -40,7 +40,59 @@ ANSWER_HASHES=(
     "98d7b6c1cfb09574f06893baccd19f86ebf805caf5a21bf2b518598384a2d3fa"
     "90b6819737a8f027df23a718d1a82210fea013d1ae3da081494e9c496e4284da"
     "a6bbbea83c12b335d890456ecca072c61bc063dee503ed67cfa750538ad4ed69"
+    "7f1886312b8dcad4253c1916289aea437d771b1ca2ddaf9a9d2bacca35180309"
+    "3a3e49b8f1f41fb64f8a39e727c86b88f82c86e144896a83b3cce97065782d1e"
+    "228bcbadf693803be42d130865185ad18b8fa9d8798ed9ebb81e86f973a5d203"
+    "19448347bf8eb7e295055f584a9d31872381750b24ec0fe8d5418f4337ce82a7"
+    "cf87b255b6c9a6cfdbaa50ce3d08a4e723dc8fec701bfeabf55d28099ec2c4cc"
+    "48eddea9a1d783bfba61ce0105b161ac5fe3065fcb620790a6a8bbae9ce9e989"
 )
+
+CHALLENGE_NAMES=(
+    "Example Challenge"
+    "Hidden File Discovery"
+    "Basic File Search"
+    "Log Analysis"
+    "User Investigation"
+    "Permission Analysis"
+    "Service Discovery"
+    "Encoding Challenge"
+    "SSH Secrets"
+    "DNS Troubleshooting"
+    "Remote Upload Detection"
+    "Web Configuration"
+    "Network Traffic Analysis"
+    "Cron Job Hunter"
+    "Process Environment"
+    "Archive Archaeologist"
+    "Symbolic Sleuth"
+    "History Mystery"
+    "Disk Detective"
+)
+
+CHALLENGE_HINTS=(
+    "Run: verify 0 CTF{example}"
+    "Hidden files in Linux start with a dot. Try 'ls -la' in the ctf_challenges directory."
+    "Use the 'find' command to search for files. Try: find ~ -name '*.txt' 2>/dev/null"
+    "Large log files can hide secrets. Check /var/log and use 'tail' to see the end of files."
+    "Investigate other users on the system. Check /etc/passwd or use 'getent passwd'."
+    "Look for files with unusual permissions. Try: find / -perm 777 2>/dev/null"
+    "What services are running? Use 'netstat -tulpn' or 'ss -tulpn' to find listening ports."
+    "The flag is encoded. Look for encoded files and use 'base64 -d' to decode."
+    "SSH configurations often hide secrets. Explore ~/.ssh directory thoroughly."
+    "DNS settings are stored in /etc/resolv.conf. Examine it carefully."
+    "Monitor file creation with tools like inotifywait, or try creating a file in ctf_challenges."
+    "Web servers serve content from specific directories. Check what ports nginx is listening on."
+    "Network traffic can carry hidden messages. Look at ping patterns with tcpdump."
+    "Cron jobs run on schedules. Check /etc/cron.d/, /etc/crontab, and user crontabs with 'crontab -l'."
+    "Process info lives in /proc. Each process has a directory with its environment in /proc/PID/environ."
+    "Archives can be nested. Use 'tar -xzf' or 'gunzip' to extract layers. Check file types with 'file' command."
+    "Symlinks can chain together. Use 'readlink -f' to find the final target, or 'ls -la' to see link targets."
+    "Bash stores command history in ~/.bash_history. Other users may have history files too."
+    "Filesystem metadata includes labels. Check 'lsblk', 'blkid', or look at mount options in /etc/fstab."
+)
+
+START_TIME_FILE=~/.ctf_start_time
 
 check_flag() {
     challenge_num=$1
@@ -69,27 +121,156 @@ show_progress() {
         completed=$(sort -u ~/.completed_challenges | wc -l)
         completed=$((completed-1)) # Subtract example challenge
     fi
-    echo "Flags Found: $completed/12"
-    if [ "$completed" -eq 12 ]; then
+    echo "Flags Found: $completed/18"
+    if [ "$completed" -eq 18 ]; then
         echo "Congratulations! You've completed all challenges!"
     fi
+}
+
+init_timer() {
+    if [ ! -f "$START_TIME_FILE" ]; then
+        date +%s > "$START_TIME_FILE"
+    fi
+}
+
+show_time() {
+    if [ ! -f "$START_TIME_FILE" ]; then
+        echo "Timer not started. Complete your first challenge to start the timer."
+        return
+    fi
+    local start_time=$(cat "$START_TIME_FILE")
+    local current_time=$(date +%s)
+    local elapsed=$((current_time - start_time))
+    local hours=$((elapsed / 3600))
+    local minutes=$(((elapsed % 3600) / 60))
+    local seconds=$((elapsed % 60))
+    printf "Elapsed Time: %02d:%02d:%02d\n" $hours $minutes $seconds
+}
+
+show_list() {
+    echo "======================================"
+    echo "       CTF Challenge Status"
+    echo "======================================"
+    for i in {0..18}; do
+        local status="[ ]"
+        if [ -f ~/.completed_challenges ] && grep -q "^${i}$" ~/.completed_challenges; then
+            status="[✓]"
+        fi
+        if [ $i -eq 0 ]; then
+            printf "%s %2d. %s (Example)\n" "$status" "$i" "${CHALLENGE_NAMES[$i]}"
+        else
+            printf "%s %2d. %s\n" "$status" "$i" "${CHALLENGE_NAMES[$i]}"
+        fi
+    done
+    echo "======================================"
+    show_progress
+}
+
+show_hint() {
+    local num=$1
+    if [ -z "$num" ] || [ "$num" -lt 0 ] || [ "$num" -gt 18 ]; then
+        echo "Usage: verify hint [0-18]"
+        return 1
+    fi
+    echo "======================================"
+    echo "Hint for Challenge $num: ${CHALLENGE_NAMES[$num]}"
+    echo "======================================"
+    echo "${CHALLENGE_HINTS[$num]}"
+    echo "======================================"
+}
+
+export_certificate() {
+    local completed=0
+    if [ -f ~/.completed_challenges ]; then
+        completed=$(sort -u ~/.completed_challenges | wc -l)
+        completed=$((completed-1))
+    fi
+    
+    if [ "$completed" -lt 18 ]; then
+        echo "Complete all 18 challenges to earn your certificate!"
+        echo "Current progress: $completed/18"
+        return 1
+    fi
+    
+    local completion_time="Unknown"
+    if [ -f "$START_TIME_FILE" ]; then
+        local start_time=$(cat "$START_TIME_FILE")
+        local end_time=$(date +%s)
+        local elapsed=$((end_time - start_time))
+        local hours=$((elapsed / 3600))
+        local minutes=$(((elapsed % 3600) / 60))
+        completion_time=$(printf "%02d:%02d" $hours $minutes)
+    fi
+    
+    local cert_file=~/ctf_certificate_$(date +%Y%m%d_%H%M%S).txt
+    cat > "$cert_file" << CERTEOF
+╔════════════════════════════════════════════════════════════╗
+║                                                            ║
+║            LEARN TO CLOUD - CTF COMPLETION                 ║
+║                    CERTIFICATE                             ║
+║                                                            ║
+╠════════════════════════════════════════════════════════════╣
+║                                                            ║
+║  This certifies that                                       ║
+║                                                            ║
+║              $(whoami)$(printf '%*s' $((30 - ${#$(whoami)})) '')                        ║
+║                                                            ║
+║  has successfully completed all 18 Linux CTF challenges    ║
+║                                                            ║
+║  Completion Time: ${completion_time}                                    ║
+║  Date: $(date +%Y-%m-%d)                                          ║
+║                                                            ║
+║  Challenges Completed:                                     ║
+║   ✓ Hidden File Discovery      ✓ Service Discovery        ║
+║   ✓ Basic File Search          ✓ Encoding Challenge       ║
+║   ✓ Log Analysis               ✓ SSH Secrets              ║
+║   ✓ User Investigation         ✓ DNS Troubleshooting      ║
+║   ✓ Permission Analysis        ✓ Remote Upload Detection  ║
+║   ✓ Web Configuration          ✓ Network Traffic Analysis ║
+║   ✓ Cron Job Hunter            ✓ Process Environment      ║
+║   ✓ Archive Archaeologist      ✓ Symbolic Sleuth          ║
+║   ✓ History Mystery            ✓ Disk Detective           ║
+║                                                            ║
+║                    Congratulations!                        ║
+║                                                            ║
+╚════════════════════════════════════════════════════════════╝
+CERTEOF
+    echo "Certificate exported to: $cert_file"
+    cat "$cert_file"
 }
 
 case "$1" in
     "progress")
         show_progress
         ;;
-    [0-9]|1[0-2])
+    "list")
+        show_list
+        ;;
+    "hint")
+        show_hint "$2"
+        ;;
+    "time")
+        show_time
+        ;;
+    "export")
+        export_certificate
+        ;;
+    [0-9]|1[0-8])
         if [ -z "$2" ]; then
             echo "Usage: verify [challenge_number] [flag]"
             exit 1
         fi
+        init_timer
         check_flag "$1" "$2"
         ;;
     *)
         echo "Usage:"
         echo "  verify [challenge_number] [flag] - Check a flag"
         echo "  verify progress - Show progress"
+        echo "  verify list     - List all challenges with status"
+        echo "  verify hint [n] - Show hint for challenge n"
+        echo "  verify time     - Show elapsed time"
+        echo "  verify export   - Export completion certificate"
         echo
         echo "Example: verify 0 CTF{example}"
         ;;
@@ -118,7 +299,7 @@ cat > /etc/motd << 'EOFMOTD'
 |  Learn To Cloud - Linux Command Line CTF    |
 +==============================================+
 
-Welcome! Here are 12 Progressive Linux Challenges.
+Welcome! Here are 18 Progressive Linux Challenges.
 Refer to the readme for information on each challenge.
 
 Once you find a flag, use our verify tool to check your answer
@@ -170,7 +351,24 @@ while true; do
 done
 EOF
 sudo chmod +x /usr/local/bin/secret_service.sh
-sudo nohup /usr/local/bin/secret_service.sh &
+
+# Create systemd service for Challenge 6
+cat > /etc/systemd/system/ctf-secret-service.service << 'EOF'
+[Unit]
+Description=CTF Secret Service Challenge
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/secret_service.sh
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now ctf-secret-service
 
 # Challenge 7: Encoding challenge
 echo "CTF{decoding_master}" | base64 | base64 > /home/ctf_user/ctf_challenges/encoded_flag.txt
@@ -197,7 +395,26 @@ done
 EOF
 
 sudo chmod +x /usr/local/bin/monitor_directory.sh
-sudo nohup /usr/local/bin/monitor_directory.sh > /var/log/monitor_directory.log 2>&1 &
+
+# Create systemd service for Challenge 10
+cat > /etc/systemd/system/ctf-monitor-directory.service << 'EOF'
+[Unit]
+Description=CTF Directory Monitor Challenge
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/monitor_directory.sh
+Restart=always
+RestartSec=1
+StandardOutput=append:/var/log/monitor_directory.log
+StandardError=append:/var/log/monitor_directory.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now ctf-monitor-directory
 
 # Challenge 11: Web Configuration
 sudo mkdir -p /var/www/html
@@ -208,7 +425,7 @@ sudo sed -i 's/listen \[::\]:80 default_server;/listen \[::\]:8083 default_serve
 sudo systemctl restart nginx
 
 # Challenge 12: Network traffic analysis
-sudo cat > /usr/local/bin/ping_message.sh << 'EOF'
+cat > /usr/local/bin/ping_message.sh << 'EOF'
 #!/bin/bash
 while true; do
     ping -p 4354467b6e65745f636861747d -c 1 127.0.0.1
@@ -217,7 +434,101 @@ done
 EOF
 
 sudo chmod +x /usr/local/bin/ping_message.sh
-sudo nohup /usr/local/bin/ping_message.sh > /var/log/ping_message.log 2>&1 &
+
+# Create systemd service for Challenge 12
+cat > /etc/systemd/system/ctf-ping-message.service << 'EOF'
+[Unit]
+Description=CTF Ping Message Challenge
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ping_message.sh
+Restart=always
+RestartSec=1
+StandardOutput=append:/var/log/ping_message.log
+StandardError=append:/var/log/ping_message.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now ctf-ping-message
+
+# Challenge 13: Cron Job Hunter
+cat > /etc/cron.d/ctf_secret_task << 'EOF'
+# CTF Challenge - Secret scheduled task
+# This task runs every minute but the flag is hidden here
+# FLAG: CTF{cron_task_master}
+* * * * * root /bin/true
+EOF
+sudo chmod 644 /etc/cron.d/ctf_secret_task
+
+# Challenge 14: Process Environment
+cat > /usr/local/bin/ctf_secret_process.sh << 'EOF'
+#!/bin/bash
+export CTF_SECRET_FLAG="CTF{env_variable_hunter}"
+while true; do
+    sleep 3600
+done
+EOF
+sudo chmod +x /usr/local/bin/ctf_secret_process.sh
+
+# Create systemd service for Challenge 14
+cat > /etc/systemd/system/ctf-secret-process.service << 'EOF'
+[Unit]
+Description=CTF Secret Process Challenge
+After=network.target
+
+[Service]
+Type=simple
+Environment="CTF_SECRET_FLAG=CTF{env_variable_hunter}"
+ExecStart=/usr/local/bin/ctf_secret_process.sh
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now ctf-secret-process
+
+# Challenge 15: Archive Archaeologist
+mkdir -p /tmp/ctf_archive_build
+echo "CTF{archive_explorer}" > /tmp/ctf_archive_build/flag.txt
+cd /tmp/ctf_archive_build
+tar -czf inner.tar.gz flag.txt
+tar -czf middle.tar.gz inner.tar.gz
+tar -czf /home/ctf_user/ctf_challenges/mystery_archive.tar.gz middle.tar.gz
+rm -rf /tmp/ctf_archive_build
+
+# Challenge 16: Symbolic Sleuth
+sudo mkdir -p /var/lib/ctf/secrets/deep/hidden
+echo "CTF{link_follower}" | sudo tee /var/lib/ctf/secrets/deep/hidden/final_flag.txt
+sudo ln -s /var/lib/ctf/secrets/deep/hidden/final_flag.txt /var/lib/ctf/secrets/deep/link3
+sudo ln -s /var/lib/ctf/secrets/deep/link3 /var/lib/ctf/secrets/link2
+sudo ln -s /var/lib/ctf/secrets/link2 /home/ctf_user/ctf_challenges/follow_me
+sudo chmod 755 /var/lib/ctf /var/lib/ctf/secrets /var/lib/ctf/secrets/deep /var/lib/ctf/secrets/deep/hidden
+sudo chmod 644 /var/lib/ctf/secrets/deep/hidden/final_flag.txt
+
+# Challenge 17: History Mystery
+sudo useradd -m -s /bin/bash old_admin 2>/dev/null || true
+sudo mkdir -p /home/old_admin
+echo "# Old admin command history" | sudo tee /home/old_admin/.bash_history
+echo "ls -la" | sudo tee -a /home/old_admin/.bash_history
+echo "cd /var/log" | sudo tee -a /home/old_admin/.bash_history
+echo "# Note to self: the secret flag is CTF{history_detective}" | sudo tee -a /home/old_admin/.bash_history
+echo "sudo systemctl restart nginx" | sudo tee -a /home/old_admin/.bash_history
+echo "exit" | sudo tee -a /home/old_admin/.bash_history
+sudo chown old_admin:old_admin /home/old_admin/.bash_history
+sudo chmod 644 /home/old_admin/.bash_history
+
+# Challenge 18: Disk Detective
+# Create a small file system image with a label containing the flag
+sudo dd if=/dev/zero of=/opt/ctf_disk.img bs=1M count=10
+sudo mkfs.ext4 -L "CTF{disk_detective}" /opt/ctf_disk.img
+sudo mkdir -p /mnt/ctf_disk
+# Note: The flag is in the filesystem label, viewable with blkid or e2label
 
 # Set permissions
 sudo chown -R ctf_user:ctf_user /home/ctf_user/ctf_challenges

@@ -123,7 +123,7 @@ resource "aws_instance" "ctf_instance" {
 
   associate_public_ip_address = true
 
-  user_data_base64 = base64encode(file("${path.module}/ctf_setup.sh"))
+  user_data_base64 = base64encode(file("${path.module}/../ctf_setup.sh"))
 
   tags = {
     Name = "CTF Lab Instance"

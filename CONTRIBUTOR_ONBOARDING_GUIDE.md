@@ -29,15 +29,18 @@ This guide provides a comprehensive list of questions that developers can use wi
 - **How many challenges are there in total and what skills do they test?**
 - **What is the flag format used throughout the challenges?**
 - **How does the verify command work for flag submission?**
-- **Which challenges depend on running services and can't survive a VM reboot?**
+- **What additional verify features are available (list, hint, time, export)?**
+- **How does the timer work and does it survive VM reboots?**
 - **What is the expected completion time for all challenges?**
 
 ## Code Analysis
 
 - **Show me the structure of the ctf_setup.sh script and explain the key sections**
 - **How are the CTF challenges deployed and configured on the target VM?**
+- **How do the systemd services work for challenges 6, 10, and 12?**
 - **What security measures are implemented to prevent cheating or unauthorized access?**
 - **How are the flags generated and hidden throughout the system?**
+- **How does the verify script track progress and elapsed time?**
 
 ## Development & Contribution
 
@@ -51,13 +54,15 @@ This guide provides a comprehensive list of questions that developers can use wi
 - **What are common issues users might face during setup and how to resolve them?**
 - **How can I debug issues with the Terraform deployment?**
 - **What logs should I check if challenges aren't working properly?**
+- **How do I check the status of the systemd services (ctf-secret-service, ctf-monitor-directory, ctf-ping-message)?**
 - **How do I clean up resources after completing the CTF?**
 
 ## Integration & Extension
 
 - **How could this CTF be integrated into a learning management system?**
 - **What would be required to add support for a new cloud provider (e.g., GCP)?**
-- **How could the verification system be enhanced to provide hints or partial credit?**
+- **How could the hint system be extended with more detailed hints or difficulty levels?**
+- **How does the export certificate feature work and how could it be enhanced?**
 - **Could this project be containerized using Docker? What would be the benefits?**
 
 ## Security & Best Practices

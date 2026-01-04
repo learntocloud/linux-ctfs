@@ -81,6 +81,10 @@ Type `yes` when prompted to confirm.
 
 This lab is designed for learning purposes and uses a password-based login for simplicity. In real-world scenarios, key-based authentication is recommended for better security.
 
+## Reboot Resilience
+
+This lab is designed to survive VM reboots. All background services use systemd and will automatically restart, and your progress is saved to disk. You can safely stop and restart the VM without losing your progress or breaking any challenges.
+
 ## Troubleshooting
 
 If you encounter any issues:

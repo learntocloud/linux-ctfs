@@ -92,7 +92,7 @@ resource "google_compute_instance" "ctf_instance" {
     # Metadata for the instance
   metadata = {
     enable-oslogin = "FALSE"
-    startup-script = file("${path.module}/ctf_setup.sh")
+    startup-script = file("${path.module}/../ctf_setup.sh")
   }
 
   # Service account for the instance

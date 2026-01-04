@@ -124,7 +124,7 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
     version   = "latest"
   }
 
-  custom_data = base64encode(file("${path.module}/ctf_setup.sh"))
+  custom_data = base64encode(file("${path.module}/../ctf_setup.sh"))
 }
 
 resource "null_resource" "wait_for_setup" {

@@ -7,7 +7,7 @@ This guide provides a comprehensive list of questions that developers can use wi
 - **What is the main purpose of this Linux CTF project and who is the target audience?**
 - **How is the project structured? What are the main directories and their purposes?**
 - **What cloud providers are supported for deploying this CTF environment?**
-- **What is the relationship between the main README.md and the provider-specific READMEs in aws/ and azure/ directories?**
+- **What is the relationship between the main README.md and the provider-specific READMEs in aws/, azure/, and gcp/ directories?**
 
 ## Technical Stack & Dependencies
 
@@ -19,7 +19,7 @@ This guide provides a comprehensive list of questions that developers can use wi
 ## Setup & Deployment
 
 - **Walk me through the setup process for deploying this CTF on AWS**
-- **What are the differences between the AWS and Azure deployment processes?**
+- **What are the differences between the AWS, Azure, and GCP deployment processes?**
 - **What does the ctf_setup.sh script do? Can you explain its main functions?**
 - **What Terraform resources are created by main.tf in each cloud provider?**
 - **How is user authentication handled for the CTF VM?**
@@ -37,7 +37,7 @@ This guide provides a comprehensive list of questions that developers can use wi
 
 - **Show me the structure of the ctf_setup.sh script and explain the key sections**
 - **How are the CTF challenges deployed and configured on the target VM?**
-- **How do the systemd services work for challenges 6, 10, and 12?**
+- **How do the systemd services work for challenges 6, 10, 12, and 14?**
 - **What security measures are implemented to prevent cheating or unauthorized access?**
 - **How are the flags generated and hidden throughout the system?**
 - **How does the verify script track progress and elapsed time?**
@@ -54,13 +54,13 @@ This guide provides a comprehensive list of questions that developers can use wi
 - **What are common issues users might face during setup and how to resolve them?**
 - **How can I debug issues with the Terraform deployment?**
 - **What logs should I check if challenges aren't working properly?**
-- **How do I check the status of the systemd services (ctf-secret-service, ctf-monitor-directory, ctf-ping-message)?**
+- **How do I check the status of the systemd services (ctf-secret-service, ctf-monitor-directory, ctf-ping-message, ctf-secret-process)?**
 - **How do I clean up resources after completing the CTF?**
 
 ## Integration & Extension
 
 - **How could this CTF be integrated into a learning management system?**
-- **What would be required to add support for a new cloud provider (e.g., GCP)?**
+- **How could this CTF be extended to support additional cloud providers or local Docker deployment?**
 - **How could the hint system be extended with more detailed hints or difficulty levels?**
 - **How does the export certificate feature work and how could it be enhanced?**
 - **Could this project be containerized using Docker? What would be the benefits?**

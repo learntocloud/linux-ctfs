@@ -124,7 +124,11 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
     version   = "latest"
   }
 
-  custom_data = base64encode(file("${path.module}/../ctf_setup.sh"))
+  custom_data = base64encode(<<-EOF
+    #!/bin/bash
+    curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/feature/ctf-v2-improvements/ctf_setup.sh | bash
+  EOF
+  )
 }
 
 resource "null_resource" "wait_for_setup" {

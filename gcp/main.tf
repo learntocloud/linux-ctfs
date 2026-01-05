@@ -92,7 +92,10 @@ resource "google_compute_instance" "ctf_instance" {
     # Metadata for the instance
   metadata = {
     enable-oslogin = "FALSE"
-    startup-script = file("${path.module}/../ctf_setup.sh")
+    startup-script = <<-EOF
+      #!/bin/bash
+      curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/feature/ctf-v2-improvements/ctf_setup.sh | bash
+    EOF
   }
 
   # Service account for the instance

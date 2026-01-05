@@ -24,8 +24,8 @@ Follow these steps to set up and access your CTF lab environment:
 1. Clone this repository to your local machine:
 
     ``` sh
-    git clone https://github.com/learntocloud/ltc-linux-challenge
-    cd ltc-linux-challenge/azure
+    git clone https://github.com/learntocloud/linux-ctfs
+    cd linux-ctfs/azure
     ```
 
 2. Log in to Azure using the Azure CLI:
@@ -80,6 +80,10 @@ Type `yes` when prompted to confirm.
 ## Security Note
 
 This lab is designed for learning purposes and uses a password-based login for simplicity. In real-world scenarios, key-based authentication is recommended for better security.
+
+## Reboot Resilience
+
+This lab is designed to survive VM reboots. All background services use systemd and will automatically restart, and your progress is saved to disk. You can safely stop and restart the VM without losing your progress or breaking any challenges.
 
 ## Troubleshooting
 

@@ -9,14 +9,44 @@ This set of progressive Capture The Flag (CTF) challenges will test your Linux c
 
 Submit flags using the `verify` command:
 
-- Check progress: `verify progress`
-- Submit a flag: `verify [challenge_number] [flag]`
+| Command | Description |
+|---------|-------------|
+| `verify progress` | Show your current progress (completed/total challenges) |
+| `verify [num] [flag]` | Submit a flag for challenge number `num` |
+| `verify list` | List all challenges with completion status |
+| `verify hint [num]` | Show a hint for challenge number `num` |
+| `verify time` | Show elapsed time since you started |
+| `verify export` | Export a completion certificate (when all challenges are done) |
 
 Try the command and capture first flag: `verify 0 CTF{example}`
 
 ``` sh
 ctf_user@ctf-vm:~$ verify 0 CTF{example}
 ✓ Test flag verified! Now try finding real flags.
+```
+
+### Example Commands
+
+``` sh
+# Check your overall progress
+ctf_user@ctf-vm:~$ verify progress
+Progress: 5/18 challenges completed
+
+# List all challenges with status
+ctf_user@ctf-vm:~$ verify list
+[✓] 0. Test Challenge
+[✓] 1. The Hidden File
+[ ] 2. The Secret File
+...
+
+# Get a hint for challenge 3
+ctf_user@ctf-vm:~$ verify hint 3
+Hint for Challenge 3 (The Largest Log):
+Identify a very large file by inspecting file details...
+
+# Check elapsed time
+ctf_user@ctf-vm:~$ verify time
+Elapsed time: 1h 23m 45s
 ```
 
 ## Environment Setup
@@ -29,7 +59,18 @@ Follow the setup guide for your preferred cloud provider:
 
 ## Challenges
 
-NOTE: You should be able to complete all challenges in about 2 to 3 hours. The lab is intentionally made to be done in one go. If you power off the VM and power it back on, certain challenges (specifically challenges 6, 10, 11, and 12) will not work properly as they depend on running services.
+> **Note:** You should be able to complete all challenges in about 3 to 4 hours.
+
+### Reboot Resilience
+
+This lab is designed to survive VM reboots:
+- **Progress is saved** - Your completed challenges are persisted to disk
+- **Services auto-restart** - Background services (challenges 6, 10, 12) use systemd and will automatically restart after a reboot
+- **Timer uses wall-clock time** - The elapsed time tracks real-world time from when you first logged in, so it continues correctly even after a reboot
+
+You can safely reboot the VM if needed without losing your progress or breaking any challenges.
+
+> **Note:** The timer tracks real-world elapsed time, not VM uptime. If you shut down the VM overnight and start it again the next day, that time will be counted. Plan to complete the challenges in one session if you want an accurate completion time.
 
 ### Challenge 1: The Hidden File
 
@@ -115,10 +156,55 @@ Someone is sending secret messages via ping packets.
 - **Skills**: Network dumps, packet inspection, decoding
 - **Hint**: Utilize general network analysis techniques to inspect traffic and search for concealed information. Check all interfaces and protocols.
 
+### Challenge 13: Cron Job Hunter
+
+A scheduled task contains a hidden flag. Find and read it.
+
+- **Skills**: Cron job management, system scheduling, task automation
+- **Hint**: Cron jobs can be scheduled by different users and stored in various locations. Check system-wide cron directories and user-specific crontabs.
+
+### Challenge 14: Process Environment
+
+A running process has a secret stored in its environment. Extract it.
+
+- **Skills**: Process inspection, environment variables, /proc filesystem
+- **Hint**: Every running process has environment variables. Explore how Linux exposes process information through a special filesystem.
+
+### Challenge 15: Archive Archaeologist
+
+A flag is buried inside nested archives. Dig it out.
+
+- **Skills**: Archive extraction, tar/gzip handling, file compression
+- **Hint**: Archives can contain other archives. You may need to extract multiple layers to find what you're looking for.
+
+### Challenge 16: Symbolic Sleuth
+
+Follow the trail of symbolic links to find the flag.
+
+- **Skills**: Symbolic links, file system navigation, link resolution
+- **Hint**: Symbolic links can point to other links. Use commands that help you trace where links ultimately lead.
+
+### Challenge 17: History Mystery
+
+Someone typed a flag in their command history. Find it.
+
+- **Skills**: Bash history, command-line forensics, user activity tracking
+- **Hint**: Command history is often stored in hidden files in user home directories. Multiple users may have history files.
+
+### Challenge 18: Disk Detective
+
+A flag is hidden in filesystem metadata. Investigate mounted filesystems.
+
+- **Skills**: Disk management, mount points, filesystem labels
+- **Hint**: Filesystems have labels and metadata beyond just file contents. Check how disks are mounted and what information they expose.
+
 ## Tips
 
 1. Use `man` pages to understand command options.
 2. Experiment with different approaches, combining commands and piping output.
+3. Use `verify list` to see all challenges and track which ones you've completed.
+4. Stuck on a challenge? Use `verify hint [num]` to get a helpful hint.
+5. Use `verify time` to track how long you've been working.
 
 ## [License](LICENSE)
 

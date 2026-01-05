@@ -24,8 +24,8 @@ Follow these steps to set up and access your CTF lab environment:
 1. Clone this repository to your local machine:
 
     ``` sh
-    git clone https://github.com/learntocloud/ltc-linux-challenge
-    cd ltc-linux-challenge/azure
+    git clone https://github.com/learntocloud/linux-ctfs
+    cd linux-ctfs/azure
     ```
 
 2. Log in to Azure using the Azure CLI:

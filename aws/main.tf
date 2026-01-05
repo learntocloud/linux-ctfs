@@ -125,7 +125,7 @@ resource "aws_instance" "ctf_instance" {
 
   user_data_base64 = base64encode(<<-EOF
     #!/bin/bash
-    curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/feature/ctf-v2-improvements/ctf_setup.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/main/ctf_setup.sh | bash
   EOF
   )
 

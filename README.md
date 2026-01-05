@@ -30,7 +30,7 @@ ctf_user@ctf-vm:~$ verify 0 CTF{example}
 ``` sh
 # Check your overall progress
 ctf_user@ctf-vm:~$ verify progress
-Progress: 3/12 challenges completed
+Progress: 5/18 challenges completed
 
 # List all challenges with status
 ctf_user@ctf-vm:~$ verify list

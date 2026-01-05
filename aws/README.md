@@ -16,8 +16,8 @@ Follow these steps to set up and access your CTF lab environment:
 1. Clone this repository to your local machine:
 
     ``` sh
-    git clone https://github.com/learntocloud/ltc-linux-challenge
-    cd ltc-linux-challenge/aws
+    git clone https://github.com/learntocloud/linux-ctfs
+    cd linux-ctfs/aws
     ```
 
 2. (Optional) Modify the AWS region:

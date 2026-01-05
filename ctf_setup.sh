@@ -4,9 +4,17 @@
 sudo apt update
 sudo apt install -y net-tools nmap tree nginx inotify-tools
 
+# Create CTF user (if not exists)
+if ! id "ctf_user" &>/dev/null; then
+    sudo useradd -m -s /bin/bash ctf_user
+    echo 'ctf_user:CTFpassword123!' | sudo chpasswd
+    sudo usermod -aG sudo ctf_user
+fi
+
 # SSH configuration
 sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
 sudo sed -i 's/ChallengeResponseAuthentication no/ChallengeResponseAuthentication yes/' /etc/ssh/sshd_config
+sudo sed -i 's/KbdInteractiveAuthentication no/KbdInteractiveAuthentication yes/' /etc/ssh/sshd_config
 sudo systemctl restart ssh
 
 # Create challenge directory

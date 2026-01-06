@@ -38,7 +38,7 @@ Follow these steps to set up and access your CTF lab environment:
 
     When prompted, type `yes` to confirm.
 
-5. After the apply completes, note the `ctf_instance_public_ip` output. You'll use this to connect to your lab environment.
+5. After the apply completes, note the `public_ip_address` output. You'll use this to connect to your lab environment.
 ![Terraform Apply output](./images/terraform-apply.png)
 
 ## Accessing the Lab Environment
@@ -48,7 +48,7 @@ To access your lab environment:
 1. Use SSH to connect to the EC2 instance:
 
     ``` sh
-      ssh ctf_user@<ctf_instance_public_ip>
+      ssh ctf_user@<public_ip_address>
     ```
 
 2. When prompted for a password, enter: `CTFpassword123!`

@@ -132,7 +132,7 @@ resource "null_resource" "wait_for_setup" {
 }
 
 # Output the public IP address
-output "ctf_instance_public_ip" {
+output "public_ip_address" {
   value = google_compute_instance.ctf_instance.network_interface[0].access_config[0].nat_ip
   depends_on = [null_resource.wait_for_setup]
 }

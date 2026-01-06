@@ -17,6 +17,12 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Compress the setup script to fit within AWS user_data limit (16KB limit for base64)
+data "external" "compressed_setup" {
+  count   = var.use_local_setup ? 1 : 0
+  program = ["bash", "-c", "jq -n --arg data \"$(gzip -c ${path.module}/../ctf_setup.sh | base64)\" '{compressed: $data}'"]
+}
+
 # Fetch availability zones
 data "aws_availability_zones" "available" {
   state = "available"
@@ -144,7 +150,8 @@ resource "aws_instance" "ctf_instance" {
   associate_public_ip_address = true
 
   # Use local file for testing, GitHub for production
-  user_data_base64 = var.use_local_setup ? base64encode(file("${path.module}/../ctf_setup.sh")) : base64encode(<<-EOF
+  # AWS supports gzip-compressed user_data (cloud-init auto-decompresses)
+  user_data_base64 = var.use_local_setup ? data.external.compressed_setup[0].result.compressed : base64encode(<<-EOF
     #!/bin/bash
     curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/main/ctf_setup.sh | bash
   EOF
@@ -174,6 +181,6 @@ resource "null_resource" "wait_for_setup" {
 }
 
 # Output the public IP of the instance
-output "ctf_instance_public_ip" {
+output "public_ip_address" {
   value = aws_instance.ctf_instance.public_ip
 }

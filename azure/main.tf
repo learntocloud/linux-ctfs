@@ -139,6 +139,7 @@ resource "null_resource" "wait_for_setup" {
       host     = azurerm_linux_virtual_machine.ctf_vm.public_ip_address
       user     = "ctf_user"
       password = "CTFpassword123!"
+      timeout  = "10m"
     }
     
     inline = [

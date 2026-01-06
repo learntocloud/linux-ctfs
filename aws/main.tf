@@ -143,6 +143,7 @@ resource "null_resource" "wait_for_setup" {
       host     = aws_instance.ctf_instance.public_ip
       user     = "ctf_user"
       password = "CTFpassword123!"
+      timeout  = "10m"
     }
     
     inline = [

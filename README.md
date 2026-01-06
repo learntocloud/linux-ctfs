@@ -16,7 +16,7 @@ Submit flags using the `verify` command:
 | `verify list` | List all challenges with completion status |
 | `verify hint [num]` | Show a hint for challenge number `num` |
 | `verify time` | Show elapsed time since you started |
-| `verify export` | Export a completion certificate (when all challenges are done) |
+| `verify export <name>` | Export a completion certificate (when all challenges are done) |
 
 Try the command and capture first flag: `verify 0 CTF{example}`
 

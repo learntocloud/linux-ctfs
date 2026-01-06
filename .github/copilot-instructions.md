@@ -57,4 +57,4 @@ Users interact with challenges using the `verify` command on the VM:
 | `verify list` | List all challenges |
 | `verify hint [num]` | Get a hint (encourage this!) |
 | `verify time` | Show elapsed time |
-| `verify export` | Export completion certificate |
+| `verify export <name>` | Export completion certificate |

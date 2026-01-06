@@ -180,6 +180,13 @@ show_hint() {
 }
 
 export_certificate() {
+    if [ -z "$1" ]; then
+        echo "Usage: verify export <name>"
+        echo "Example: verify export John Doe"
+        return 1
+    fi
+    local custom_name="$1"
+    
     local completed=0
     if [ -f ~/.completed_challenges ]; then
         completed=$(sort -u ~/.completed_challenges | wc -l)
@@ -203,6 +210,11 @@ export_certificate() {
     fi
     
     local cert_file=~/ctf_certificate_$(date +%Y%m%d_%H%M%S).txt
+    local name_display="$custom_name"
+    local name_len=${#name_display}
+    local padding=$((30 - name_len))
+    if [ $padding -lt 0 ]; then padding=0; fi
+    
     cat > "$cert_file" << CERTEOF
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
@@ -213,7 +225,7 @@ export_certificate() {
 ║                                                            ║
 ║  This certifies that                                       ║
 ║                                                            ║
-║              $(whoami)$(printf '%*s' $((30 - ${#$(whoami)})) '')                        ║
+║              ${name_display}$(printf '%*s' ${padding} '')                        ║
 ║                                                            ║
 ║  has successfully completed all 18 Linux CTF challenges    ║
 ║                                                            ║
@@ -253,7 +265,8 @@ case "$1" in
         show_time
         ;;
     "export")
-        export_certificate
+        shift
+        export_certificate "$*"
         ;;
     [0-9]|1[0-8])
         if [ -z "$2" ]; then
@@ -270,7 +283,7 @@ case "$1" in
         echo "  verify list     - List all challenges with status"
         echo "  verify hint [n] - Show hint for challenge n"
         echo "  verify time     - Show elapsed time"
-        echo "  verify export   - Export completion certificate"
+        echo "  verify export <name> - Export completion certificate with your name"
         echo
         echo "Example: verify 0 CTF{example}"
         ;;

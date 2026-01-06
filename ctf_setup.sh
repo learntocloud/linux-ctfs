@@ -1,8 +1,20 @@
 #!/bin/bash
 
 # System setup
-sudo apt update
-sudo apt install -y net-tools nmap tree nginx inotify-tools
+sudo apt-get update
+sudo apt-get install -y net-tools nmap tree nginx inotify-tools figlet lolcat
+
+# Disable default Ubuntu MOTD
+sudo chmod -x /etc/update-motd.d/00-header 2>/dev/null || true
+sudo chmod -x /etc/update-motd.d/10-help-text 2>/dev/null || true
+sudo chmod -x /etc/update-motd.d/50-motd-news 2>/dev/null || true
+sudo chmod -x /etc/update-motd.d/50-landscape-sysinfo 2>/dev/null || true
+sudo chmod -x /etc/update-motd.d/80-esm 2>/dev/null || true
+sudo chmod -x /etc/update-motd.d/80-livepatch 2>/dev/null || true
+sudo chmod -x /etc/update-motd.d/90-updates-available 2>/dev/null || true
+sudo chmod -x /etc/update-motd.d/91-release-upgrade 2>/dev/null || true
+sudo chmod -x /etc/update-motd.d/92-unattended-upgrades 2>/dev/null || true
+sudo chmod -x /etc/update-motd.d/95-hwe-eol 2>/dev/null || true
 
 # Create CTF user (if not exists)
 if ! id "ctf_user" &>/dev/null; then
@@ -10,6 +22,9 @@ if ! id "ctf_user" &>/dev/null; then
     echo 'ctf_user:CTFpassword123!' | sudo chpasswd
     sudo usermod -aG sudo ctf_user
 fi
+
+# Fix for unknown terminal types (e.g., ghostty)
+echo 'case "$TERM" in *-ghostty) export TERM=xterm-256color;; esac' | sudo tee /etc/profile.d/fix-term.sh > /dev/null
 
 # SSH configuration
 sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
@@ -210,45 +225,69 @@ export_certificate() {
     fi
     
     local cert_file=~/ctf_certificate_$(date +%Y%m%d_%H%M%S).txt
-    local name_display="$custom_name"
-    local name_len=${#name_display}
-    local padding=$((30 - name_len))
-    if [ $padding -lt 0 ]; then padding=0; fi
     
+    # Display fancy certificate to terminal
+    echo ""
+    echo "============================================================" | lolcat
+    echo "         LEARN TO CLOUD - CTF COMPLETION CERTIFICATE        " | lolcat
+    echo "============================================================" | lolcat
+    echo ""
+    echo "  This certifies that"
+    echo ""
+    figlet -c "$custom_name" | lolcat
+    echo ""
+    echo "  has successfully completed all 18 Linux CTF challenges"
+    echo ""
+    echo "  Completion Time: $completion_time"
+    echo "  Date: $(date +%Y-%m-%d)"
+    echo ""
+    echo "  Challenges Completed:"
+    echo "   * Hidden File Discovery      * Service Discovery"
+    echo "   * Basic File Search          * Encoding Challenge"
+    echo "   * Log Analysis               * SSH Secrets"
+    echo "   * User Investigation         * DNS Troubleshooting"
+    echo "   * Permission Analysis        * Remote Upload Detection"
+    echo "   * Web Configuration          * Network Traffic Analysis"
+    echo "   * Cron Job Hunter            * Process Environment"
+    echo "   * Archive Archaeologist      * Symbolic Sleuth"
+    echo "   * History Mystery            * Disk Detective"
+    echo ""
+    echo "============================================================" | lolcat
+    echo "                 🎉 Congratulations! 🎉                      " | lolcat
+    echo "============================================================" | lolcat
+    
+    # Save plain text version to file
     cat > "$cert_file" << CERTEOF
-╔════════════════════════════════════════════════════════════╗
-║                                                            ║
-║            LEARN TO CLOUD - CTF COMPLETION                 ║
-║                    CERTIFICATE                             ║
-║                                                            ║
-╠════════════════════════════════════════════════════════════╣
-║                                                            ║
-║  This certifies that                                       ║
-║                                                            ║
-║              ${name_display}$(printf '%*s' ${padding} '')                        ║
-║                                                            ║
-║  has successfully completed all 18 Linux CTF challenges    ║
-║                                                            ║
-║  Completion Time: ${completion_time}                                    ║
-║  Date: $(date +%Y-%m-%d)                                          ║
-║                                                            ║
-║  Challenges Completed:                                     ║
-║   ✓ Hidden File Discovery      ✓ Service Discovery        ║
-║   ✓ Basic File Search          ✓ Encoding Challenge       ║
-║   ✓ Log Analysis               ✓ SSH Secrets              ║
-║   ✓ User Investigation         ✓ DNS Troubleshooting      ║
-║   ✓ Permission Analysis        ✓ Remote Upload Detection  ║
-║   ✓ Web Configuration          ✓ Network Traffic Analysis ║
-║   ✓ Cron Job Hunter            ✓ Process Environment      ║
-║   ✓ Archive Archaeologist      ✓ Symbolic Sleuth          ║
-║   ✓ History Mystery            ✓ Disk Detective           ║
-║                                                            ║
-║                    Congratulations!                        ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
+============================================================
+         LEARN TO CLOUD - CTF COMPLETION CERTIFICATE
+============================================================
+
+  This certifies that
+
+              $custom_name
+
+  has successfully completed all 18 Linux CTF challenges
+
+  Completion Time: $completion_time
+  Date: $(date +%Y-%m-%d)
+
+  Challenges Completed:
+   * Hidden File Discovery      * Service Discovery
+   * Basic File Search          * Encoding Challenge
+   * Log Analysis               * SSH Secrets
+   * User Investigation         * DNS Troubleshooting
+   * Permission Analysis        * Remote Upload Detection
+   * Web Configuration          * Network Traffic Analysis
+   * Cron Job Hunter            * Process Environment
+   * Archive Archaeologist      * Symbolic Sleuth
+   * History Mystery            * Disk Detective
+
+============================================================
+                    Congratulations!
+============================================================
 CERTEOF
+    echo ""
     echo "Certificate exported to: $cert_file"
-    cat "$cert_file"
 }
 
 case "$1" in

@@ -12,6 +12,12 @@ variable "subscription_id" {
   type = string
 }
 
+variable "use_local_setup" {
+  description = "Use local ctf_setup.sh instead of fetching from GitHub (for testing)"
+  type        = bool
+  default     = false
+}
+
 provider "azurerm" {
   features {}
   subscription_id = var.subscription_id
@@ -76,6 +82,30 @@ resource "azurerm_network_security_group" "ctf_nsg" {
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
+
+  security_rule {
+    name                       = "CTF-Service"
+    priority                   = 1003
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8080"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "CTF-Nginx"
+    priority                   = 1004
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8083"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
 }
 
 # Create a network interface
@@ -124,7 +154,8 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
     version   = "latest"
   }
 
-  custom_data = base64encode(<<-EOF
+  # Use local file for testing, GitHub for production
+  custom_data = var.use_local_setup ? base64encode(file("${path.module}/../ctf_setup.sh")) : base64encode(<<-EOF
     #!/bin/bash
     curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/main/ctf_setup.sh | bash
   EOF

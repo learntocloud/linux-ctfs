@@ -1,0 +1,8 @@
+# Test files contain solutions - keep local only
+tests/
+
+# Terraform state files (already in subdirectory .gitignores)
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl

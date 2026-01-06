@@ -89,7 +89,7 @@ CHALLENGE_HINTS=(
     "Archives can be nested. Use 'tar -xzf' or 'gunzip' to extract layers. Check file types with 'file' command."
     "Symlinks can chain together. Use 'readlink -f' to find the final target, or 'ls -la' to see link targets."
     "Bash stores command history in ~/.bash_history. Other users may have history files too."
-    "Filesystem metadata includes labels. Check 'lsblk', 'blkid', or look at mount options in /etc/fstab."
+    "A disk image file exists on the system. Try mounting it with 'sudo mount -o loop <image> <mountpoint>' to explore its contents."
 )
 
 START_TIME_FILE=~/.ctf_start_time
@@ -333,9 +333,12 @@ echo "CTF{size_matters_in_linux}" | sudo tee -a /var/log/large_log_file.log
 sudo chown ctf_user:ctf_user /var/log/large_log_file.log
 
 # Challenge 4: User investigation
-sudo useradd -u 1002 -m flag_user
-echo "CTF{user_enumeration_expert}" | sudo tee /home/flag_user/.profile
-sudo chown flag_user:flag_user /home/flag_user/.profile
+sudo useradd -u 1002 -m flag_user 2>/dev/null || true
+sudo mkdir -p /home/flag_user
+echo "CTF{user_enumeration_expert}" | sudo tee /home/flag_user/.profile > /dev/null
+sudo chown -R flag_user:flag_user /home/flag_user
+sudo chmod 755 /home/flag_user
+sudo chmod 644 /home/flag_user/.profile
 
 # Challenge 5: Permission analysis
 sudo mkdir -p /opt/systems/config
@@ -347,7 +350,7 @@ sudo chmod 777 /opt/systems/config/system.conf
 cat > /usr/local/bin/secret_service.sh << 'EOF'
 #!/bin/bash
 while true; do
-    echo -e "HTTP/1.1 200 OK\n\nCTF{network_detective}" | nc -l -p 8080
+    echo -e "HTTP/1.1 200 OK\r\nContent-Length: 22\r\nConnection: close\r\n\r\nCTF{network_detective}" | nc -l -q 1 8080
 done
 EOF
 sudo chmod +x /usr/local/bin/secret_service.sh
@@ -388,9 +391,15 @@ sudo sed -i '/^nameserver/s/$/CTF{dns_name}/' /etc/resolv.conf
 cat > /usr/local/bin/monitor_directory.sh << 'EOF'
 #!/bin/bash
 DIRECTORY="/home/ctf_user/ctf_challenges"
+# Pre-create the trigger file location
+touch /tmp/.ctf_upload_triggered 2>/dev/null || true
+chmod 666 /tmp/.ctf_upload_triggered 2>/dev/null || true
 inotifywait -m -e create --format '%f' "$DIRECTORY" | while read FILE
 do
     echo "A new file named $FILE has been added to $DIRECTORY. Here is your flag: CTF{network_copy}" | wall
+    # Also write flag to file for automated testing
+    echo "CTF{network_copy}" > /tmp/.ctf_upload_triggered
+    sync
 done
 EOF
 
@@ -475,6 +484,7 @@ EOF
 sudo chmod +x /usr/local/bin/ctf_secret_process.sh
 
 # Create systemd service for Challenge 14
+# Run as ctf_user so they can read /proc/PID/environ
 cat > /etc/systemd/system/ctf-secret-process.service << 'EOF'
 [Unit]
 Description=CTF Secret Process Challenge
@@ -482,6 +492,8 @@ After=network.target
 
 [Service]
 Type=simple
+User=ctf_user
+Group=ctf_user
 Environment="CTF_SECRET_FLAG=CTF{env_variable_hunter}"
 ExecStart=/usr/local/bin/ctf_secret_process.sh
 Restart=always
@@ -514,21 +526,28 @@ sudo chmod 644 /var/lib/ctf/secrets/deep/hidden/final_flag.txt
 # Challenge 17: History Mystery
 sudo useradd -m -s /bin/bash old_admin 2>/dev/null || true
 sudo mkdir -p /home/old_admin
-echo "# Old admin command history" | sudo tee /home/old_admin/.bash_history
-echo "ls -la" | sudo tee -a /home/old_admin/.bash_history
-echo "cd /var/log" | sudo tee -a /home/old_admin/.bash_history
-echo "# Note to self: the secret flag is CTF{history_detective}" | sudo tee -a /home/old_admin/.bash_history
-echo "sudo systemctl restart nginx" | sudo tee -a /home/old_admin/.bash_history
-echo "exit" | sudo tee -a /home/old_admin/.bash_history
-sudo chown old_admin:old_admin /home/old_admin/.bash_history
+cat << 'HISTEOF' | sudo tee /home/old_admin/.bash_history > /dev/null
+# Old admin command history
+ls -la
+cd /var/log
+# Note to self: the secret flag is CTF{history_detective}
+sudo systemctl restart nginx
+exit
+HISTEOF
+sudo chown -R old_admin:old_admin /home/old_admin
+sudo chmod 755 /home/old_admin
 sudo chmod 644 /home/old_admin/.bash_history
 
 # Challenge 18: Disk Detective
-# Create a small file system image with a label containing the flag
+# Create a small file system image with the flag stored inside
 sudo dd if=/dev/zero of=/opt/ctf_disk.img bs=1M count=10
-sudo mkfs.ext4 -L "CTF{disk_detective}" /opt/ctf_disk.img
+sudo mkfs.ext4 -L "ctf_disk" /opt/ctf_disk.img
 sudo mkdir -p /mnt/ctf_disk
-# Note: The flag is in the filesystem label, viewable with blkid or e2label
+# Mount the image, create flag file, then unmount
+sudo mount -o loop /opt/ctf_disk.img /mnt/ctf_disk
+echo "CTF{disk_detective}" | sudo tee /mnt/ctf_disk/.flag > /dev/null
+sudo umount /mnt/ctf_disk
+# The flag is hidden inside the filesystem image - mount it to find it!
 
 # Set permissions
 sudo chown -R ctf_user:ctf_user /home/ctf_user/ctf_challenges
@@ -537,6 +556,12 @@ sudo chown -R ctf_user:ctf_user /home/ctf_user/ctf_challenges
 sudo sed -i 's/#session    optional     pam_motd.so/session    optional     pam_motd.so/' /etc/pam.d/login
 sudo sed -i 's/#session    optional     pam_motd.so/session    optional     pam_motd.so/' /etc/pam.d/sshd
 sudo systemctl restart ssh
+
+# Fix hostname resolution for sudo
+HOSTNAME=$(hostname)
+if ! grep -q "$HOSTNAME" /etc/hosts; then
+    echo "127.0.0.1 $HOSTNAME" | sudo tee -a /etc/hosts > /dev/null
+fi
 
 # Mark setup as complete
 touch /var/log/setup_complete

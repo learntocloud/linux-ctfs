@@ -6,6 +6,12 @@ variable "aws_region" {
   default     = "us-east-1"  # Default region if not specified
 }
 
+variable "use_local_setup" {
+  description = "Use local ctf_setup.sh instead of fetching from GitHub (for testing)"
+  type        = bool
+  default     = false
+}
+
 # Configure the AWS Provider with the variable region
 provider "aws" {
   region = var.aws_region
@@ -85,6 +91,20 @@ resource "aws_security_group" "ctf_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 8083
+    to_port     = 8083
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -123,7 +143,8 @@ resource "aws_instance" "ctf_instance" {
 
   associate_public_ip_address = true
 
-  user_data_base64 = base64encode(<<-EOF
+  # Use local file for testing, GitHub for production
+  user_data_base64 = var.use_local_setup ? base64encode(file("${path.module}/../ctf_setup.sh")) : base64encode(<<-EOF
     #!/bin/bash
     curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/main/ctf_setup.sh | bash
   EOF

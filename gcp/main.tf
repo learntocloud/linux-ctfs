@@ -16,6 +16,12 @@ variable "gcp_zone" {
   default     = "us-central1-a"
 }
 
+variable "use_local_setup" {
+  description = "Use local ctf_setup.sh instead of fetching from GitHub (for testing)"
+  type        = bool
+  default     = false
+}
+
 # Configure the Google Cloud Provider
 provider "google" {
   project = var.gcp_project
@@ -90,9 +96,10 @@ resource "google_compute_instance" "ctf_instance" {
   }
 
     # Metadata for the instance
+  # Use local file for testing, GitHub for production
   metadata = {
     enable-oslogin = "FALSE"
-    startup-script = <<-EOF
+    startup-script = var.use_local_setup ? file("${path.module}/../ctf_setup.sh") : <<-EOF
       #!/bin/bash
       curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/main/ctf_setup.sh | bash
     EOF

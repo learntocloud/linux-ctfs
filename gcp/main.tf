@@ -115,7 +115,7 @@ resource "null_resource" "wait_for_setup" {
       host     = google_compute_instance.ctf_instance.network_interface[0].access_config[0].nat_ip
       user     = "ctf_user"
       password = "CTFpassword123!"
-      timeout  = "5m"
+      timeout  = "10m"
     }
     
     inline = [

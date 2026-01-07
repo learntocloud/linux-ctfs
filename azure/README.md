@@ -1,98 +1,74 @@
 # Linux Command Line CTF Lab - Azure
 
-Welcome to the Linux Command Line Capture The Flag (CTF) lab on Microsoft Azure! This project sets up a learning environment where you can practice your Linux command line skills by solving various challenges.
-
 ## Prerequisites
 
-Before you begin, ensure you have the following installed and configured on your local machine:
-
-1. [Terraform](https://developer.hashicorp.com/terraform/install) (version 1.9.0 or later)
+1. [Terraform](https://developer.hashicorp.com/terraform/install) (v1.9.0 or later)
 2. [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
 3. An Azure account with an active subscription
 
-## How much it's going to cost
-
-If you leave this lab running, it's going to cost you $8/month, as it is running `Standard B1s` VM in Azure. Use the `terraform destroy` command to clean resources, once completed with CTFs.
-
 > [!NOTE]  
-> You might encounter an error, if your Azure account is a Student account, please look at [this work aroud.](https://github.com/g-now-zero/l2c-guides/blob/main/posts/ctf-azure-spot-instances-guide.md)
+> If you have an Azure Student account, you may encounter errors. See [this workaround](https://github.com/g-now-zero/l2c-guides/blob/main/posts/ctf-azure-spot-instances-guide.md).
 
 ## Getting Started
 
-Follow these steps to set up and access your CTF lab environment:
+1. Clone this repository:
 
-1. Clone this repository to your local machine:
-
-    ``` sh
+    ```sh
     git clone https://github.com/learntocloud/linux-ctfs
     cd linux-ctfs/azure
     ```
 
-2. Log in to Azure using the Azure CLI:
+2. Log in to Azure:
 
-    ``` sh
+    ```sh
     az login
     ```
 
-3. Initialize Terraform:
+3. Initialize and apply Terraform:
 
-    ``` sh
+    ```sh
     terraform init
+    terraform apply \
+      -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID" \
+      -var az_region="YOUR_AZURE_REGION"
     ```
 
-4. Apply the Terraform configuration:
+    Replace the values with your subscription ID and preferred region (defaults to East US).
 
-    ``` sh
-    terraform apply \
-    -var az_region="YOUR_AZURE_REGION" \
-    -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID"
-   ```
+    Type `yes` when prompted.
 
-   Replace `YOUR_AZURE_REGION` with Azure Region and `YOUR_AZURE_SUBSCRIPTION_ID` with Azure Subscription that you want to use, by default it uses East US.
+4. Note the `public_ip_address` output—you'll use this to connect.
 
-   When prompted, type `yes` to confirm.
+## Accessing the Lab
 
-5. After the apply completes, note the `public_ip_address` output. You'll use this to connect to your lab environment.
-![Terraform Apply](./images/terraform-apply.png)
+1. Connect via SSH:
 
-## Accessing the Lab Environment
-
-To access your lab environment:
-
-1. Use SSH to connect to the Azure VM as the CTF user:
-
-    ``` sh
+    ```sh
     ssh ctf_user@<public_ip_address>
     ```
 
-2. When prompted for a password, enter: `CTFpassword123!`
-3. Once logged in, you'll see a welcome message with instructions for your first challenge.
-![SSH into the instance](./images/ssh-screenshot.png)
+1. On first login you will be asked if you want to add fingerprints to the known hosts file; type `yes` and press Enter.
+
+1. When prompted, enter the password: `CTFpassword123!`
 
 ## Cleaning Up
 
-When you're done with the lab, don't forget to destroy the Azure resources to avoid unnecessary charges:
+Destroy the resources when you're done to avoid charges:
 
-`terraform destroy`
+```sh
+terraform destroy
+```
 
-Type `yes` when prompted to confirm.
-
-## Security Note
-
-This lab is designed for learning purposes and uses a password-based login for simplicity. In real-world scenarios, key-based authentication is recommended for better security.
-
-## Reboot Resilience
-
-This lab is designed to survive VM reboots. All background services use systemd and will automatically restart, and your progress is saved to disk. You can safely stop and restart the VM without losing your progress or breaking any challenges.
+Type `yes` when prompted.
 
 ## Troubleshooting
 
-If you encounter any issues:
-
-1. Ensure your Azure CLI is correctly configured with your credentials.
-2. Check that you're using a compatible Terraform version.
-3. Verify that you have the necessary Azure permissions to create the required resources.
+1. Ensure your Azure CLI is logged in with valid credentials
+2. Check that you're using Terraform v1.9.0 or later
+3. Verify you have permissions to create VMs, VNets, and Network Security Groups
 
 If problems persist, please open an issue in this repository.
 
-Happy learning, and good luck with your CTF challenges!
+## Security Note
+
+This lab uses password authentication for simplicity. In production, use key-based authentication.

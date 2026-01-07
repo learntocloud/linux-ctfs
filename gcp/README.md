@@ -1,97 +1,75 @@
 # Linux Command Line CTF Lab - GCP
 
-Welcome to the Linux Command Line Capture The Flag (CTF) lab on Google Cloud! This project sets up a learning environment where you can practice your Linux command line skills by solving various challenges.
-
 ## Prerequisites
 
-Before you begin, ensure you have the following installed and configured on your local machine:
-
-1. [Terraform](https://developer.hashicorp.com/terraform/install) (version 1.9.0 or later)
+1. [Terraform](https://developer.hashicorp.com/terraform/install) (v1.9.0 or later)
 2. [gcloud CLI](https://cloud.google.com/sdk/docs/install)
-3. A Google Cloud account with an active project and billing enabled
-
-## How much it's going to cost
-
-If you leave this lab running, it's going to cost you approximately $6-7/month, as it is running an `e2-micro` instance in GCP. Use the `terraform destroy` command to clean up resources once you've completed the CTFs.
+3. A Google Cloud account with a project and billing enabled
 
 ## Getting Started
 
-Follow these steps to set up and access your CTF lab environment:
+1. Clone this repository:
 
-1. Clone this repository to your local machine:
-
-    ``` sh
+    ```sh
     git clone https://github.com/learntocloud/linux-ctfs
     cd linux-ctfs/gcp
     ```
 
-2. Log in to Google Cloud using the gcloud CLI:
+2. Log in to Google Cloud:
 
-    ``` sh
+    ```sh
     gcloud auth login
     gcloud auth application-default login
     ```
 
-3. Initialize Terraform:
+3. Initialize and apply Terraform:
 
-    ``` sh
+    ```sh
     terraform init
+    terraform apply \
+      -var gcp_project="YOUR_GCP_PROJECT_ID" \
+      -var gcp_region="YOUR_GCP_REGION" \
+      -var gcp_zone="YOUR_GCP_ZONE"
     ```
 
-4. Apply the Terraform configuration:
+    Replace the values with your project ID and preferred region/zone (defaults to us-central1/us-central1-a).
 
-    ``` sh
-    terraform apply \
-    -var gcp_project="YOUR_GCP_PROJECT_ID" \
-    -var gcp_region="YOUR_GCP_REGION" \
-    -var gcp_zone="YOUR_GCP_ZONE"
-   ```
+    Type `yes` when prompted.
 
-   Replace `YOUR_GCP_REGION` with Google Cloud  Region and `YOUR_GCP_PROJECT_ID` with Google Cloud project that you want to use, by default it uses us-central1 region and us-central1-a zone.
+4. Note the `public_ip_address` output—you'll use this to connect.
 
-   When prompted, type `yes` to confirm.
 
-5. After the apply completes, note the `public_ip_address` output. You'll use this to connect to your lab environment.
-![Terraform Apply](./images/terraform-apply.png)
+## Accessing the Lab
 
-## Accessing the Lab Environment
+1. Connect via SSH:
 
-To access your lab environment:
-
-1. Use SSH to connect to the GCP Instance as the CTF user:
-
-    ``` sh
+    ```sh
     ssh ctf_user@<public_ip_address>
     ```
 
-2. When prompted for a password, enter: `CTFpassword123!`
-3. Once logged in, you'll see a welcome message with instructions for your first challenge.
-![SSH into the instance](./images/ssh-screenshot.png)
+1. On first login you will be asked if you want to add fingerprints to the known hosts file; type `yes` and press Enter.
+
+1. When prompted, enter the password: `CTFpassword123!`
+
 
 ## Cleaning Up
 
-When you're done with the lab, don't forget to destroy the GCP resources to avoid unnecessary charges:
+Destroy the resources when you're done to avoid charges:
 
-`terraform destroy`
+```sh
+terraform destroy
+```
 
-Type `yes` when prompted to confirm.
-
-## Security Note
-
-This lab is designed for learning purposes and uses a password-based login for simplicity. In real-world scenarios, key-based authentication is recommended for better security.
-
-## Reboot Resilience
-
-This lab is designed to survive VM reboots. All background services use systemd and will automatically restart, and your progress is saved to disk. You can safely stop and restart the instance without losing your progress or breaking any challenges.
+Type `yes` when prompted.
 
 ## Troubleshooting
 
-If you encounter any issues:
-
-1. Ensure your gcloud CLI is correctly configured with your credentials.
-2. Check that you're using a compatible Terraform version.
-3. Verify that you have the necessary GCP permissions to create the required resources.
+1. Ensure your gcloud CLI is authenticated
+2. Check that you're using Terraform v1.9.0 or later
+3. Verify you have permissions to create Compute Engine instances and firewall rules
 
 If problems persist, please open an issue in this repository.
 
-Happy learning, and good luck with your CTF challenges!
+## Security Note
+
+This lab uses password authentication for simplicity. In production, use key-based authentication.

@@ -1,8 +1,13 @@
 # Test files contain solutions - keep local only
 tests/
 
-# Terraform state files (already in subdirectory .gitignores)
-*.tfstate
-*.tfstate.backup
-.terraform/
-.terraform.lock.hcl
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Note: Terraform files are handled by .gitignore in each provider folder (aws/, azure/, gcp/)

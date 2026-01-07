@@ -1,4 +1,9 @@
 #!/bin/bash
+#
+# CTF Environment Setup Script
+# Sets up 18 Linux command-line challenges for learning
+#
+set -euo pipefail
 
 # System setup
 sudo apt-get update
@@ -24,7 +29,9 @@ if ! id "ctf_user" &>/dev/null; then
 fi
 
 # Fix for unknown terminal types (e.g., ghostty)
+# shellcheck disable=SC2016 # Single quotes intentional - $TERM should expand at login time
 echo 'case "$TERM" in *-ghostty) export TERM=xterm-256color;; esac' | sudo tee /etc/profile.d/fix-term.sh > /dev/null
+sudo chmod 644 /etc/profile.d/fix-term.sh
 
 # SSH configuration
 sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
@@ -34,7 +41,7 @@ sudo systemctl restart ssh
 
 # Create challenge directory
 sudo -u ctf_user mkdir -p /home/ctf_user/ctf_challenges
-cd /home/ctf_user/ctf_challenges
+cd /home/ctf_user/ctf_challenges || { echo "Failed to change directory"; exit 1; }
 
 # Create verify script
 cat > /usr/local/bin/verify << 'EOFVERIFY'
@@ -110,9 +117,16 @@ CHALLENGE_HINTS=(
 START_TIME_FILE=~/.ctf_start_time
 
 check_flag() {
-    challenge_num=$1
-    submitted_flag=$2
+    local challenge_num=$1
+    local submitted_flag=$2
     
+    # Validate challenge number is within bounds
+    if ! [[ "$challenge_num" =~ ^[0-9]+$ ]] || [ "$challenge_num" -gt 18 ]; then
+        echo "✗ Invalid challenge number. Use 0-18."
+        return 1
+    fi
+    
+    local submitted_hash
     submitted_hash=$(echo -n "$submitted_flag" | sha256sum | cut -d' ' -f1)
     
     if [ "$submitted_hash" = "${ANSWER_HASHES[$challenge_num]}" ]; then
@@ -182,8 +196,8 @@ show_list() {
 }
 
 show_hint() {
-    local num=$1
-    if [ -z "$num" ] || [ "$num" -lt 0 ] || [ "$num" -gt 18 ]; then
+    local num="${1:-}"
+    if [[ -z "$num" ]] || ! [[ "$num" =~ ^[0-9]+$ ]] || [[ "$num" -gt 18 ]]; then
         echo "Usage: verify hint [0-18]"
         return 1
     fi
@@ -195,13 +209,7 @@ show_hint() {
 }
 
 export_certificate() {
-    if [ -z "$1" ]; then
-        echo "Usage: verify export <name>"
-        echo "Example: verify export John Doe"
-        return 1
-    fi
-    local custom_name="$1"
-    
+    # Check completion status first (more helpful error message)
     local completed=0
     if [ -f ~/.completed_challenges ]; then
         completed=$(sort -u ~/.completed_challenges | wc -l)
@@ -213,6 +221,14 @@ export_certificate() {
         echo "Current progress: $completed/18"
         return 1
     fi
+    
+    # Now check for name argument
+    if [ -z "$1" ]; then
+        echo "Usage: verify export <name>"
+        echo "Example: verify export John Doe"
+        return 1
+    fi
+    local custom_name="$1"
     
     local completion_time="Unknown"
     if [ -f "$START_TIME_FILE" ]; then
@@ -298,7 +314,7 @@ case "$1" in
         show_list
         ;;
     "hint")
-        show_hint "$2"
+        show_hint "${2:?Usage: verify hint [0-18]}"
         ;;
     "time")
         show_time
@@ -308,12 +324,8 @@ case "$1" in
         export_certificate "$*"
         ;;
     [0-9]|1[0-8])
-        if [ -z "$2" ]; then
-            echo "Usage: verify [challenge_number] [flag]"
-            exit 1
-        fi
         init_timer
-        check_flag "$1" "$2"
+        check_flag "$1" "${2:?Usage: verify [challenge_number] [flag]}"
         ;;
     *)
         echo "Usage:"
@@ -558,13 +570,15 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now ctf-secret-process
 
 # Challenge 15: Archive Archaeologist
-mkdir -p /tmp/ctf_archive_build
-echo "CTF{archive_explorer}" > /tmp/ctf_archive_build/flag.txt
-cd /tmp/ctf_archive_build
-tar -czf inner.tar.gz flag.txt
-tar -czf middle.tar.gz inner.tar.gz
-tar -czf /home/ctf_user/ctf_challenges/mystery_archive.tar.gz middle.tar.gz
-rm -rf /tmp/ctf_archive_build
+CTF_ARCHIVE_TMPDIR=$(mktemp -d)
+echo "CTF{archive_explorer}" > "$CTF_ARCHIVE_TMPDIR/flag.txt"
+(
+    cd "$CTF_ARCHIVE_TMPDIR" || exit 1
+    tar -czf inner.tar.gz flag.txt
+    tar -czf middle.tar.gz inner.tar.gz
+    tar -czf /home/ctf_user/ctf_challenges/mystery_archive.tar.gz middle.tar.gz
+)
+rm -rf "$CTF_ARCHIVE_TMPDIR"
 
 # Challenge 16: Symbolic Sleuth
 sudo mkdir -p /var/lib/ctf/secrets/deep/hidden
@@ -611,7 +625,7 @@ sudo systemctl restart ssh
 
 # Fix hostname resolution for sudo
 HOSTNAME=$(hostname)
-if ! grep -q "$HOSTNAME" /etc/hosts; then
+if ! grep -qF "$HOSTNAME" /etc/hosts; then
     echo "127.0.0.1 $HOSTNAME" | sudo tee -a /etc/hosts > /dev/null
 fi
 

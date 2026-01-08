@@ -1,133 +1,144 @@
 # CTF Challenge Testing Reference
 
-> **⚠️ SPOILER WARNING**: This file contains all flags and solutions. For maintainers and automated testing only.
+> **⚠️ SPOILER WARNING**: This file contains solution commands. For maintainers and automated testing only.
 
 This document provides context for testing the Linux CTF challenges across AWS, GCP, and Azure.
 
 ## Overview
 
 The CTF contains 18 challenges (plus 1 example) that test Linux command line skills. Each challenge has:
-- A specific flag in format `CTF{some_text_here}`
+- A **dynamically generated flag** in format `CTF{descriptive_text_XXXXXXXX}` (unique per VM instance)
 - A setup mechanism in `ctf_setup.sh`
 - A solution command to retrieve the flag
 - SHA256 hash validation via the `verify` command
 
+## Dynamic Flag System
+
+**Flags are generated at VM setup time** with a unique 8-character hex suffix. This means:
+- Each VM instance has different flags
+- Students cannot share answers between instances
+- Looking at the GitHub repo reveals no flag values
+- The `verify` command validates against hashes stored in `/etc/ctf/flag_hashes`
+
+### Flag Format
+- Example flag (static): `CTF{example}`
+- Challenge flags (dynamic): `CTF{descriptive_text_XXXXXXXX}` where `XXXXXXXX` is random hex
+
 ## Challenge Reference
 
 ### Challenge 0: Example
-- **Flag**: `CTF{example}`
+- **Flag**: `CTF{example}` (static - for documentation purposes)
 - **Test**: `verify 0 CTF{example}`
 
 ### Challenge 1: Hidden File Discovery
-- **Flag**: `CTF{finding_hidden_treasures}`
+- **Flag Pattern**: `CTF{finding_hidden_treasures_XXXXXXXX}`
 - **Location**: `/home/ctf_user/ctf_challenges/.hidden_flag`
 - **Solution**: `cat /home/ctf_user/ctf_challenges/.hidden_flag`
 - **Verify Setup**: `test -f /home/ctf_user/ctf_challenges/.hidden_flag`
 
 ### Challenge 2: Basic File Search
-- **Flag**: `CTF{search_and_discover}`
+- **Flag Pattern**: `CTF{search_and_discover_XXXXXXXX}`
 - **Location**: `/home/ctf_user/documents/projects/backup/secret_notes.txt`
 - **Solution**: `cat /home/ctf_user/documents/projects/backup/secret_notes.txt`
 - **Verify Setup**: `test -f /home/ctf_user/documents/projects/backup/secret_notes.txt`
 
 ### Challenge 3: Log Analysis
-- **Flag**: `CTF{size_matters_in_linux}`
+- **Flag Pattern**: `CTF{size_matters_in_linux_XXXXXXXX}`
 - **Location**: `/var/log/large_log_file.log` (500MB file, flag at end)
 - **Solution**: `tail -1 /var/log/large_log_file.log`
 - **Verify Setup**: `test -f /var/log/large_log_file.log && test $(stat -c%s /var/log/large_log_file.log) -gt 100000000`
 
 ### Challenge 4: User Investigation
-- **Flag**: `CTF{user_enumeration_expert}`
+- **Flag Pattern**: `CTF{user_enumeration_expert_XXXXXXXX}`
 - **Location**: `/home/flag_user/.profile`
 - **User**: `flag_user` (UID 1002)
 - **Solution**: `cat /home/flag_user/.profile`
 - **Verify Setup**: `id flag_user && test -f /home/flag_user/.profile`
 
 ### Challenge 5: Permission Analysis
-- **Flag**: `CTF{permission_sleuth}`
+- **Flag Pattern**: `CTF{permission_sleuth_XXXXXXXX}`
 - **Location**: `/opt/systems/config/system.conf` (chmod 777)
 - **Solution**: `cat /opt/systems/config/system.conf`
 - **Verify Setup**: `test -f /opt/systems/config/system.conf && test $(stat -c%a /opt/systems/config/system.conf) = "777"`
 
 ### Challenge 6: Service Discovery
-- **Flag**: `CTF{network_detective}`
+- **Flag Pattern**: `CTF{network_detective_XXXXXXXX}`
 - **Service**: `ctf-secret-service.service` on port 8080
 - **Solution**: `curl -s localhost:8080`
 - **Verify Setup**: `systemctl is-active ctf-secret-service.service && ss -tulpn | grep -q :8080`
 
 ### Challenge 7: Encoding Challenge
-- **Flag**: `CTF{decoding_master}`
+- **Flag Pattern**: `CTF{decoding_master_XXXXXXXX}`
 - **Location**: `/home/ctf_user/ctf_challenges/encoded_flag.txt` (double base64)
 - **Solution**: `cat /home/ctf_user/ctf_challenges/encoded_flag.txt | base64 -d | base64 -d`
 - **Verify Setup**: `test -f /home/ctf_user/ctf_challenges/encoded_flag.txt`
 
 ### Challenge 8: SSH Secrets
-- **Flag**: `CTF{ssh_security_master}`
+- **Flag Pattern**: `CTF{ssh_security_master_XXXXXXXX}`
 - **Location**: `/home/ctf_user/.ssh/secrets/backup/.authorized_keys`
 - **Solution**: `cat /home/ctf_user/.ssh/secrets/backup/.authorized_keys`
 - **Verify Setup**: `test -f /home/ctf_user/.ssh/secrets/backup/.authorized_keys`
 
 ### Challenge 9: DNS Troubleshooting
-- **Flag**: `CTF{dns_name}`
+- **Flag Pattern**: `CTF{dns_name_XXXXXXXX}`
 - **Location**: `/etc/resolv.conf` (appended to nameserver line)
 - **Solution**: `grep -o 'CTF{[^}]*}' /etc/resolv.conf`
 - **Verify Setup**: `grep -q 'CTF{' /etc/resolv.conf`
 
 ### Challenge 10: Remote Upload Detection
-- **Flag**: `CTF{network_copy}`
+- **Flag Pattern**: `CTF{network_copy_XXXXXXXX}`
 - **Service**: `ctf-monitor-directory.service` using inotifywait
 - **Trigger**: Create any file in `/home/ctf_user/ctf_challenges`
 - **Solution**: `touch /home/ctf_user/ctf_challenges/testfile && cat /tmp/.ctf_upload_triggered`
 - **Verify Setup**: `systemctl is-active ctf-monitor-directory.service`
 
 ### Challenge 11: Web Configuration
-- **Flag**: `CTF{web_config}`
+- **Flag Pattern**: `CTF{web_config_XXXXXXXX}`
 - **Location**: `/var/www/html/index.html`
 - **Service**: nginx on port 8083
 - **Solution**: `curl -s localhost:8083`
 - **Verify Setup**: `systemctl is-active nginx && ss -tulpn | grep -q :8083`
 
 ### Challenge 12: Network Traffic Analysis
-- **Flag**: `CTF{net_chat}`
+- **Flag Pattern**: `CTF{net_chat_XXXXXXXX}`
 - **Service**: `ctf-ping-message.service` sending hex-encoded ping pattern
-- **Hex Pattern**: `4354467b6e65745f636861747d`
-- **Solution**: `echo "4354467b6e65745f636861747d" | xxd -r -p`
+- **Solution**: Extract hex from `/usr/local/bin/ping_message.sh` and decode with `xxd -r -p`
 - **Verify Setup**: `systemctl is-active ctf-ping-message.service`
 
 ### Challenge 13: Cron Job Hunter
-- **Flag**: `CTF{cron_task_master}`
+- **Flag Pattern**: `CTF{cron_task_master_XXXXXXXX}`
 - **Location**: `/etc/cron.d/ctf_secret_task`
 - **Solution**: `grep -o 'CTF{[^}]*}' /etc/cron.d/ctf_secret_task`
 - **Verify Setup**: `test -f /etc/cron.d/ctf_secret_task`
 
 ### Challenge 14: Process Environment
-- **Flag**: `CTF{env_variable_hunter}`
+- **Flag Pattern**: `CTF{env_variable_hunter_XXXXXXXX}`
 - **Service**: `ctf-secret-process.service`
 - **Environment Variable**: `CTF_SECRET_FLAG`
 - **Solution**: `cat /proc/$(pgrep -f ctf_secret_process)/environ | tr '\0' '\n' | grep -o 'CTF{[^}]*}'`
 - **Verify Setup**: `systemctl is-active ctf-secret-process.service && pgrep -f ctf_secret_process`
 
 ### Challenge 15: Archive Archaeologist
-- **Flag**: `CTF{archive_explorer}`
+- **Flag Pattern**: `CTF{archive_explorer_XXXXXXXX}`
 - **Location**: `/home/ctf_user/ctf_challenges/mystery_archive.tar.gz` (triple nested)
 - **Structure**: `mystery_archive.tar.gz` → `middle.tar.gz` → `inner.tar.gz` → `flag.txt`
 - **Solution**: Extract all layers and read `flag.txt`
 - **Verify Setup**: `test -f /home/ctf_user/ctf_challenges/mystery_archive.tar.gz`
 
 ### Challenge 16: Symbolic Sleuth
-- **Flag**: `CTF{link_follower}`
+- **Flag Pattern**: `CTF{link_follower_XXXXXXXX}`
 - **Location**: Chain starting at `/home/ctf_user/ctf_challenges/follow_me`
 - **Solution**: `cat $(readlink -f /home/ctf_user/ctf_challenges/follow_me)`
 - **Verify Setup**: `test -L /home/ctf_user/ctf_challenges/follow_me`
 
 ### Challenge 17: History Mystery
-- **Flag**: `CTF{history_detective}`
+- **Flag Pattern**: `CTF{history_detective_XXXXXXXX}`
 - **Location**: `/home/old_admin/.bash_history`
 - **Solution**: `grep -o 'CTF{[^}]*}' /home/old_admin/.bash_history`
 - **Verify Setup**: `test -f /home/old_admin/.bash_history`
 
 ### Challenge 18: Disk Detective
-- **Flag**: `CTF{disk_detective}`
+- **Flag Pattern**: `CTF{disk_detective_XXXXXXXX}`
 - **Location**: Hidden file `.flag` inside `/opt/ctf_disk.img` (ext4 filesystem image)
 - **Solution**: `sudo mount -o loop /opt/ctf_disk.img /mnt/ctf_disk && cat /mnt/ctf_disk/.flag`
 - **Verify Setup**: `test -f /opt/ctf_disk.img`

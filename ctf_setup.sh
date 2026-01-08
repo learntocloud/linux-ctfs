@@ -5,6 +5,63 @@
 #
 set -euo pipefail
 
+# =============================================================================
+# DYNAMIC FLAG GENERATION
+# =============================================================================
+# Generate unique flags for this instance to prevent answer sharing
+# Each flag has format: CTF{descriptive_text_XXXX} where XXXX is random hex
+
+generate_flag_suffix() {
+    head -c 4 /dev/urandom | xxd -p
+}
+
+# Generate unique suffix for this instance
+INSTANCE_SUFFIX=$(generate_flag_suffix)
+
+# Define flag base names (the descriptive part)
+declare -A FLAG_BASES=(
+    [0]="example"
+    [1]="finding_hidden_treasures"
+    [2]="search_and_discover"
+    [3]="size_matters_in_linux"
+    [4]="user_enumeration_expert"
+    [5]="permission_sleuth"
+    [6]="network_detective"
+    [7]="decoding_master"
+    [8]="ssh_security_master"
+    [9]="dns_name"
+    [10]="network_copy"
+    [11]="web_config"
+    [12]="net_chat"
+    [13]="cron_task_master"
+    [14]="env_variable_hunter"
+    [15]="archive_explorer"
+    [16]="link_follower"
+    [17]="history_detective"
+    [18]="disk_detective"
+)
+
+# Generate the actual flags with unique suffix
+declare -A FLAGS
+for i in {0..18}; do
+    if [ "$i" -eq 0 ]; then
+        # Example flag stays static so documentation works
+        FLAGS[$i]="CTF{example}"
+    else
+        FLAGS[$i]="CTF{${FLAG_BASES[$i]}_${INSTANCE_SUFFIX}}"
+    fi
+done
+
+# Generate SHA256 hashes for verification
+declare -A FLAG_HASHES
+for i in {0..18}; do
+    FLAG_HASHES[$i]=$(echo -n "${FLAGS[$i]}" | sha256sum | cut -d' ' -f1)
+done
+
+# =============================================================================
+# SYSTEM SETUP
+# =============================================================================
+
 # System setup
 sudo apt-get update
 sudo apt-get install -y net-tools nmap tree nginx inotify-tools figlet lolcat
@@ -43,32 +100,48 @@ sudo systemctl restart ssh
 sudo -u ctf_user mkdir -p /home/ctf_user/ctf_challenges
 cd /home/ctf_user/ctf_challenges || { echo "Failed to change directory"; exit 1; }
 
+# =============================================================================
+# WRITE FLAG HASHES FILE (for verify script)
+# =============================================================================
+# Store hashes in a root-owned file that verify can read but users can't easily modify
+sudo mkdir -p /etc/ctf
+cat > /tmp/ctf_hashes << HASHEOF
+${FLAG_HASHES[0]}
+${FLAG_HASHES[1]}
+${FLAG_HASHES[2]}
+${FLAG_HASHES[3]}
+${FLAG_HASHES[4]}
+${FLAG_HASHES[5]}
+${FLAG_HASHES[6]}
+${FLAG_HASHES[7]}
+${FLAG_HASHES[8]}
+${FLAG_HASHES[9]}
+${FLAG_HASHES[10]}
+${FLAG_HASHES[11]}
+${FLAG_HASHES[12]}
+${FLAG_HASHES[13]}
+${FLAG_HASHES[14]}
+${FLAG_HASHES[15]}
+${FLAG_HASHES[16]}
+${FLAG_HASHES[17]}
+${FLAG_HASHES[18]}
+HASHEOF
+sudo mv /tmp/ctf_hashes /etc/ctf/flag_hashes
+sudo chmod 644 /etc/ctf/flag_hashes
+
 # Create verify script
 cat > /usr/local/bin/verify << 'EOFVERIFY'
 #!/bin/bash
 
-ANSWER_HASHES=(
-  
-    "de8f29432e21f56e003c52f71297e7364cea2b750cd2582d62688e311347ff06"  
-    "a48ca3386a76ea8703a6c4e5562832f95364a2dbdaf1c75faae730abd075a23e"  
-    "7e5e6218d604ac7532c7403b6ab4ef41abc45628606abcdb98d6a0c42e2477cb"  
-    "1bb2e87b37adb38fe53f6e71f721e3e9ff00b3f13ce582ce95d4177c3cf49be9" 
-    "0063b9de97d91b65f4abe21f3a426f266fb304b2badc4a93bb80e87dca0ed6b3"  
-    "938d9c97bfc6669e0623a1b6c2f32527fd5b0081c94adb1c65dacbc6cdb04f65"  
-    "04a1503e15934d9442122fd8adb2af6e35c99b41f93728fed691fafe155a1f90" 
-    "4e24fc31e1bd34fd49832226ce10ea6d29fbb49e14792c25a8fa32ddf5ad7df2"  
-    "1605dcdc7e89239383512803f1673cb938467c2916270807e81102894ef15e91" 
-    "a7c0e0dba746fb5b0068de9943cad29273c91426174b1fdf32a42dc2af253a3f"
-    "98d7b6c1cfb09574f06893baccd19f86ebf805caf5a21bf2b518598384a2d3fa"
-    "90b6819737a8f027df23a718d1a82210fea013d1ae3da081494e9c496e4284da"
-    "a6bbbea83c12b335d890456ecca072c61bc063dee503ed67cfa750538ad4ed69"
-    "7f1886312b8dcad4253c1916289aea437d771b1ca2ddaf9a9d2bacca35180309"
-    "3a3e49b8f1f41fb64f8a39e727c86b88f82c86e144896a83b3cce97065782d1e"
-    "228bcbadf693803be42d130865185ad18b8fa9d8798ed9ebb81e86f973a5d203"
-    "19448347bf8eb7e295055f584a9d31872381750b24ec0fe8d5418f4337ce82a7"
-    "cf87b255b6c9a6cfdbaa50ce3d08a4e723dc8fec701bfeabf55d28099ec2c4cc"
-    "48eddea9a1d783bfba61ce0105b161ac5fe3065fcb620790a6a8bbae9ce9e989"
-)
+# Load flag hashes from file (generated at setup time)
+HASH_FILE="/etc/ctf/flag_hashes"
+if [ ! -f "$HASH_FILE" ]; then
+    echo "Error: CTF not properly initialized. Hash file missing."
+    exit 1
+fi
+
+# Read hashes into array
+mapfile -t ANSWER_HASHES < "$HASH_FILE"
 
 CHALLENGE_NAMES=(
     "Example Challenge"
@@ -384,37 +457,41 @@ EOFMOTD
 
 # Beginner Challenges
 # Challenge 1: Simple hidden file
-echo "CTF{finding_hidden_treasures}" > /home/ctf_user/ctf_challenges/.hidden_flag
+echo "${FLAGS[1]}" > /home/ctf_user/ctf_challenges/.hidden_flag
 
 # Challenge 2: Basic file search
 mkdir -p /home/ctf_user/documents/projects/backup
-echo "CTF{search_and_discover}" > /home/ctf_user/documents/projects/backup/secret_notes.txt
+echo "${FLAGS[2]}" > /home/ctf_user/documents/projects/backup/secret_notes.txt
 
 # Intermediate Challenges
 # Challenge 3: Log analysis
 sudo dd if=/dev/urandom of=/var/log/large_log_file.log bs=1M count=500
-echo "CTF{size_matters_in_linux}" | sudo tee -a /var/log/large_log_file.log
+echo "${FLAGS[3]}" | sudo tee -a /var/log/large_log_file.log
 sudo chown ctf_user:ctf_user /var/log/large_log_file.log
 
 # Challenge 4: User investigation
 sudo useradd -u 1002 -m flag_user 2>/dev/null || true
 sudo mkdir -p /home/flag_user
-echo "CTF{user_enumeration_expert}" | sudo tee /home/flag_user/.profile > /dev/null
+echo "${FLAGS[4]}" | sudo tee /home/flag_user/.profile > /dev/null
 sudo chown -R flag_user:flag_user /home/flag_user
 sudo chmod 755 /home/flag_user
 sudo chmod 644 /home/flag_user/.profile
 
 # Challenge 5: Permission analysis
 sudo mkdir -p /opt/systems/config
-echo "CTF{permission_sleuth}" | sudo tee /opt/systems/config/system.conf
+echo "${FLAGS[5]}" | sudo tee /opt/systems/config/system.conf
 sudo chmod 777 /opt/systems/config/system.conf
 
 # Advanced Challenges
 # Challenge 6: Service discovery
+# Note: We write the flag to a file that the service reads, so it can be dynamic
+echo "${FLAGS[6]}" | sudo tee /etc/ctf/flag_6 > /dev/null
 cat > /usr/local/bin/secret_service.sh << 'EOF'
 #!/bin/bash
+FLAG=$(cat /etc/ctf/flag_6)
+FLAG_LEN=${#FLAG}
 while true; do
-    echo -e "HTTP/1.1 200 OK\r\nContent-Length: 22\r\nConnection: close\r\n\r\nCTF{network_detective}" | nc -l -q 1 8080
+    echo -e "HTTP/1.1 200 OK\r\nContent-Length: ${FLAG_LEN}\r\nConnection: close\r\n\r\n${FLAG}" | nc -l -q 1 8080
 done
 EOF
 sudo chmod +x /usr/local/bin/secret_service.sh
@@ -438,31 +515,34 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now ctf-secret-service
 
 # Challenge 7: Encoding challenge
-echo "CTF{decoding_master}" | base64 | base64 > /home/ctf_user/ctf_challenges/encoded_flag.txt
+echo "${FLAGS[7]}" | base64 | base64 > /home/ctf_user/ctf_challenges/encoded_flag.txt
 
 # Challenge 8: Advanced SSH setup
 sudo mkdir -p /home/ctf_user/.ssh/secrets/backup
-echo "CTF{ssh_security_master}" | sudo tee /home/ctf_user/.ssh/secrets/backup/.authorized_keys
+echo "${FLAGS[8]}" | sudo tee /home/ctf_user/.ssh/secrets/backup/.authorized_keys
 sudo chown -R ctf_user:ctf_user /home/ctf_user/.ssh
 sudo chmod 700 /home/ctf_user/.ssh
 sudo chmod 600 /home/ctf_user/.ssh/secrets/backup/.authorized_keys
 
 # Challenge 9: DNS troubleshooting
 sudo cp /etc/resolv.conf /etc/resolv.conf.bak
-sudo sed -i '/^nameserver/s/$/CTF{dns_name}/' /etc/resolv.conf
+sudo sed -i "/^nameserver/s/$/${FLAGS[9]}/" /etc/resolv.conf
 
 # Challenge 10: Remote upload
+# Store flag for the monitor script to use
+echo "${FLAGS[10]}" | sudo tee /etc/ctf/flag_10 > /dev/null
 cat > /usr/local/bin/monitor_directory.sh << 'EOF'
 #!/bin/bash
 DIRECTORY="/home/ctf_user/ctf_challenges"
+FLAG=$(cat /etc/ctf/flag_10)
 # Pre-create the trigger file location
 touch /tmp/.ctf_upload_triggered 2>/dev/null || true
 chmod 666 /tmp/.ctf_upload_triggered 2>/dev/null || true
 inotifywait -m -e create --format '%f' "$DIRECTORY" | while read FILE
 do
-    echo "A new file named $FILE has been added to $DIRECTORY. Here is your flag: CTF{network_copy}" | wall
+    echo "A new file named $FILE has been added to $DIRECTORY. Here is your flag: $FLAG" | wall
     # Also write flag to file for automated testing
-    echo "CTF{network_copy}" > /tmp/.ctf_upload_triggered
+    echo "$FLAG" > /tmp/.ctf_upload_triggered
     sync
 done
 EOF
@@ -491,17 +571,19 @@ sudo systemctl enable --now ctf-monitor-directory
 
 # Challenge 11: Web Configuration
 sudo mkdir -p /var/www/html
-echo '<h2 style="text-align:center;">Flag value: CTF{web_config}</h2>' | sudo tee /var/www/html/index.html
+echo "<h2 style=\"text-align:center;\">Flag value: ${FLAGS[11]}</h2>" | sudo tee /var/www/html/index.html
 sudo sed -i 's/listen 80 default_server;/listen 8083 default_server;/' /etc/nginx/sites-available/default
 sudo sed -i 's/listen \[::\]:80 default_server;/listen \[::\]:8083 default_server;/' /etc/nginx/sites-available/default
 
 sudo systemctl restart nginx
 
 # Challenge 12: Network traffic analysis
-cat > /usr/local/bin/ping_message.sh << 'EOF'
+# Convert flag to hex for ping pattern
+FLAG_12_HEX=$(echo -n "${FLAGS[12]}" | xxd -p | tr -d '\n')
+cat > /usr/local/bin/ping_message.sh << EOF
 #!/bin/bash
 while true; do
-    ping -p 4354467b6e65745f636861747d -c 1 127.0.0.1
+    ping -p ${FLAG_12_HEX} -c 1 127.0.0.1
     sleep 1
 done
 EOF
@@ -529,18 +611,20 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now ctf-ping-message
 
 # Challenge 13: Cron Job Hunter
-cat > /etc/cron.d/ctf_secret_task << 'EOF'
+cat > /etc/cron.d/ctf_secret_task << EOF
 # CTF Challenge - Secret scheduled task
 # This task runs every minute but the flag is hidden here
-# FLAG: CTF{cron_task_master}
+# FLAG: ${FLAGS[13]}
 * * * * * root /bin/true
 EOF
 sudo chmod 644 /etc/cron.d/ctf_secret_task
 
 # Challenge 14: Process Environment
+# Store flag for the process to use
+echo "${FLAGS[14]}" | sudo tee /etc/ctf/flag_14 > /dev/null
 cat > /usr/local/bin/ctf_secret_process.sh << 'EOF'
 #!/bin/bash
-export CTF_SECRET_FLAG="CTF{env_variable_hunter}"
+export CTF_SECRET_FLAG=$(cat /etc/ctf/flag_14)
 while true; do
     sleep 3600
 done
@@ -549,7 +633,7 @@ sudo chmod +x /usr/local/bin/ctf_secret_process.sh
 
 # Create systemd service for Challenge 14
 # Run as ctf_user so they can read /proc/PID/environ
-cat > /etc/systemd/system/ctf-secret-process.service << 'EOF'
+cat > /etc/systemd/system/ctf-secret-process.service << EOF
 [Unit]
 Description=CTF Secret Process Challenge
 After=network.target
@@ -558,7 +642,7 @@ After=network.target
 Type=simple
 User=ctf_user
 Group=ctf_user
-Environment="CTF_SECRET_FLAG=CTF{env_variable_hunter}"
+Environment="CTF_SECRET_FLAG=${FLAGS[14]}"
 ExecStart=/usr/local/bin/ctf_secret_process.sh
 Restart=always
 RestartSec=1
@@ -571,7 +655,7 @@ sudo systemctl enable --now ctf-secret-process
 
 # Challenge 15: Archive Archaeologist
 CTF_ARCHIVE_TMPDIR=$(mktemp -d)
-echo "CTF{archive_explorer}" > "$CTF_ARCHIVE_TMPDIR/flag.txt"
+echo "${FLAGS[15]}" > "$CTF_ARCHIVE_TMPDIR/flag.txt"
 (
     cd "$CTF_ARCHIVE_TMPDIR" || exit 1
     tar -czf inner.tar.gz flag.txt
@@ -582,7 +666,7 @@ rm -rf "$CTF_ARCHIVE_TMPDIR"
 
 # Challenge 16: Symbolic Sleuth
 sudo mkdir -p /var/lib/ctf/secrets/deep/hidden
-echo "CTF{link_follower}" | sudo tee /var/lib/ctf/secrets/deep/hidden/final_flag.txt
+echo "${FLAGS[16]}" | sudo tee /var/lib/ctf/secrets/deep/hidden/final_flag.txt
 sudo ln -s /var/lib/ctf/secrets/deep/hidden/final_flag.txt /var/lib/ctf/secrets/deep/link3
 sudo ln -s /var/lib/ctf/secrets/deep/link3 /var/lib/ctf/secrets/link2
 sudo ln -s /var/lib/ctf/secrets/link2 /home/ctf_user/ctf_challenges/follow_me
@@ -592,11 +676,11 @@ sudo chmod 644 /var/lib/ctf/secrets/deep/hidden/final_flag.txt
 # Challenge 17: History Mystery
 sudo useradd -m -s /bin/bash old_admin 2>/dev/null || true
 sudo mkdir -p /home/old_admin
-cat << 'HISTEOF' | sudo tee /home/old_admin/.bash_history > /dev/null
+cat << HISTEOF | sudo tee /home/old_admin/.bash_history > /dev/null
 # Old admin command history
 ls -la
 cd /var/log
-# Note to self: the secret flag is CTF{history_detective}
+# Note to self: the secret flag is ${FLAGS[17]}
 sudo systemctl restart nginx
 exit
 HISTEOF
@@ -611,7 +695,7 @@ sudo mkfs.ext4 -L "ctf_disk" /opt/ctf_disk.img
 sudo mkdir -p /mnt/ctf_disk
 # Mount the image, create flag file, then unmount
 sudo mount -o loop /opt/ctf_disk.img /mnt/ctf_disk
-echo "CTF{disk_detective}" | sudo tee /mnt/ctf_disk/.flag > /dev/null
+echo "${FLAGS[18]}" | sudo tee /mnt/ctf_disk/.flag > /dev/null
 sudo umount /mnt/ctf_disk
 # The flag is hidden inside the filesystem image - mount it to find it!
 

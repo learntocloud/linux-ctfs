@@ -46,7 +46,6 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Parse arguments
-PROVIDER=""
 WITH_REBOOT=false
 PROVIDERS_TO_TEST=()
 

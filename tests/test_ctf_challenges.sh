@@ -294,71 +294,103 @@ run_test "Challenge 18 setup: ctf_disk.img exists" \
 section "CHALLENGE SOLUTION TESTS"
 # ============================================================================
 
-echo "Testing that solution commands return correct flags..."
+echo "Testing that solution commands return flags (dynamic per-instance)..."
+
+# Helper function to capture and verify a flag
+# Args: challenge_num, description, solution_command
+test_and_capture_flag() {
+    local num="$1"
+    local desc="$2"
+    local cmd="$3"
+    
+    local flag
+    # Use grep -a to treat binary files as text (needed for log files with binary data)
+    flag=$(eval "$cmd" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    
+    if [ -n "$flag" ]; then
+        pass "Challenge $num solution: $desc returns flag"
+        # Store for later verification
+        eval "CAPTURED_FLAG_$num=\"$flag\""
+    else
+        fail "Challenge $num solution: $desc (no CTF flag found)"
+        eval "CAPTURED_FLAG_$num=\"\""
+    fi
+}
 
 # Challenge 1
-run_test_output "Challenge 1 solution: cat .hidden_flag returns flag" \
-    "cat /home/ctf_user/ctf_challenges/.hidden_flag" "CTF{finding_hidden_treasures}"
+test_and_capture_flag 1 "cat .hidden_flag" \
+    "cat /home/ctf_user/ctf_challenges/.hidden_flag"
 
 # Challenge 2
-run_test_output "Challenge 2 solution: cat secret_notes.txt returns flag" \
-    "cat /home/ctf_user/documents/projects/backup/secret_notes.txt" "CTF{search_and_discover}"
+test_and_capture_flag 2 "cat secret_notes.txt" \
+    "cat /home/ctf_user/documents/projects/backup/secret_notes.txt"
 
 # Challenge 3
-run_test_output "Challenge 3 solution: tail large_log_file.log returns flag" \
-    "tail -1 /var/log/large_log_file.log" "CTF{size_matters_in_linux}"
+test_and_capture_flag 3 "tail large_log_file.log" \
+    "tail -1 /var/log/large_log_file.log"
 
 # Challenge 4
-run_test_output "Challenge 4 solution: cat flag_user .profile returns flag" \
-    "cat /home/flag_user/.profile" "CTF{user_enumeration_expert}"
+test_and_capture_flag 4 "cat flag_user .profile" \
+    "cat /home/flag_user/.profile"
 
 # Challenge 5
-run_test_output "Challenge 5 solution: cat system.conf returns flag" \
-    "cat /opt/systems/config/system.conf" "CTF{permission_sleuth}"
+test_and_capture_flag 5 "cat system.conf" \
+    "cat /opt/systems/config/system.conf"
 
 # Challenge 6
-run_test_output "Challenge 6 solution: curl localhost:8080 returns flag" \
-    "curl -s --connect-timeout 5 --max-time 10 localhost:8080" "CTF{network_detective}"
+test_and_capture_flag 6 "curl localhost:8080" \
+    "curl -s --connect-timeout 5 --max-time 10 localhost:8080"
 
 # Challenge 7
-run_test_output "Challenge 7 solution: double base64 decode returns flag" \
-    "cat /home/ctf_user/ctf_challenges/encoded_flag.txt | base64 -d | base64 -d" "CTF{decoding_master}"
+test_and_capture_flag 7 "double base64 decode" \
+    "cat /home/ctf_user/ctf_challenges/encoded_flag.txt | base64 -d | base64 -d"
 
 # Challenge 8
-run_test_output "Challenge 8 solution: cat .ssh hidden file returns flag" \
-    "cat /home/ctf_user/.ssh/secrets/backup/.authorized_keys" "CTF{ssh_security_master}"
+test_and_capture_flag 8 "cat .ssh hidden file" \
+    "cat /home/ctf_user/.ssh/secrets/backup/.authorized_keys"
 
 # Challenge 9
-run_test_output "Challenge 9 solution: grep resolv.conf returns flag" \
-    "grep -o 'CTF{[^}]*}' /etc/resolv.conf" "CTF{dns_name}"
+test_and_capture_flag 9 "grep resolv.conf" \
+    "grep -o 'CTF{[^}]*}' /etc/resolv.conf"
 
 # Challenge 10 - trigger file creation and check flag file
 echo "Testing Challenge 10 (creating trigger file)..."
-# Clear any existing trigger file content first
-> /tmp/.ctf_upload_triggered 2>/dev/null || true
+true > /tmp/.ctf_upload_triggered 2>/dev/null || true
 TRIGGER_FILE="/home/ctf_user/ctf_challenges/test_trigger_$$"
 touch "$TRIGGER_FILE"
-sleep 3  # Give inotifywait more time to react and write
+sleep 3
 sync
-run_test_output "Challenge 10 solution: trigger file creates flag" \
-    "cat /tmp/.ctf_upload_triggered 2>/dev/null" "CTF{network_copy}"
+test_and_capture_flag 10 "trigger file creates flag" \
+    "cat /tmp/.ctf_upload_triggered 2>/dev/null"
 rm -f "$TRIGGER_FILE"
 
 # Challenge 11
-run_test_output "Challenge 11 solution: curl localhost:8083 returns flag" \
-    "curl -s --connect-timeout 5 --max-time 10 localhost:8083" "CTF{web_config}"
+test_and_capture_flag 11 "curl localhost:8083" \
+    "curl -s --connect-timeout 5 --max-time 10 localhost:8083"
 
-# Challenge 12
-run_test_output "Challenge 12 solution: hex decode ping pattern returns flag" \
-    "echo '4354467b6e65745f636861747d' | xxd -r -p" "CTF{net_chat}"
+# Challenge 12 - read hex pattern from ping script and decode
+echo "Testing Challenge 12 (hex decode ping pattern)..."
+HEX_PATTERN=$(grep -o "ping -p [a-f0-9]*" /usr/local/bin/ping_message.sh | awk '{print $3}')
+if [ -n "$HEX_PATTERN" ]; then
+    CAPTURED_FLAG_12=$(echo "$HEX_PATTERN" | xxd -r -p)
+    if echo "$CAPTURED_FLAG_12" | grep -q "CTF{"; then
+        pass "Challenge 12 solution: hex decode ping pattern returns flag"
+    else
+        fail "Challenge 12 solution: hex decode failed (got: $CAPTURED_FLAG_12)"
+        CAPTURED_FLAG_12=""
+    fi
+else
+    fail "Challenge 12 solution: could not find hex pattern in ping script"
+    CAPTURED_FLAG_12=""
+fi
 
 # Challenge 13
-run_test_output "Challenge 13 solution: grep cron file returns flag" \
-    "grep -o 'CTF{[^}]*}' /etc/cron.d/ctf_secret_task" "CTF{cron_task_master}"
+test_and_capture_flag 13 "grep cron file" \
+    "grep -o 'CTF{[^}]*}' /etc/cron.d/ctf_secret_task"
 
 # Challenge 14
-run_test_output "Challenge 14 solution: read process environ returns flag" \
-    "cat /proc/\$(pgrep -f ctf_secret_process)/environ | tr '\0' '\n' | grep -o 'CTF{[^}]*}'" "CTF{env_variable_hunter}"
+test_and_capture_flag 14 "read process environ" \
+    "cat /proc/\$(pgrep -f ctf_secret_process)/environ | tr '\0' '\n' | grep -o 'CTF{[^}]*}'"
 
 # Challenge 15 - extract nested archives
 echo "Testing Challenge 15 (extracting archives)..."
@@ -367,92 +399,78 @@ cd "$TEMP_DIR"
 tar -xzf /home/ctf_user/ctf_challenges/mystery_archive.tar.gz
 tar -xzf middle.tar.gz
 tar -xzf inner.tar.gz
-run_test_output "Challenge 15 solution: nested archive extraction returns flag" \
-    "cat flag.txt" "CTF{archive_explorer}"
+test_and_capture_flag 15 "nested archive extraction" \
+    "cat flag.txt"
 cd - > /dev/null
 rm -rf "$TEMP_DIR"
 
 # Challenge 16
-run_test_output "Challenge 16 solution: follow symlinks returns flag" \
-    "cat \$(readlink -f /home/ctf_user/ctf_challenges/follow_me)" "CTF{link_follower}"
+test_and_capture_flag 16 "follow symlinks" \
+    "cat \$(readlink -f /home/ctf_user/ctf_challenges/follow_me)"
 
 # Challenge 17
-run_test_output "Challenge 17 solution: grep old_admin history returns flag" \
-    "grep -o 'CTF{[^}]*}' /home/old_admin/.bash_history" "CTF{history_detective}"
+test_and_capture_flag 17 "grep old_admin history" \
+    "grep -o 'CTF{[^}]*}' /home/old_admin/.bash_history"
 
 # Challenge 18 - mount disk image and read flag
 echo "Testing Challenge 18 (mounting disk image)..."
 echo 'CTFpassword123!' | sudo -S mkdir -p /mnt/ctf_test_disk 2>/dev/null
 echo 'CTFpassword123!' | sudo -S mount -o loop /opt/ctf_disk.img /mnt/ctf_test_disk 2>/dev/null
-run_test_output "Challenge 18 solution: mount disk and read flag" \
-    "cat /mnt/ctf_test_disk/.flag" "CTF{disk_detective}"
+test_and_capture_flag 18 "mount disk and read flag" \
+    "cat /mnt/ctf_test_disk/.flag"
 echo 'CTFpassword123!' | sudo -S umount /mnt/ctf_test_disk 2>/dev/null || true
 
 # ============================================================================
 section "FLAG VERIFICATION TESTS"
 # ============================================================================
 
-echo "Submitting all flags through verify command..."
+echo "Submitting captured flags through verify command..."
 
 # Reset completed challenges for clean test
 rm -f ~/.completed_challenges
 
+# Example flag (static)
 run_test_output "verify 0 CTF{example}" \
     "verify 0 CTF{example}" "✓"
 
-run_test_output "verify 1 CTF{finding_hidden_treasures}" \
-    "verify 1 CTF{finding_hidden_treasures}" "✓"
+# Helper to verify captured flag
+verify_captured_flag() {
+    local num="$1"
+    local flag_var="CAPTURED_FLAG_$num"
+    local flag="${!flag_var}"
+    
+    if [ -n "$flag" ]; then
+        # Capture output first, then grep (more reliable than piping)
+        local output
+        output=$(verify "$num" "$flag" 2>&1) || true
+        if echo "$output" | grep -qE "(Correct|verified)"; then
+            pass "verify $num with captured flag"
+        else
+            fail "verify $num with captured flag (flag: $flag)"
+        fi
+    else
+        fail "verify $num - no captured flag to submit"
+    fi
+}
 
-run_test_output "verify 2 CTF{search_and_discover}" \
-    "verify 2 CTF{search_and_discover}" "✓"
-
-run_test_output "verify 3 CTF{size_matters_in_linux}" \
-    "verify 3 CTF{size_matters_in_linux}" "✓"
-
-run_test_output "verify 4 CTF{user_enumeration_expert}" \
-    "verify 4 CTF{user_enumeration_expert}" "✓"
-
-run_test_output "verify 5 CTF{permission_sleuth}" \
-    "verify 5 CTF{permission_sleuth}" "✓"
-
-run_test_output "verify 6 CTF{network_detective}" \
-    "verify 6 CTF{network_detective}" "✓"
-
-run_test_output "verify 7 CTF{decoding_master}" \
-    "verify 7 CTF{decoding_master}" "✓"
-
-run_test_output "verify 8 CTF{ssh_security_master}" \
-    "verify 8 CTF{ssh_security_master}" "✓"
-
-run_test_output "verify 9 CTF{dns_name}" \
-    "verify 9 CTF{dns_name}" "✓"
-
-run_test_output "verify 10 CTF{network_copy}" \
-    "verify 10 CTF{network_copy}" "✓"
-
-run_test_output "verify 11 CTF{web_config}" \
-    "verify 11 CTF{web_config}" "✓"
-
-run_test_output "verify 12 CTF{net_chat}" \
-    "verify 12 CTF{net_chat}" "✓"
-
-run_test_output "verify 13 CTF{cron_task_master}" \
-    "verify 13 CTF{cron_task_master}" "✓"
-
-run_test_output "verify 14 CTF{env_variable_hunter}" \
-    "verify 14 CTF{env_variable_hunter}" "✓"
-
-run_test_output "verify 15 CTF{archive_explorer}" \
-    "verify 15 CTF{archive_explorer}" "✓"
-
-run_test_output "verify 16 CTF{link_follower}" \
-    "verify 16 CTF{link_follower}" "✓"
-
-run_test_output "verify 17 CTF{history_detective}" \
-    "verify 17 CTF{history_detective}" "✓"
-
-run_test_output "verify 18 CTF{disk_detective}" \
-    "verify 18 CTF{disk_detective}" "✓"
+verify_captured_flag 1
+verify_captured_flag 2
+verify_captured_flag 3
+verify_captured_flag 4
+verify_captured_flag 5
+verify_captured_flag 6
+verify_captured_flag 7
+verify_captured_flag 8
+verify_captured_flag 9
+verify_captured_flag 10
+verify_captured_flag 11
+verify_captured_flag 12
+verify_captured_flag 13
+verify_captured_flag 14
+verify_captured_flag 15
+verify_captured_flag 16
+verify_captured_flag 17
+verify_captured_flag 18
 
 # Verify final progress
 run_test_output "verify progress shows 18/18" \

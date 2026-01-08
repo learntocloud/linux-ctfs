@@ -304,7 +304,8 @@ test_and_capture_flag() {
     local cmd="$3"
     
     local flag
-    flag=$(eval "$cmd" 2>/dev/null | grep -o 'CTF{[^}]*}' | head -1) || true
+    # Use grep -a to treat binary files as text (needed for log files with binary data)
+    flag=$(eval "$cmd" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
     
     if [ -n "$flag" ]; then
         pass "Challenge $num solution: $desc returns flag"
@@ -439,7 +440,8 @@ verify_captured_flag() {
     local flag="${!flag_var}"
     
     if [ -n "$flag" ]; then
-        if verify "$num" "$flag" 2>&1 | grep -q "✓"; then
+        # Use "Correct" instead of ✓ for reliable ASCII matching
+        if verify "$num" "$flag" 2>&1 | grep -qE "(Correct|verified)"; then
             pass "verify $num with captured flag"
         else
             fail "verify $num with captured flag (flag: $flag)"

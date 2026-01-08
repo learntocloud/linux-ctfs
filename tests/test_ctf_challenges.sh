@@ -429,35 +429,6 @@ echo "Submitting captured flags through verify command..."
 # Reset completed challenges for clean test
 rm -f ~/.completed_challenges
 
-# DEBUG: Dump hash file and verify script info
-echo ""
-echo "═══════════════════════════════════════════════════════════════"
-echo "DEBUG: VERIFICATION SYSTEM STATE"
-echo "═══════════════════════════════════════════════════════════════"
-echo "DEBUG: Hash file location: /etc/ctf/flag_hashes"
-echo "DEBUG: Hash file exists: $(test -f /etc/ctf/flag_hashes && echo 'YES' || echo 'NO')"
-echo "DEBUG: Hash file permissions: $(ls -la /etc/ctf/flag_hashes 2>/dev/null || echo 'N/A')"
-echo "DEBUG: Hash file line count: $(wc -l < /etc/ctf/flag_hashes 2>/dev/null || echo 'N/A')"
-echo "DEBUG: Hash file contents:"
-cat -n /etc/ctf/flag_hashes 2>/dev/null || echo "  (could not read)"
-echo ""
-echo "DEBUG: verify script location: $(which verify 2>/dev/null || echo 'NOT FOUND')"
-echo "DEBUG: verify script permissions: $(ls -la /usr/local/bin/verify 2>/dev/null || echo 'N/A')"
-echo "DEBUG: verify script first 20 lines:"
-head -20 /usr/local/bin/verify 2>/dev/null || echo "  (could not read)"
-echo ""
-echo "DEBUG: Testing hash computation locally:"
-echo "DEBUG: echo -n 'CTF{example}' | sha256sum = $(echo -n 'CTF{example}' | sha256sum)"
-echo "DEBUG: Expected hash for CTF{example}: 48e364d8a0ce1541e612a9b16f599090a52528eb930a323ddae59eb9df3c79e8"
-echo ""
-echo "DEBUG: Testing verify with example flag:"
-verify 0 CTF{example} 2>&1 || true
-echo ""
-echo "DEBUG: Current completed_challenges:"
-cat ~/.completed_challenges 2>/dev/null || echo "  (none)"
-echo "═══════════════════════════════════════════════════════════════"
-echo ""
-
 # Example flag (static)
 run_test_output "verify 0 CTF{example}" \
     "verify 0 CTF{example}" "✓"
@@ -469,20 +440,9 @@ verify_captured_flag() {
     local flag="${!flag_var}"
     
     if [ -n "$flag" ]; then
-        # Debug: Show what we're submitting
-        echo "  DEBUG: Submitting flag for challenge $num: '$flag'"
-        echo "  DEBUG: Flag length: ${#flag}"
-        echo "  DEBUG: Flag hex: $(echo -n "$flag" | xxd -p | tr -d '\n')"
-        
         # Capture output first, then grep (more reliable than piping)
         local output
         output=$(verify "$num" "$flag" 2>&1) || true
-        
-        # Debug: Show raw output
-        echo "  DEBUG: verify output: '$output'"
-        echo "  DEBUG: output length: ${#output}"
-        echo "  DEBUG: output hex (first 100 bytes): $(echo -n "$output" | head -c 100 | xxd -p | tr -d '\n')"
-        
         if echo "$output" | grep -qE "(Correct|verified)"; then
             pass "verify $num with captured flag"
         else
@@ -492,36 +452,6 @@ verify_captured_flag() {
         fail "verify $num - no captured flag to submit"
     fi
 }
-
-# DEBUG: Show all captured flags before verification
-echo ""
-echo "DEBUG: All captured flags:"
-for i in {1..18}; do
-    var="CAPTURED_FLAG_$i"
-    echo "  Challenge $i: '${!var}'"
-done
-echo ""
-
-# DEBUG: Compute expected hashes for captured flags
-echo "DEBUG: Expected hashes for captured flags:"
-for i in {1..18}; do
-    var="CAPTURED_FLAG_$i"
-    flag="${!var}"
-    if [ -n "$flag" ]; then
-        hash=$(echo -n "$flag" | sha256sum | cut -d' ' -f1)
-        echo "  Challenge $i: $hash"
-    fi
-done
-echo ""
-
-# DEBUG: Compare with hash file
-echo "DEBUG: Hash file line $((i+1)) for each challenge:"
-for i in {1..18}; do
-    line=$((i + 1))  # Line numbers are 1-indexed, challenge 0 is line 1
-    hash_from_file=$(sed -n "${line}p" /etc/ctf/flag_hashes 2>/dev/null || echo "N/A")
-    echo "  Challenge $i (line $line): $hash_from_file"
-done
-echo ""
 
 verify_captured_flag 1
 verify_captured_flag 2

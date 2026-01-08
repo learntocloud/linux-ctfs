@@ -130,7 +130,7 @@ sudo mv /tmp/ctf_hashes /etc/ctf/flag_hashes
 sudo chmod 644 /etc/ctf/flag_hashes
 
 # Create verify script
-cat > /usr/local/bin/verify << 'EOFVERIFY'
+sudo tee /usr/local/bin/verify > /dev/null << 'EOFVERIFY'
 #!/bin/bash
 
 # Load flag hashes from file (generated at setup time)

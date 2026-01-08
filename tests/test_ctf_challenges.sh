@@ -355,7 +355,7 @@ test_and_capture_flag 9 "grep resolv.conf" \
 
 # Challenge 10 - trigger file creation and check flag file
 echo "Testing Challenge 10 (creating trigger file)..."
-> /tmp/.ctf_upload_triggered 2>/dev/null || true
+true > /tmp/.ctf_upload_triggered 2>/dev/null || true
 TRIGGER_FILE="/home/ctf_user/ctf_challenges/test_trigger_$$"
 touch "$TRIGGER_FILE"
 sleep 3

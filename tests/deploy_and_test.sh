@@ -53,7 +53,6 @@ PROVIDERS_TO_TEST=()
 for arg in "$@"; do
     case $arg in
         aws|azure|gcp)
-            PROVIDER="$arg"
             PROVIDERS_TO_TEST+=("$arg")
             ;;
         all)

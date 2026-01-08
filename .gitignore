@@ -1,6 +1,3 @@
-# Test files contain solutions - keep local only
-tests/
-
 # macOS
 .DS_Store
 

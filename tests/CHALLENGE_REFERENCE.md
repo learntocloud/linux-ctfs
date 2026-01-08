@@ -209,10 +209,11 @@ Orchestration script to deploy and test. Usage:
 ## Expected Test Results
 
 A successful test run should show:
-- All 19 verify subcommand tests passing
-- All 18 challenge setup verifications passing
+- All 7 verify subcommand tests passing
+- All 24 challenge setup verifications passing
 - All 18 challenge solution commands returning correct flags
-- All 18 flag submissions accepted by verify
+- All 20 flag verification tests passing (19 flags + progress check)
+- Total: 69 tests passing
 - (If --with-reboot) All 5 services active after reboot
 - (If --with-reboot) Progress file persisted
 

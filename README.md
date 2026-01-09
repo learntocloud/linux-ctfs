@@ -55,4 +55,6 @@ Deploy your CTF lab using your preferred cloud provider:
 
 ## Contributing
 
-Please only submit issues with the lab infrastructure, not for help completing challenges—struggling is part of learning! Open issues before PRs so we can discuss potential work beforehand.
+Want to help improve the CTF? See our [Contributing Guide](CONTRIBUTING.md).
+
+Please only submit issues with the lab infrastructure, not for help completing challenges—struggling is part of learning!

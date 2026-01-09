@@ -32,19 +32,19 @@ When helping users with this project:
 ## Project Structure
 
 ```
-├── ctf_setup.sh          # VM setup script (creates challenges)
-├── README.md             # Challenge descriptions and instructions
-├── aws/                  # AWS Terraform deployment
-├── azure/                # Azure Terraform deployment
-├── gcp/                  # GCP Terraform deployment
-└── tests/                # Automated testing (maintainers only)
+├── ctf_setup.sh              # VM setup script (creates challenges)
+├── README.md                 # Challenge descriptions and instructions
+├── aws/                      # AWS Terraform deployment
+├── azure/                    # Azure Terraform deployment
+├── gcp/                      # GCP Terraform deployment
+└── .github/skills/           # Copilot agent skills (maintainers only)
 ```
 
 ## For Contributors/Maintainers
 
-- Testing documentation with solutions is in [tests/CHALLENGE_REFERENCE.md](../tests/CHALLENGE_REFERENCE.md)
-- Run tests with `./tests/deploy_and_test.sh <provider>`
-- See [tests/run-ctf-tests.prompt.md](../tests/run-ctf-tests.prompt.md) for test execution guide
+- Run tests with `./.github/skills/ctf-testing/deploy_and_test.sh <provider>`
+- Test scripts contain solution commands - do not share with learners
+- Enable `chat.useAgentSkills` in VS Code settings to use the CTF testing skill
 
 ## The `verify` Command
 

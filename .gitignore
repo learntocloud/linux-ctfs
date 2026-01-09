@@ -7,4 +7,8 @@
 *.swp
 *.swo
 
-# Note: Terraform files are handled by .gitignore in each provider folder (aws/, azure/, gcp/)
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl

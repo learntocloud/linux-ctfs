@@ -42,6 +42,19 @@ Deploy your CTF lab using your preferred cloud provider:
 | Azure | ~$0.05 | [Azure Setup](./azure/README.md) |
 | GCP | ~$0.03 | [GCP Setup](./gcp/README.md) |
 
+## Completing the CTF
+
+Once you've solved all 18 challenges, export your completion certificate:
+
+```bash
+verify export <your-github-username>
+```
+
+> [!IMPORTANT]  
+> Enter your GitHub username **exactly** as it appears on GitHub—no `@` symbol, no extra spaces, no special characters. For example: `verify export octocat` not `verify export @octocat`. The verification system will reject tokens with incorrect usernames.
+
+This generates a cryptographically signed token you can use to verify your completion at [learntocloud.guide/phase2](https://learntocloud.guide/phase2).
+
 ## Tips
 
 - Use `man` pages to learn commands (e.g., `man find`)

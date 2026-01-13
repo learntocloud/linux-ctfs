@@ -59,6 +59,15 @@ for i in {0..18}; do
 done
 
 # =============================================================================
+# VERIFICATION TOKEN SECRET
+# =============================================================================
+# Generate a unique instance ID and derive a secret for this deployment
+# The verification app uses the master secret + instance ID to derive the same secret
+INSTANCE_ID=$(head -c 16 /dev/urandom | xxd -p)
+MASTER_SECRET="L2C_CTF_MASTER_2024"
+VERIFICATION_SECRET=$(echo -n "${MASTER_SECRET}:${INSTANCE_ID}" | sha256sum | cut -d' ' -f1)
+
+# =============================================================================
 # SYSTEM SETUP
 # =============================================================================
 
@@ -129,6 +138,11 @@ HASHEOF
 sudo mv /tmp/ctf_hashes /etc/ctf/flag_hashes
 sudo chmod 644 /etc/ctf/flag_hashes
 
+# Store verification token secrets
+echo "$INSTANCE_ID" | sudo tee /etc/ctf/instance_id > /dev/null
+echo "$VERIFICATION_SECRET" | sudo tee /etc/ctf/verification_secret > /dev/null
+sudo chmod 644 /etc/ctf/instance_id /etc/ctf/verification_secret
+
 # Create verify script
 sudo tee /usr/local/bin/verify > /dev/null << 'EOFVERIFY'
 #!/bin/bash
@@ -142,6 +156,10 @@ fi
 
 # Read hashes into array
 mapfile -t ANSWER_HASHES < "$HASH_FILE"
+
+# Load verification token secrets
+INSTANCE_ID=$(cat /etc/ctf/instance_id 2>/dev/null || echo "")
+VERIFICATION_SECRET=$(cat /etc/ctf/verification_secret 2>/dev/null || echo "")
 
 CHALLENGE_NAMES=(
     "Example Challenge"
@@ -295,13 +313,16 @@ export_certificate() {
         return 1
     fi
     
-    # Now check for name argument
+    # Now check for GitHub username argument
     if [ -z "$1" ]; then
-        echo "Usage: verify export <name>"
-        echo "Example: verify export John Doe"
+        echo "Usage: verify export <github_username>"
+        echo "Example: verify export octocat"
+        echo ""
+        echo "⚠️  Use your GitHub username! This will be verified when you"
+        echo "   submit your token at https://learntocloud.guide/phase2"
         return 1
     fi
-    local custom_name="$1"
+    local github_username="$1"
     
     local completion_time="Unknown"
     if [ -f "$START_TIME_FILE" ]; then
@@ -321,9 +342,9 @@ export_certificate() {
     echo "         LEARN TO CLOUD - CTF COMPLETION CERTIFICATE        " | lolcat
     echo "============================================================" | lolcat
     echo ""
-    echo "  This certifies that"
+    echo "  This certifies that GitHub user"
     echo ""
-    figlet -c "$custom_name" | lolcat
+    figlet -c "$github_username" | lolcat
     echo ""
     echo "  has successfully completed all 18 Linux CTF challenges"
     echo ""
@@ -351,9 +372,9 @@ export_certificate() {
          LEARN TO CLOUD - CTF COMPLETION CERTIFICATE
 ============================================================
 
-  This certifies that
+  This certifies that GitHub user
 
-              $custom_name
+              $github_username
 
   has successfully completed all 18 Linux CTF challenges
 
@@ -376,7 +397,44 @@ export_certificate() {
 ============================================================
 CERTEOF
     echo ""
-    echo "Certificate exported to: $cert_file"
+    echo "Certificate saved to: $cert_file"
+    
+    # Generate signed verification token
+    local timestamp=$(date +%s)
+    local date_str=$(date +%Y-%m-%d)
+    
+    # Create JSON payload (includes github_username for verification app to match against OAuth)
+    local payload=$(cat << JSONEOF
+{"github_username":"$github_username","date":"$date_str","time":"$completion_time","challenges":18,"timestamp":$timestamp,"instance_id":"$INSTANCE_ID"}
+JSONEOF
+)
+    
+    # Generate HMAC-SHA256 signature
+    local signature=$(echo -n "$payload" | openssl dgst -sha256 -hmac "$VERIFICATION_SECRET" | cut -d' ' -f2)
+    
+    # Combine payload and signature, then base64 encode
+    local token_data=$(cat << TOKENEOF
+{"payload":$payload,"signature":"$signature"}
+TOKENEOF
+)
+    local token=$(echo -n "$token_data" | base64 -w 0)
+    
+    echo ""
+    echo "============================================================" | lolcat
+    echo "              🎫 VERIFICATION TOKEN                          " | lolcat  
+    echo "============================================================" | lolcat
+    echo ""
+    echo "To verify your completion:"
+    echo "  1. Go to https://learntocloud.guide/phase2"
+    echo "  2. Sign in with GitHub (as: $github_username)"
+    echo "  3. Paste the token below"
+    echo ""
+    echo "--- BEGIN L2C CTF TOKEN ---"
+    echo "$token"
+    echo "--- END L2C CTF TOKEN ---"
+    echo ""
+    echo "📋 Tip: Triple-click to select the entire token, then copy!"
+    echo ""
 }
 
 case "$1" in
@@ -407,9 +465,10 @@ case "$1" in
         echo "  verify list     - List all challenges with status"
         echo "  verify hint [n] - Show hint for challenge n"
         echo "  verify time     - Show elapsed time"
-        echo "  verify export <name> - Export completion certificate with your name"
+        echo "  verify export <github_username> - Export certificate with your GitHub username"
         echo
         echo "Example: verify 0 CTF{example}"
+        echo "         verify export octocat"
         ;;
 esac
 EOFVERIFY

@@ -80,6 +80,7 @@ For thorough testing (includes reboot verification):
 - Services are running and accessible
 - Flags can be discovered and submitted
 - Progress tracking works
+- Verification token generation and format
 - (With `--with-reboot`) Services survive VM restart
 
 See [.github/skills/ctf-testing/SKILL.md](.github/skills/ctf-testing/SKILL.md) for detailed documentation.

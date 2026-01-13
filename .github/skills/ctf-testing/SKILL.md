@@ -45,15 +45,17 @@ Run from repository root:
 2. **Challenge setup** - Files exist, services running, permissions correct
 3. **Solution commands** - Each challenge returns valid flag
 4. **Flag submission** - All 18 flags accepted by `verify`
-5. **Reboot resilience** (with `--with-reboot`) - Services restart, progress persists
+5. **Verification token system** - Instance secrets, token generation, token format validation
+6. **Reboot resilience** (with `--with-reboot`) - Services restart, progress persists
 
 ## Expected Results
 
-A successful run shows **69 tests passing**:
+A successful run shows **~84 tests passing**:
 - 7 verify subcommand tests
 - 24 challenge setup verifications
 - 18 solution command tests
 - 20 flag verification tests
+- 15 verification token tests
 
 ## Troubleshooting
 

@@ -477,6 +477,102 @@ run_test_output "verify progress shows 18/18" \
     "verify progress" "18/18"
 
 # ============================================================================
+section "VERIFICATION TOKEN TESTS"
+# ============================================================================
+
+echo "Testing the verification token export system..."
+
+# Test that verification secrets were created
+run_test "Verification secrets: instance_id exists" \
+    "test -f /etc/ctf/instance_id && test -s /etc/ctf/instance_id"
+
+run_test "Verification secrets: verification_secret exists" \
+    "test -f /etc/ctf/verification_secret && test -s /etc/ctf/verification_secret"
+
+run_test "Verification secrets: instance_id is 32 hex chars" \
+    "test \$(cat /etc/ctf/instance_id | wc -c) -eq 33"  # 32 chars + newline
+
+run_test "Verification secrets: verification_secret is 64 hex chars (SHA256)" \
+    "test \$(cat /etc/ctf/verification_secret | wc -c) -eq 65"  # 64 chars + newline
+
+# Test export command now that all challenges are complete
+echo "Testing verify export command..."
+
+EXPORT_OUTPUT=$(verify export testuser 2>&1) || true
+# Save to file to avoid issues with special characters in ASCII art
+echo "$EXPORT_OUTPUT" > /tmp/ctf_export_output.txt
+
+# Check export output contains expected content (using file to avoid shell escaping issues)
+if grep -q "COMPLETION CERTIFICATE" /tmp/ctf_export_output.txt 2>/dev/null; then
+    pass "verify export creates certificate"
+else
+    fail "verify export creates certificate"
+fi
+
+if grep -q "testuser" /tmp/ctf_export_output.txt 2>/dev/null; then
+    pass "verify export shows GitHub username"
+else
+    fail "verify export shows GitHub username"
+fi
+
+if grep -q "BEGIN L2C CTF TOKEN" /tmp/ctf_export_output.txt 2>/dev/null; then
+    pass "verify export generates verification token"
+else
+    fail "verify export generates verification token"
+fi
+
+# Extract and validate token format (using file to avoid shell escaping)
+TOKEN=$(sed -n '/BEGIN L2C CTF TOKEN/,/END L2C CTF TOKEN/p' /tmp/ctf_export_output.txt | grep -v 'L2C CTF TOKEN' | tr -d '\n ')
+if [ -n "$TOKEN" ]; then
+    pass "verify export: Token extracted"
+    
+    # Token should be valid base64
+    DECODED=$(echo "$TOKEN" | base64 -d 2>/dev/null) || DECODED=""
+    if [ -n "$DECODED" ]; then
+        pass "verify export: Token is valid base64"
+        
+        # Check token contains expected JSON fields
+        if echo "$DECODED" | grep -q '"payload"'; then
+            pass "verify export: Token contains payload"
+        else
+            fail "verify export: Token missing payload field"
+        fi
+        
+        if echo "$DECODED" | grep -q '"signature"'; then
+            pass "verify export: Token contains signature"
+        else
+            fail "verify export: Token missing signature field"
+        fi
+        
+        if echo "$DECODED" | grep -q '"github_username":"testuser"'; then
+            pass "verify export: Token contains correct github_username"
+        else
+            fail "verify export: Token has wrong or missing github_username"
+        fi
+        
+        if echo "$DECODED" | grep -q '"challenges":18'; then
+            pass "verify export: Token shows 18 challenges"
+        else
+            fail "verify export: Token has wrong challenge count"
+        fi
+        
+        if echo "$DECODED" | grep -q '"instance_id"'; then
+            pass "verify export: Token contains instance_id"
+        else
+            fail "verify export: Token missing instance_id"
+        fi
+    else
+        fail "verify export: Token is not valid base64"
+    fi
+else
+    fail "verify export: No token found in output"
+fi
+
+# Test that export without username shows usage
+run_test_output "verify export without username shows usage" \
+    "verify export 2>&1" "Usage:"
+
+# ============================================================================
 section "TEST SUMMARY"
 # ============================================================================
 

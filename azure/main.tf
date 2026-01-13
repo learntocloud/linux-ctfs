@@ -175,6 +175,20 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
   )
 }
 
+action "azurerm_virtual_machine_power" "ctf_power_off" {
+  config {
+    virtual_machine_id = azurerm_linux_virtual_machine.ctf_vm.id
+    power_action       = "power_off"
+  }
+}
+
+action "azurerm_virtual_machine_power" "ctf_power_on" {
+  config {
+    virtual_machine_id = azurerm_linux_virtual_machine.ctf_vm.id
+    power_action       = "power_on"
+  }
+}
+
 resource "null_resource" "wait_for_setup" {
   depends_on = [azurerm_linux_virtual_machine.ctf_vm]
   

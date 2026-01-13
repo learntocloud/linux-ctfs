@@ -1,5 +1,18 @@
 # main.tf
-
+terraform {
+  required_version = ">= 1.14.0"
+  
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
+    }
+  }
+}
 # Variables
 variable "az_region" {
   description = "The region to deploy the CTF lab"

@@ -1,3 +1,12 @@
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
+  }
+}
 # Configure the AWS Provider
 # Define the region variable
 variable "aws_region" {
@@ -183,4 +192,25 @@ resource "null_resource" "wait_for_setup" {
 # Output the public IP of the instance
 output "public_ip_address" {
   value = aws_instance.ctf_instance.public_ip
+}
+# Stop EC2 instance
+resource "null_resource" "stop_instance" {
+  triggers = {
+    instance_id = aws_instance.ctf_instance.id
+  }
+
+  provisioner "local-exec" {
+    command = "aws ec2 stop-instances --instance-ids ${aws_instance.ctf_instance.id}"
+  }
+}
+
+# Start EC2 instance
+resource "null_resource" "start_instance" {
+  triggers = {
+    instance_id = aws_instance.ctf_instance.id
+  }
+
+  provisioner "local-exec" {
+    command = "aws ec2 start-instances --instance-ids ${aws_instance.ctf_instance.id}"
+  }
 }

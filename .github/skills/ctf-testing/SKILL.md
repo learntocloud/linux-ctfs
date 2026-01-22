@@ -1,11 +1,24 @@
 ---
 name: ctf-testing
-description: Deploy and test Linux CTF challenges across cloud providers (AWS, Azure, GCP). Use when testing CTF setup, validating challenges work correctly, running the full test suite, or verifying services survive VM reboots.
+description: Deploy and test Linux CTF challenges across cloud providers (AWS, Azure, GCP). Use when testing CTF setup, validating challenges work correctly, running the full test suite, verifying services survive VM reboots, or after creating new challenges with ctf-challenge-creator skill.
 ---
 
 # CTF Challenge Testing
 
-This skill helps deploy CTF infrastructure to cloud providers and validate all 18 challenges work correctly.
+This skill deploys CTF infrastructure to cloud providers and validates all challenges work correctly.
+
+**Often used after:** `ctf-challenge-creator` skill to verify new challenges work.
+
+## Decision Tree: Which Provider?
+
+```
+What to test? → Testing new challenge locally first?
+├─ Yes → Use Azure (fastest deploy, ~3 min)
+│
+└─ No → Full validation before release?
+    ├─ Quick check → Pick one: aws | azure | gcp
+    └─ Full release validation → Use "all" + --with-reboot
+```
 
 ## When to Use
 
@@ -25,7 +38,7 @@ This skill helps deploy CTF infrastructure to cloud providers and validate all 1
 
 ## Running Tests
 
-Run from repository root:
+The scripts are black boxes - run with `--help` or use these commands:
 
 ```bash
 ./.github/skills/ctf-testing/deploy_and_test.sh <provider> [--with-reboot]
@@ -39,23 +52,36 @@ Run from repository root:
 | `deploy_and_test.sh all` | Test all providers (~45 min) |
 | `deploy_and_test.sh aws --with-reboot` | Test with reboot verification (~20 min) |
 
+## Common Pitfalls
+
+❌ **Don't** run tests without checking cloud CLI authentication first
+✅ **Do** verify with `aws sts get-caller-identity` / `az account show` / `gcloud auth list`
+
+❌ **Don't** forget to check for leftover resources after a failed run
+✅ **Do** run the cleanup verification commands in "Post-Test Cleanup" section
+
+❌ **Don't** run `all` for quick iteration - it takes 45+ minutes
+✅ **Do** pick one provider (AWS is fastest) for development, `all` for releases
+
 ## What Gets Tested
 
 1. **Verify command subcommands** - progress, list, hint, time, export
 2. **Challenge setup** - Files exist, services running, permissions correct
 3. **Solution commands** - Each challenge returns valid flag
-4. **Flag submission** - All 18 flags accepted by `verify`
+4. **Flag submission** - All 19 flags accepted by `verify`
 5. **Verification token system** - Instance secrets, token generation, token format validation
 6. **Reboot resilience** (with `--with-reboot`) - Services restart, progress persists
 
 ## Expected Results
 
-A successful run shows **~84 tests passing**:
+A successful run shows **~84 tests passing**, followed by a short summary:
 - 7 verify subcommand tests
 - 24 challenge setup verifications
-- 18 solution command tests
+- 19 solution command tests
 - 20 flag verification tests
 - 15 verification token tests
+
+Summary line: `RESULT: PASS (<providers>)` or `RESULT: FAIL (<providers>)`
 
 ## Troubleshooting
 
@@ -102,5 +128,11 @@ cd <provider> && terraform destroy -auto-approve
 
 ## Scripts
 
-- [deploy_and_test.sh](deploy_and_test.sh) - Orchestration script (runs locally)
-- [test_ctf_challenges.sh](test_ctf_challenges.sh) - VM test script (runs on deployed VM)
+Reference files - treat as black boxes, run directly:
+
+- 📄 [deploy_and_test.sh](deploy_and_test.sh) - Orchestration script (runs locally)
+- 📄 [test_ctf_challenges.sh](test_ctf_challenges.sh) - VM test script (copied to and runs on deployed VM)
+
+## Related Skills
+
+- **ctf-challenge-creator** - Create new challenges, then use this skill to validate

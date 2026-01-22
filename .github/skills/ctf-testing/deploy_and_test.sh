@@ -392,23 +392,14 @@ main() {
         fi
     done
     
-    # Final summary
+    # Final summary (short pass/fail)
     echo ""
-    echo -e "${YELLOW}════════════════════════════════════════════════════════════════${NC}"
-    echo -e "${YELLOW}  FINAL RESULTS${NC}"
-    echo -e "${YELLOW}════════════════════════════════════════════════════════════════${NC}"
-    echo ""
-    
-    if [ ${#passed_providers[@]} -gt 0 ]; then
-        echo -e "${GREEN}PASSED: ${passed_providers[*]}${NC}"
-    fi
-    
     if [ ${#failed_providers[@]} -gt 0 ]; then
-        echo -e "${RED}FAILED: ${failed_providers[*]}${NC}"
+        echo -e "${RED}RESULT: FAIL (${failed_providers[*]})${NC}"
         exit 1
     fi
-    
-    echo -e "\n${GREEN}All tests passed!${NC}"
+
+    echo -e "${GREEN}RESULT: PASS (${passed_providers[*]})${NC}"
     exit 0
 }
 

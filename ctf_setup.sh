@@ -594,6 +594,11 @@ cat > /usr/local/bin/monitor_directory.sh << 'EOF'
 #!/bin/bash
 DIRECTORY="/home/ctf_user/ctf_challenges"
 FLAG=$(cat /etc/ctf/flag_10)
+# Wait for setup to complete before monitoring to avoid leaking flags during provisioning
+while [ ! -f /var/log/setup_complete ]; do
+    sleep 5
+done
+sleep 10
 # Pre-create the trigger file location
 touch /tmp/.ctf_upload_triggered 2>/dev/null || true
 chmod 666 /tmp/.ctf_upload_triggered 2>/dev/null || true

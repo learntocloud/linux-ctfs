@@ -193,24 +193,15 @@ resource "null_resource" "wait_for_setup" {
 output "public_ip_address" {
   value = aws_instance.ctf_instance.public_ip
 }
-# Stop EC2 instance
-resource "null_resource" "stop_instance" {
-  triggers = {
-    instance_id = aws_instance.ctf_instance.id
-  }
-
-  provisioner "local-exec" {
-    command = "aws ec2 stop-instances --instance-ids ${aws_instance.ctf_instance.id}"
-  }
+# Desired state of the EC2 instance
+variable "ctf_instance_state" {
+  description = "Desired state of the EC2 instance (running or stopped)"
+  type        = string
+  default     = "running"
 }
 
-# Start EC2 instance
-resource "null_resource" "start_instance" {
-  triggers = {
-    instance_id = aws_instance.ctf_instance.id
-  }
-
-  provisioner "local-exec" {
-    command = "aws ec2 start-instances --instance-ids ${aws_instance.ctf_instance.id}"
-  }
+# Control EC2 instance state declaratively
+resource "aws_ec2_instance_state" "ctf_instance_state" {
+  instance_id = aws_instance.ctf_instance.id
+  state       = var.ctf_instance_state
 }

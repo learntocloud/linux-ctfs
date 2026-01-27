@@ -318,8 +318,7 @@ export_certificate() {
         echo "Usage: verify export <github_username>"
         echo "Example: verify export octocat"
         echo ""
-        echo "⚠️  Use your GitHub username! This will be verified when you"
-        echo "   submit your token at https://learntocloud.guide/phase2"
+        echo "⚠️  Use your exact GitHub username! Save your token for future verification."
         return 1
     fi
     local github_username="$1"
@@ -421,13 +420,11 @@ TOKENEOF
     
     echo ""
     echo "============================================================" | lolcat
-    echo "              🎫 VERIFICATION TOKEN                          " | lolcat  
+    echo "              🎫 COMPLETION TOKEN                             " | lolcat  
     echo "============================================================" | lolcat
     echo ""
-    echo "To verify your completion:"
-    echo "  1. Go to https://learntocloud.guide/phase2"
-    echo "  2. Sign in with GitHub (as: $github_username)"
-    echo "  3. Paste the token below"
+    echo "🔐 Save this token! A verification system is coming soon."
+    echo "   Keep it somewhere safe—you'll need it to verify your completion."
     echo ""
     echo "--- BEGIN L2C CTF TOKEN ---"
     echo "$token"

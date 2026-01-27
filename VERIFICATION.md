@@ -1,20 +1,22 @@
 # CTF Completion Verification
 
-This document describes how the Learn to Cloud CTF verification token system works and how to implement verification in your application.
+> ⚠️ **NOT YET IMPLEMENTED**: The verification system is not yet available. Users should save their completion tokens for future verification. This document is for **contributors/maintainers** planning the verification system implementation.
+
+This document describes how the Learn to Cloud CTF verification token system works and how to implement verification in a future application.
 
 ## Overview
 
 When users complete all 18 challenges and run `verify export <github_username>`, they receive:
 1. A visual certificate displayed in the terminal
-2. A **signed verification token** they can copy-paste to verify their completion
+2. A **signed verification token** they should save for future verification
 
 ## Security Design
 
-The verification system uses **GitHub OAuth** as the primary security mechanism:
+The planned verification system will use **GitHub OAuth** as the primary security mechanism:
 
 1. **User completes CTF** and runs `verify export <github_username>`
 2. **Token is generated** containing their GitHub username
-3. **User visits verification app** at https://learntocloud.guide/phase2 and signs in with GitHub
+3. **User visits verification app** (URL TBD) and signs in with GitHub
 4. **App verifies**: `token.github_username === OAuth_user.login`
 
 This means:

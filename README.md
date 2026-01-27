@@ -51,20 +51,9 @@ verify export <your-github-username>
 ```
 
 > [!IMPORTANT]  
-> Enter your GitHub username **exactly** as it appears on GitHub—no `@` symbol, no extra spaces, no special characters. For example: `verify export octocat` not `verify export @octocat`. The verification system will reject tokens with incorrect usernames.
+> Enter your GitHub username **exactly** as it appears on GitHub—no `@` symbol, no extra spaces, no special characters. For example: `verify export octocat` not `verify export @octocat`.
 
-This generates a cryptographically signed token. To verify your completion:
-
-1. Go to [learntocloud.guide/phase2](https://learntocloud.guide/phase2)
-2. Sign in with the **same GitHub account** you used in the export command
-3. Copy **only the token** (the long string of characters between the markers):
-   ```
-   --- BEGIN L2C CTF TOKEN ---
-   eyJwYXlsb2FkIjp7...your-unique-token-here...fQ==
-   --- END L2C CTF TOKEN ---
-   ```
-   > **Copy everything between the markers, but NOT the `--- BEGIN/END ---` lines themselves.**
-4. Paste the token into the verification form
+This generates a cryptographically signed completion token. **Save this token!** A verification system is coming soon where you'll be able to verify your completion. For now, keep your token safe—you'll need it later.
 
 ## Tips
 

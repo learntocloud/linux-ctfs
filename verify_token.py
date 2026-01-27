@@ -2,8 +2,11 @@
 """
 CTF Token Verification Script
 
-This script mimics what the verification app at https://learntocloud.guide/phase2
-would do to verify a CTF completion token.
+This script is for contributors/maintainers to test token verification locally.
+It demonstrates what a future verification app would do to verify CTF completion tokens.
+
+NOTE: The verification app is not yet implemented. Users should save their tokens
+for future verification.
 """
 
 import base64

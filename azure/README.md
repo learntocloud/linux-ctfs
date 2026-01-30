@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-1. [Terraform](https://developer.hashicorp.com/terraform/install) (v1.9.0 or later)
+1. [Terraform](https://developer.hashicorp.com/terraform/install) (v1.14.0 or later)
 2. [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
 3. An Azure account with an active subscription
 

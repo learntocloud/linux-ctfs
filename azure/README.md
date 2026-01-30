@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-1. [Terraform](https://developer.hashicorp.com/terraform/install) (v1.9.0 or later)
+1. [Terraform](https://developer.hashicorp.com/terraform/install) (v1.14.0 or later)
 2. [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
 3. An Azure account with an active subscription
 
@@ -50,6 +50,23 @@
 1. On first login you will be asked if you want to add fingerprints to the known hosts file; type `yes` and press Enter.
 
 1. When prompted, enter the password: `CTFpassword123!`
+
+## Starting/Stopping the Lab VM
+
+If you'd like to pause the lab, you can utilize the following commands to start or stop the VM and reduce lab cost:
+
+```sh
+# power off
+terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_off \
+    -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID" \
+    -var az_region="YOUR_AZURE_REGION" \
+    -auto-approve
+# power on
+terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_on \
+    -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID" \
+    -var az_region="YOUR_AZURE_REGION" \
+    -auto-approve
+```
 
 ## Cleaning Up
 

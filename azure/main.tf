@@ -1,5 +1,18 @@
 # main.tf
-
+terraform {
+  required_version = ">= 1.14.0"
+  
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
+    }
+  }
+}
 # Variables
 variable "az_region" {
   description = "The region to deploy the CTF lab"
@@ -160,6 +173,20 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
     curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/main/ctf_setup.sh | bash
   EOF
   )
+}
+
+action "azurerm_virtual_machine_power" "ctf_power_off" {
+  config {
+    virtual_machine_id = azurerm_linux_virtual_machine.ctf_vm.id
+    power_action       = "power_off"
+  }
+}
+
+action "azurerm_virtual_machine_power" "ctf_power_on" {
+  config {
+    virtual_machine_id = azurerm_linux_virtual_machine.ctf_vm.id
+    power_action       = "power_on"
+  }
 }
 
 resource "null_resource" "wait_for_setup" {

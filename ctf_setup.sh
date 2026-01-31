@@ -8,51 +8,48 @@ set -euo pipefail
 # =============================================================================
 # DYNAMIC FLAG GENERATION
 # =============================================================================
-# Generate unique flags for this instance to prevent answer sharing
-# Each flag has format: CTF{descriptive_text_XXXX} where XXXX is random hex
 
 generate_flag_suffix() {
     head -c 4 /dev/urandom | xxd -p
 }
 
-# Generate unique suffix for this instance
 INSTANCE_SUFFIX=$(generate_flag_suffix)
 
-# Define flag base names (the descriptive part)
 declare -A FLAG_BASES=(
     [0]="example"
-    [1]="finding_hidden_treasures"
-    [2]="search_and_discover"
-    [3]="size_matters_in_linux"
-    [4]="user_enumeration_expert"
-    [5]="permission_sleuth"
-    [6]="network_detective"
-    [7]="decoding_master"
-    [8]="ssh_security_master"
+    [1]="hidden_files"
+    [2]="file_search"
+    [3]="log_analysis"
+    [4]="user_enum"
+    [5]="perm_sleuth"
+    [6]="net_detective"
+    [7]="decode_master"
+    [8]="ssh_secrets"
     [9]="dns_name"
-    [10]="network_copy"
+    [10]="net_copy"
     [11]="web_config"
-    [12]="net_chat"
-    [13]="cron_task_master"
-    [14]="env_variable_hunter"
-    [15]="archive_explorer"
-    [16]="link_follower"
-    [17]="history_detective"
-    [18]="disk_detective"
+    [12]="icmp"
+    [13]="cron_master"
+    [14]="proc_env"
+    [15]="archive_dig"
+    [16]="link_follow"
+    [17]="history_sleuth"
+    [18]="disk_sleuth"
 )
 
-# Generate the actual flags with unique suffix
 declare -A FLAGS
 for i in {0..18}; do
     if [ "$i" -eq 0 ]; then
-        # Example flag stays static so documentation works
         FLAGS[$i]="CTF{example}"
+    elif [ "$i" -eq 12 ]; then
+        # Flag 12 must be <=16 chars for ping -p (max 32 hex chars)
+        SHORT_SUFFIX=$(echo "$INSTANCE_SUFFIX" | cut -c1-4)
+        FLAGS[$i]="CTF{${FLAG_BASES[$i]}_${SHORT_SUFFIX}}"
     else
         FLAGS[$i]="CTF{${FLAG_BASES[$i]}_${INSTANCE_SUFFIX}}"
     fi
 done
 
-# Generate SHA256 hashes for verification
 declare -A FLAG_HASHES
 for i in {0..18}; do
     FLAG_HASHES[$i]=$(echo -n "${FLAGS[$i]}" | sha256sum | cut -d' ' -f1)
@@ -61,8 +58,7 @@ done
 # =============================================================================
 # VERIFICATION TOKEN SECRET
 # =============================================================================
-# Generate a unique instance ID and derive a secret for this deployment
-# The verification app uses the master secret + instance ID to derive the same secret
+
 INSTANCE_ID=$(head -c 16 /dev/urandom | xxd -p)
 MASTER_SECRET="L2C_CTF_MASTER_2024"
 VERIFICATION_SECRET=$(echo -n "${MASTER_SECRET}:${INSTANCE_ID}" | sha256sum | cut -d' ' -f1)
@@ -71,93 +67,57 @@ VERIFICATION_SECRET=$(echo -n "${MASTER_SECRET}:${INSTANCE_ID}" | sha256sum | cu
 # SYSTEM SETUP
 # =============================================================================
 
-# System setup
 sudo apt-get update
 sudo apt-get install -y net-tools nmap tree nginx inotify-tools figlet lolcat
 
-# Disable default Ubuntu MOTD
-sudo chmod -x /etc/update-motd.d/00-header 2>/dev/null || true
-sudo chmod -x /etc/update-motd.d/10-help-text 2>/dev/null || true
-sudo chmod -x /etc/update-motd.d/50-motd-news 2>/dev/null || true
-sudo chmod -x /etc/update-motd.d/50-landscape-sysinfo 2>/dev/null || true
-sudo chmod -x /etc/update-motd.d/80-esm 2>/dev/null || true
-sudo chmod -x /etc/update-motd.d/80-livepatch 2>/dev/null || true
-sudo chmod -x /etc/update-motd.d/90-updates-available 2>/dev/null || true
-sudo chmod -x /etc/update-motd.d/91-release-upgrade 2>/dev/null || true
-sudo chmod -x /etc/update-motd.d/92-unattended-upgrades 2>/dev/null || true
-sudo chmod -x /etc/update-motd.d/95-hwe-eol 2>/dev/null || true
+for f in /etc/update-motd.d/*; do
+    sudo chmod -x "$f" 2>/dev/null || true
+done
 
-# Create CTF user (if not exists)
 if ! id "ctf_user" &>/dev/null; then
     sudo useradd -m -s /bin/bash ctf_user
     echo 'ctf_user:CTFpassword123!' | sudo chpasswd
     sudo usermod -aG sudo ctf_user
 fi
 
-# Fix for unknown terminal types (e.g., ghostty)
-# shellcheck disable=SC2016 # Single quotes intentional - $TERM should expand at login time
+# shellcheck disable=SC2016
 echo 'case "$TERM" in *-ghostty) export TERM=xterm-256color;; esac' | sudo tee /etc/profile.d/fix-term.sh > /dev/null
 sudo chmod 644 /etc/profile.d/fix-term.sh
 
-# SSH configuration
 sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
 sudo sed -i 's/ChallengeResponseAuthentication no/ChallengeResponseAuthentication yes/' /etc/ssh/sshd_config
 sudo sed -i 's/KbdInteractiveAuthentication no/KbdInteractiveAuthentication yes/' /etc/ssh/sshd_config
 sudo systemctl restart ssh
 
-# Create challenge directory
 sudo -u ctf_user mkdir -p /home/ctf_user/ctf_challenges
 cd /home/ctf_user/ctf_challenges || { echo "Failed to change directory"; exit 1; }
 
 # =============================================================================
-# WRITE FLAG HASHES FILE (for verify script)
+# WRITE FLAG HASHES FILE
 # =============================================================================
-# Store hashes in a root-owned file that verify can read but users can't easily modify
+
 sudo mkdir -p /etc/ctf
 cat > /tmp/ctf_hashes << HASHEOF
-${FLAG_HASHES[0]}
-${FLAG_HASHES[1]}
-${FLAG_HASHES[2]}
-${FLAG_HASHES[3]}
-${FLAG_HASHES[4]}
-${FLAG_HASHES[5]}
-${FLAG_HASHES[6]}
-${FLAG_HASHES[7]}
-${FLAG_HASHES[8]}
-${FLAG_HASHES[9]}
-${FLAG_HASHES[10]}
-${FLAG_HASHES[11]}
-${FLAG_HASHES[12]}
-${FLAG_HASHES[13]}
-${FLAG_HASHES[14]}
-${FLAG_HASHES[15]}
-${FLAG_HASHES[16]}
-${FLAG_HASHES[17]}
-${FLAG_HASHES[18]}
+$(for i in {0..18}; do echo "${FLAG_HASHES[$i]}"; done)
 HASHEOF
 sudo mv /tmp/ctf_hashes /etc/ctf/flag_hashes
 sudo chmod 644 /etc/ctf/flag_hashes
 
-# Store verification token secrets
 echo "$INSTANCE_ID" | sudo tee /etc/ctf/instance_id > /dev/null
 echo "$VERIFICATION_SECRET" | sudo tee /etc/ctf/verification_secret > /dev/null
 sudo chmod 644 /etc/ctf/instance_id /etc/ctf/verification_secret
 
-# Create verify script
 sudo tee /usr/local/bin/verify > /dev/null << 'EOFVERIFY'
 #!/bin/bash
 
-# Load flag hashes from file (generated at setup time)
 HASH_FILE="/etc/ctf/flag_hashes"
 if [ ! -f "$HASH_FILE" ]; then
     echo "Error: CTF not properly initialized. Hash file missing."
     exit 1
 fi
 
-# Read hashes into array
 mapfile -t ANSWER_HASHES < "$HASH_FILE"
 
-# Load verification token secrets
 INSTANCE_ID=$(cat /etc/ctf/instance_id 2>/dev/null || echo "")
 VERIFICATION_SECRET=$(cat /etc/ctf/verification_secret 2>/dev/null || echo "")
 
@@ -211,7 +171,6 @@ check_flag() {
     local challenge_num=$1
     local submitted_flag=$2
     
-    # Validate challenge number is within bounds
     if ! [[ "$challenge_num" =~ ^[0-9]+$ ]] || [ "$challenge_num" -gt 18 ]; then
         echo "✗ Invalid challenge number. Use 0-18."
         return 1
@@ -300,7 +259,6 @@ show_hint() {
 }
 
 export_certificate() {
-    # Check completion status first (more helpful error message)
     local completed=0
     if [ -f ~/.completed_challenges ]; then
         completed=$(sort -u ~/.completed_challenges | wc -l)
@@ -313,7 +271,6 @@ export_certificate() {
         return 1
     fi
     
-    # Now check for GitHub username argument
     if [ -z "$1" ]; then
         echo "Usage: verify export <github_username>"
         echo "Example: verify export octocat"
@@ -335,7 +292,6 @@ export_certificate() {
     
     local cert_file=~/ctf_certificate_$(date +%Y%m%d_%H%M%S).txt
     
-    # Display fancy certificate to terminal
     echo ""
     echo "============================================================" | lolcat
     echo "         LEARN TO CLOUD - CTF COMPLETION CERTIFICATE        " | lolcat
@@ -365,7 +321,6 @@ export_certificate() {
     echo "                 🎉 Congratulations! 🎉                      " | lolcat
     echo "============================================================" | lolcat
     
-    # Save plain text version to file
     cat > "$cert_file" << CERTEOF
 ============================================================
          LEARN TO CLOUD - CTF COMPLETION CERTIFICATE
@@ -398,20 +353,15 @@ CERTEOF
     echo ""
     echo "Certificate saved to: $cert_file"
     
-    # Generate signed verification token
     local timestamp=$(date +%s)
     local date_str=$(date +%Y-%m-%d)
     
-    # Create JSON payload (includes github_username for verification app to match against OAuth)
     local payload=$(cat << JSONEOF
 {"github_username":"$github_username","date":"$date_str","time":"$completion_time","challenges":18,"timestamp":$timestamp,"instance_id":"$INSTANCE_ID"}
 JSONEOF
 )
     
-    # Generate HMAC-SHA256 signature
     local signature=$(echo -n "$payload" | openssl dgst -sha256 -hmac "$VERIFICATION_SECRET" | cut -d' ' -f2)
-    
-    # Combine payload and signature, then base64 encode
     local token_data=$(cat << TOKENEOF
 {"payload":$payload,"signature":"$signature"}
 TOKENEOF
@@ -430,7 +380,6 @@ TOKENEOF
     echo "$token"
     echo "--- END L2C CTF TOKEN ---"
     echo ""
-    echo "📋 Tip: Triple-click to select the entire token, then copy!"
     echo ""
 }
 
@@ -472,7 +421,6 @@ EOFVERIFY
 
 sudo chmod +x /usr/local/bin/verify
 
-# Create setup check script
 cat > /usr/local/bin/check_setup << 'EOF'
 #!/bin/bash
 if [ ! -f /var/log/setup_complete ]; then
@@ -482,11 +430,8 @@ fi
 EOF
 
 chmod +x /usr/local/bin/check_setup
-
-# Add to bash profile
 echo "/usr/local/bin/check_setup" >> /home/ctf_user/.profile
 
-# Create MOTD
 cat > /etc/motd << 'EOFMOTD'
 +==============================================+
 |  Learn To Cloud - Linux Command Line CTF    |
@@ -511,15 +456,13 @@ Team L2C
 +==============================================+
 EOFMOTD
 
-# Beginner Challenges
-# Challenge 1: Simple hidden file
+# Challenge 1: Hidden file
 echo "${FLAGS[1]}" > /home/ctf_user/ctf_challenges/.hidden_flag
 
-# Challenge 2: Basic file search
+# Challenge 2: File search
 mkdir -p /home/ctf_user/documents/projects/backup
 echo "${FLAGS[2]}" > /home/ctf_user/documents/projects/backup/secret_notes.txt
 
-# Intermediate Challenges
 # Challenge 3: Log analysis
 sudo dd if=/dev/urandom of=/var/log/large_log_file.log bs=1M count=500
 echo "${FLAGS[3]}" | sudo tee -a /var/log/large_log_file.log
@@ -538,9 +481,7 @@ sudo mkdir -p /opt/systems/config
 echo "${FLAGS[5]}" | sudo tee /opt/systems/config/system.conf
 sudo chmod 777 /opt/systems/config/system.conf
 
-# Advanced Challenges
 # Challenge 6: Service discovery
-# Note: We write the flag to a file that the service reads, so it can be dynamic
 echo "${FLAGS[6]}" | sudo tee /etc/ctf/flag_6 > /dev/null
 cat > /usr/local/bin/secret_service.sh << 'EOF'
 #!/bin/bash
@@ -585,24 +526,20 @@ sudo cp /etc/resolv.conf /etc/resolv.conf.bak
 sudo sed -i "/^nameserver/s/$/${FLAGS[9]}/" /etc/resolv.conf
 
 # Challenge 10: Remote upload
-# Store flag for the monitor script to use
 echo "${FLAGS[10]}" | sudo tee /etc/ctf/flag_10 > /dev/null
 cat > /usr/local/bin/monitor_directory.sh << 'EOF'
 #!/bin/bash
 DIRECTORY="/home/ctf_user/ctf_challenges"
 FLAG=$(cat /etc/ctf/flag_10)
-# Wait for setup to complete before monitoring to avoid leaking flags during provisioning
 while [ ! -f /var/log/setup_complete ]; do
     sleep 5
 done
 sleep 10
-# Pre-create the trigger file location
 touch /tmp/.ctf_upload_triggered 2>/dev/null || true
 chmod 666 /tmp/.ctf_upload_triggered 2>/dev/null || true
 inotifywait -m -e create --format '%f' "$DIRECTORY" | while read FILE
 do
     echo "A new file named $FILE has been added to $DIRECTORY. Here is your flag: $FLAG" | wall
-    # Also write flag to file for automated testing
     echo "$FLAG" > /tmp/.ctf_upload_triggered
     sync
 done
@@ -639,7 +576,6 @@ sudo sed -i 's/listen \[::\]:80 default_server;/listen \[::\]:8083 default_serve
 sudo systemctl restart nginx
 
 # Challenge 12: Network traffic analysis
-# Convert flag to hex for ping pattern
 FLAG_12_HEX=$(echo -n "${FLAGS[12]}" | xxd -p | tr -d '\n')
 cat > /usr/local/bin/ping_message.sh << EOF
 #!/bin/bash
@@ -681,7 +617,6 @@ EOF
 sudo chmod 644 /etc/cron.d/ctf_secret_task
 
 # Challenge 14: Process Environment
-# Store flag for the process to use
 echo "${FLAGS[14]}" | sudo tee /etc/ctf/flag_14 > /dev/null
 cat > /usr/local/bin/ctf_secret_process.sh << 'EOF'
 #!/bin/bash
@@ -692,8 +627,6 @@ done
 EOF
 sudo chmod +x /usr/local/bin/ctf_secret_process.sh
 
-# Create systemd service for Challenge 14
-# Run as ctf_user so they can read /proc/PID/environ
 cat > /etc/systemd/system/ctf-secret-process.service << EOF
 [Unit]
 Description=CTF Secret Process Challenge
@@ -750,31 +683,23 @@ sudo chmod 755 /home/old_admin
 sudo chmod 644 /home/old_admin/.bash_history
 
 # Challenge 18: Disk Detective
-# Create a small file system image with the flag stored inside
 sudo dd if=/dev/zero of=/opt/ctf_disk.img bs=1M count=10
 sudo mkfs.ext4 -L "ctf_disk" /opt/ctf_disk.img
 sudo mkdir -p /mnt/ctf_disk
-# Mount the image, create flag file, then unmount
 sudo mount -o loop /opt/ctf_disk.img /mnt/ctf_disk
 echo "${FLAGS[18]}" | sudo tee /mnt/ctf_disk/.flag > /dev/null
 sudo umount /mnt/ctf_disk
-# The flag is hidden inside the filesystem image - mount it to find it!
-
-# Set permissions
 sudo chown -R ctf_user:ctf_user /home/ctf_user/ctf_challenges
 
-# Enable MOTD display in PAM
 sudo sed -i 's/#session    optional     pam_motd.so/session    optional     pam_motd.so/' /etc/pam.d/login
 sudo sed -i 's/#session    optional     pam_motd.so/session    optional     pam_motd.so/' /etc/pam.d/sshd
 sudo systemctl restart ssh
 
-# Fix hostname resolution for sudo
 HOSTNAME=$(hostname)
 if ! grep -qF "$HOSTNAME" /etc/hosts; then
     echo "127.0.0.1 $HOSTNAME" | sudo tee -a /etc/hosts > /dev/null
 fi
 
-# Mark setup as complete
 touch /var/log/setup_complete
 
 echo "CTF environment setup complete!"

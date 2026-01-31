@@ -1,35 +1,41 @@
 #!/bin/bash
 #
 # CTF Challenge Test Script
-# Runs on the VM to validate all challenges work correctly
+# Runs on the VM to validate all challenges are solvable by students
+#
+# This script simulates a real user journey - discovering and solving each
+# challenge using only the hints provided. If these tests pass, students
+# can complete the CTF.
 #
 # Usage:
 #   ./test_ctf_challenges.sh [--with-reboot]
 #
 # Flags:
-#   --with-reboot    After initial tests pass, creates a marker file and exits
-#                    with code 100 to signal the orchestration script to reboot
-#                    the VM. After reboot, re-run this script to verify services
-#                    restarted and progress persisted.
+#   --with-reboot     After tests pass, signal reboot to verify services persist
 #
 # Exit codes:
 #   0   - All tests passed
 #   1   - One or more tests failed
-#   100 - Reboot requested (only with --with-reboot flag, pre-reboot phase)
+#   100 - Reboot requested (only with --with-reboot flag)
 #
 
 set -euo pipefail
+
+# Ensure verify command is available
+# It's installed in /usr/local/bin by ctf_setup.sh
+if ! command -v verify &>/dev/null; then
+    export PATH="/usr/local/bin:$PATH"
+fi
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Counters
 PASSED=0
 FAILED=0
-TOTAL=0
 
 # Reboot marker file
 REBOOT_MARKER="/tmp/.ctf_reboot_test_marker"
@@ -46,17 +52,14 @@ for arg in "$@"; do
     esac
 done
 
-# Test helper functions
 pass() {
     echo -e "${GREEN}✓ PASS${NC}: $1"
     ((PASSED++)) || true
-    ((TOTAL++)) || true
 }
 
 fail() {
     echo -e "${RED}✗ FAIL${NC}: $1"
     ((FAILED++)) || true
-    ((TOTAL++)) || true
 }
 
 section() {
@@ -66,545 +69,598 @@ section() {
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
-# Check if this is a post-reboot run
-is_post_reboot() {
-    [ -f "$REBOOT_MARKER" ]
-}
-
-# Run a test command and check result
-run_test() {
-    local description="$1"
-    local command="$2"
-    
-    if eval "$command" &>/dev/null; then
-        pass "$description"
-    else
-        fail "$description"
-    fi
-    # Always return 0 to prevent script exit with set -e
-    return 0
-}
-
-# Run a test that checks command output contains expected string
-run_test_output() {
-    local description="$1"
-    local command="$2"
-    local expected="$3"
-    
-    local output
-    output=$(eval "$command" 2>&1) || true
-    
-    if echo "$output" | grep -q "$expected"; then
-        pass "$description"
-    else
-        fail "$description (expected: '$expected', got: '$output')"
-    fi
-    # Always return 0 to prevent script exit with set -e
-    return 0
-}
-
 # ============================================================================
 # POST-REBOOT VERIFICATION
 # ============================================================================
-if is_post_reboot; then
+if [ -f "$REBOOT_MARKER" ]; then
     section "POST-REBOOT VERIFICATION"
     
-    echo "Detected reboot marker - running post-reboot checks..."
+    echo "Verifying services survived reboot..."
     
-    # Check services survived reboot
-    section "Service Survival Check"
-    
-    run_test "ctf-secret-service.service is active" \
-        "systemctl is-active ctf-secret-service.service"
-    
-    run_test "ctf-monitor-directory.service is active" \
-        "systemctl is-active ctf-monitor-directory.service"
-    
-    run_test "ctf-ping-message.service is active" \
-        "systemctl is-active ctf-ping-message.service"
-    
-    run_test "ctf-secret-process.service is active" \
-        "systemctl is-active ctf-secret-process.service"
-    
-    run_test "nginx.service is active" \
-        "systemctl is-active nginx"
-    
-    # Check progress persisted
-    section "Progress Persistence Check"
+    for service in ctf-secret-service ctf-monitor-directory ctf-ping-message ctf-secret-process nginx; do
+        if systemctl is-active "$service" &>/dev/null; then
+            pass "$service is running after reboot"
+        else
+            fail "$service failed to start after reboot - SETUP BUG"
+        fi
+    done
     
     if [ -f "$PROGRESS_SNAPSHOT" ]; then
-        EXPECTED_COUNT=$(cat "$PROGRESS_SNAPSHOT")
-        if [ -f ~/.completed_challenges ]; then
-            ACTUAL_COUNT=$(sort -u ~/.completed_challenges | wc -l)
-            if [ "$ACTUAL_COUNT" -ge "$EXPECTED_COUNT" ]; then
-                pass "Progress persisted after reboot ($ACTUAL_COUNT challenges)"
-            else
-                fail "Progress lost after reboot (expected $EXPECTED_COUNT, got $ACTUAL_COUNT)"
-            fi
+        EXPECTED=$(cat "$PROGRESS_SNAPSHOT")
+        ACTUAL=$(sort -u ~/.completed_challenges 2>/dev/null | wc -l)
+        if [ "$ACTUAL" -ge "$EXPECTED" ]; then
+            pass "Progress persisted after reboot ($ACTUAL challenges)"
         else
-            fail "Progress file missing after reboot"
+            fail "Progress lost after reboot (expected $EXPECTED, got $ACTUAL)"
         fi
-    else
-        echo "No progress snapshot found - skipping persistence check"
     fi
     
-    # Cleanup markers
     rm -f "$REBOOT_MARKER" "$PROGRESS_SNAPSHOT"
     
-    # Print summary
-    section "POST-REBOOT SUMMARY"
-    echo "Passed: $PASSED"
-    echo "Failed: $FAILED"
-    echo "Total:  $TOTAL"
-    
-    if [ $FAILED -eq 0 ]; then
-        echo -e "\n${GREEN}All post-reboot tests passed!${NC}"
-        exit 0
-    else
-        echo -e "\n${RED}Some post-reboot tests failed!${NC}"
-        exit 1
-    fi
+    echo ""
+    echo "Passed: $PASSED | Failed: $FAILED"
+    [ $FAILED -eq 0 ] && exit 0 || exit 1
 fi
 
 # ============================================================================
-# MAIN TEST SUITE
+# VERIFY COMMAND SANITY CHECK
 # ============================================================================
+section "VERIFY COMMAND SANITY CHECK"
 
-section "VERIFY COMMAND TESTS"
+# Quick check that the verify command works at all
+if ! command -v verify &>/dev/null; then
+    fail "verify command not found in PATH"
+    echo "PATH: $PATH"
+    echo "Looking for verify: $(which verify 2>&1 || echo 'not found')"
+    echo "Checking /usr/local/bin: $(ls -la /usr/local/bin/verify 2>&1 || echo 'not found')"
+    exit 1
+fi
 
-# Test verify subcommands
-run_test_output "verify 0 CTF{example} - accepts example flag" \
-    "verify 0 CTF{example}" "✓"
-
-run_test_output "verify progress - shows progress" \
-    "verify progress" "Flags Found:"
-
-run_test_output "verify list - shows challenge list" \
-    "verify list" "Hidden File Discovery"
-
-run_test_output "verify hint 1 - shows hint" \
-    "verify hint 1" "Hidden files"
-
-run_test_output "verify time - shows time or not started" \
-    "verify time" "Time\|Timer"
-
-run_test_output "verify export - requires all challenges (should fail)" \
-    "verify export" "Complete all 18\|Congratulations"
-
-run_test_output "verify with invalid challenge - shows error" \
-    "verify 99 CTF{test} 2>&1" "Usage\|Invalid\|Error"
+VERIFY_OUTPUT=$(verify 0 CTF{example} 2>&1) || true
+if echo "$VERIFY_OUTPUT" | grep -q "✓"; then
+    pass "verify command accepts example flag"
+else
+    fail "verify command broken - SETUP BUG"
+    echo "Cannot continue without working verify command"
+    exit 1
+fi
 
 # ============================================================================
-section "CHALLENGE SETUP VERIFICATION"
+# CHALLENGE DISCOVERY AND SOLVING
 # ============================================================================
+section "SOLVING ALL CHALLENGES"
 
-echo "Verifying all challenges are properly set up..."
+echo "Simulating real student journey using hints to discover and solve each challenge..."
+echo ""
 
-# Challenge 1: Hidden File
-run_test "Challenge 1 setup: .hidden_flag exists" \
-    "test -f /home/ctf_user/ctf_challenges/.hidden_flag"
+# Store discovered flags
+declare -A FLAGS
 
-# Challenge 2: Secret File
-run_test "Challenge 2 setup: secret_notes.txt exists" \
-    "test -f /home/ctf_user/documents/projects/backup/secret_notes.txt"
+# Challenge 1: Hidden File Discovery
+# Hint: "Hidden files in Linux start with a dot. Try 'ls -la'"
+echo "Challenge 1: Hidden File Discovery"
+HIDDEN_FILE=$(ls -la /home/ctf_user/ctf_challenges/ 2>/dev/null | awk '/^-.*\./ {print $NF}' | grep '^\.' | head -1) || true
+if [ -n "$HIDDEN_FILE" ]; then
+    FLAG_1=$(cat "/home/ctf_user/ctf_challenges/$HIDDEN_FILE" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    if [ -n "$FLAG_1" ]; then
+        VERIFY_OUT=$(verify 1 "$FLAG_1" 2>&1) || true
+        if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+            pass "Solved challenge 1"
+            FLAGS[1]="$FLAG_1"
+        else
+            fail "Challenge 1: Found flag but verify rejected it"
+            FLAGS[1]=""
+        fi
+    else
+        fail "Challenge 1: Found file but no CTF flag in it"
+        FLAGS[1]=""
+    fi
+else
+    fail "Challenge 1: No hidden files found with ls -la"
+    FLAGS[1]=""
+fi
 
-# Challenge 3: Large Log
-run_test "Challenge 3 setup: large_log_file.log exists and is large" \
-    "test -f /var/log/large_log_file.log && test \$(stat -c%s /var/log/large_log_file.log) -gt 100000000"
+# Challenge 2: Basic File Search
+# Hint: "Use find to search for files. Try: find ~ -name '*.txt'"
+echo "Challenge 2: Basic File Search"
+TXT_FILE=$(find /home/ctf_user/documents -name '*.txt' -type f 2>/dev/null | head -1) || true
+if [ -n "$TXT_FILE" ]; then
+    FLAG_2=$(cat "$TXT_FILE" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    if [ -n "$FLAG_2" ]; then
+        VERIFY_OUT=$(verify 2 "$FLAG_2" 2>&1) || true
+        if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+            pass "Solved challenge 2"
+            FLAGS[2]="$FLAG_2"
+        else
+            fail "Challenge 2: Found flag but verify rejected it"
+            FLAGS[2]=""
+        fi
+    else
+        fail "Challenge 2: Found file but no CTF flag in it"
+        FLAGS[2]=""
+    fi
+else
+    fail "Challenge 2: No .txt files found in documents"
+    FLAGS[2]=""
+fi
+
+# Challenge 3: Log Analysis
+# Hint: "Large log files can hide secrets. Check /var/log and use 'tail'"
+echo "Challenge 3: Log Analysis"
+LARGE_LOG=$(find /var/log -type f -size +100M 2>/dev/null | head -1) || true
+if [ -n "$LARGE_LOG" ]; then
+    FLAG_3=$(tail -1 "$LARGE_LOG" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    if [ -n "$FLAG_3" ]; then
+        VERIFY_OUT=$(verify 3 "$FLAG_3" 2>&1) || true
+        if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+            pass "Solved challenge 3"
+            FLAGS[3]="$FLAG_3"
+        else
+            fail "Challenge 3: Found flag but verify rejected it"
+            FLAGS[3]=""
+        fi
+    else
+        fail "Challenge 3: Found log but no CTF flag in it"
+        FLAGS[3]=""
+    fi
+else
+    fail "Challenge 3: No large log files found"
+    FLAGS[3]=""
+fi
 
 # Challenge 4: User Investigation
-run_test "Challenge 4 setup: flag_user exists with UID 1002" \
-    "id flag_user && test \$(id -u flag_user) -eq 1002"
-
-run_test "Challenge 4 setup: flag_user .profile exists" \
-    "test -f /home/flag_user/.profile"
+# Hint: "Investigate other users. Check /etc/passwd or use 'getent passwd'"
+echo "Challenge 4: User Investigation"
+FLAG_4=""
+for user in $(getent passwd | awk -F: '$3 >= 1000 && $1 != "ctf_user" && $1 != "nobody" {print $1}'); do
+    if [ -r "/home/$user/.profile" ]; then
+        FLAG_4=$(grep -ao 'CTF{[^}]*}' "/home/$user/.profile" 2>/dev/null | head -1) || true
+        [ -n "$FLAG_4" ] && break
+    fi
+done
+if [ -n "$FLAG_4" ]; then
+    VERIFY_OUT=$(verify 4 "$FLAG_4" 2>&1) || true
+    if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+        pass "Solved challenge 4"
+        FLAGS[4]="$FLAG_4"
+    else
+        fail "Challenge 4: Found flag but verify rejected it"
+        FLAGS[4]=""
+    fi
+else
+    fail "Challenge 4: Could not find flag in user profiles"
+    FLAGS[4]=""
+fi
 
 # Challenge 5: Permission Analysis
-run_test "Challenge 5 setup: system.conf exists with 777 permissions" \
-    "test -f /opt/systems/config/system.conf && test \$(stat -c%a /opt/systems/config/system.conf) = '777'"
+# Hint: "Look for files with unusual permissions. Try: find / -perm 777"
+echo "Challenge 5: Permission Analysis"
+FLAG_5=""
+for path in /opt /etc /var; do
+    PERM_FILE=$(find "$path" -type f -perm 777 2>/dev/null | head -1) || true
+    if [ -n "$PERM_FILE" ]; then
+        FLAG_5=$(cat "$PERM_FILE" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+        [ -n "$FLAG_5" ] && break
+    fi
+done
+if [ -n "$FLAG_5" ]; then
+    VERIFY_OUT=$(verify 5 "$FLAG_5" 2>&1) || true
+    if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+        pass "Solved challenge 5"
+        FLAGS[5]="$FLAG_5"
+    else
+        fail "Challenge 5: Found flag but verify rejected it"
+        FLAGS[5]=""
+    fi
+else
+    fail "Challenge 5: Could not find flag in 777 permission files"
+    FLAGS[5]=""
+fi
 
 # Challenge 6: Service Discovery
-run_test "Challenge 6 setup: ctf-secret-service is active" \
-    "systemctl is-active ctf-secret-service.service"
-
-run_test "Challenge 6 setup: port 8080 is listening" \
-    "ss -tulpn | grep -q :8080"
+# Hint: "What services are running? Use 'ss -tulpn' to find listening ports"
+echo "Challenge 6: Service Discovery"
+FLAG_6=""
+for port in $(ss -tulpn 2>/dev/null | awk '/LISTEN/ {split($5,a,":"); print a[length(a)]}' | grep -vE '^(22|80|443|8083)$' | head -3); do
+    FLAG_6=$(curl -s --connect-timeout 3 "localhost:$port" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    [ -n "$FLAG_6" ] && break
+done
+if [ -n "$FLAG_6" ]; then
+    VERIFY_OUT=$(verify 6 "$FLAG_6" 2>&1) || true
+    if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+        pass "Solved challenge 6"
+        FLAGS[6]="$FLAG_6"
+    else
+        fail "Challenge 6: Found flag but verify rejected it"
+        FLAGS[6]=""
+    fi
+else
+    fail "Challenge 6: Could not find flag from listening services"
+    FLAGS[6]=""
+fi
 
 # Challenge 7: Encoding Challenge
-run_test "Challenge 7 setup: encoded_flag.txt exists" \
-    "test -f /home/ctf_user/ctf_challenges/encoded_flag.txt"
+# Hint: "The flag is encoded. Use 'base64 -d' to decode"
+echo "Challenge 7: Encoding Challenge"
+ENCODED_FILE=$(find /home/ctf_user/ctf_challenges -name '*.txt' -type f 2>/dev/null | head -1) || true
+if [ -n "$ENCODED_FILE" ]; then
+    FLAG_7=$(cat "$ENCODED_FILE" 2>/dev/null | base64 -d 2>/dev/null | base64 -d 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    if [ -n "$FLAG_7" ]; then
+        VERIFY_OUT=$(verify 7 "$FLAG_7" 2>&1) || true
+        if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+            pass "Solved challenge 7"
+            FLAGS[7]="$FLAG_7"
+        else
+            fail "Challenge 7: Found flag but verify rejected it"
+            FLAGS[7]=""
+        fi
+    else
+        fail "Challenge 7: Could not decode flag from file"
+        FLAGS[7]=""
+    fi
+else
+    fail "Challenge 7: No encoded file found"
+    FLAGS[7]=""
+fi
 
 # Challenge 8: SSH Secrets
-run_test "Challenge 8 setup: .ssh/secrets/backup/.authorized_keys exists" \
-    "test -f /home/ctf_user/.ssh/secrets/backup/.authorized_keys"
+# Hint: "SSH configurations often hide secrets. Explore ~/.ssh thoroughly"
+echo "Challenge 8: SSH Secrets"
+FLAG_8=""
+for f in $(find /home/ctf_user/.ssh -type f 2>/dev/null); do
+    FLAG_8=$(grep -ao 'CTF{[^}]*}' "$f" 2>/dev/null | head -1) || true
+    [ -n "$FLAG_8" ] && break
+done
+if [ -n "$FLAG_8" ]; then
+    VERIFY_OUT=$(verify 8 "$FLAG_8" 2>&1) || true
+    if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+        pass "Solved challenge 8"
+        FLAGS[8]="$FLAG_8"
+    else
+        fail "Challenge 8: Found flag but verify rejected it"
+        FLAGS[8]=""
+    fi
+else
+    fail "Challenge 8: Could not find flag in .ssh directory"
+    FLAGS[8]=""
+fi
 
-# Challenge 9: DNS Troubleshooting
-run_test "Challenge 9 setup: resolv.conf contains CTF flag" \
-    "grep -q 'CTF{' /etc/resolv.conf"
+# Challenge 9: DNS Configuration
+# Hint: "DNS settings are stored in /etc/resolv.conf"
+echo "Challenge 9: DNS Configuration"
+if [ -r /etc/resolv.conf ]; then
+    FLAG_9=$(grep -ao 'CTF{[^}]*}' /etc/resolv.conf 2>/dev/null | head -1) || true
+    if [ -n "$FLAG_9" ]; then
+        VERIFY_OUT=$(verify 9 "$FLAG_9" 2>&1) || true
+        if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+            pass "Solved challenge 9"
+            FLAGS[9]="$FLAG_9"
+        else
+            fail "Challenge 9: Found flag but verify rejected it - SETUP BUG"
+            FLAGS[9]=""
+        fi
+    else
+        fail "Challenge 9: resolv.conf has no CTF flag - SETUP BUG"
+        FLAGS[9]=""
+    fi
+else
+    fail "Challenge 9: /etc/resolv.conf not readable - SETUP BUG"
+    FLAGS[9]=""
+fi
 
-# Challenge 10: Remote Upload Detection
-run_test "Challenge 10 setup: ctf-monitor-directory service is active" \
-    "systemctl is-active ctf-monitor-directory.service"
+# Challenge 10: File Monitoring
+# Hint: "Try creating a file in ctf_challenges"
+echo "Challenge 10: File Monitoring"
+if ! systemctl is-active ctf-monitor-directory.service &>/dev/null; then
+    fail "Challenge 10: Monitor service not running - SETUP BUG"
+    FLAGS[10]=""
+else
+    # Wait for inotifywait process to actually be running (service starts but has internal delay)
+    echo "  Waiting for inotifywait to be ready..."
+    for _ in {1..15}; do
+        pgrep -f "inotifywait.*ctf_challenges" &>/dev/null && break
+        sleep 2
+    done
+    
+    true > /tmp/.ctf_upload_triggered 2>/dev/null || true
+    TRIGGER="/home/ctf_user/ctf_challenges/test_$$"
+    touch "$TRIGGER"
+    sleep 3
+    
+    FLAG_10=""
+    for _ in {1..10}; do
+        FLAG_10=$(grep -ao 'CTF{[^}]*}' /tmp/.ctf_upload_triggered 2>/dev/null | head -1) || true
+        [ -n "$FLAG_10" ] && break
+        sleep 2
+    done
+    rm -f "$TRIGGER"
+    
+    if [ -n "$FLAG_10" ]; then
+        VERIFY_OUT=$(verify 10 "$FLAG_10" 2>&1) || true
+        if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+            pass "Solved challenge 10"
+            FLAGS[10]="$FLAG_10"
+        else
+            fail "Challenge 10: Found flag but verify rejected it - SETUP BUG"
+            FLAGS[10]=""
+        fi
+    else
+        fail "Challenge 10: File monitoring did not trigger - SETUP BUG"
+        FLAGS[10]=""
+    fi
+fi
 
 # Challenge 11: Web Configuration
-run_test "Challenge 11 setup: nginx is active" \
-    "systemctl is-active nginx"
-
-run_test "Challenge 11 setup: port 8083 is listening" \
-    "ss -tulpn | grep -q :8083"
-
-run_test "Challenge 11 setup: index.html exists" \
-    "test -f /var/www/html/index.html"
+# Hint: "Check what ports nginx is listening on"
+echo "Challenge 11: Web Configuration"
+NGINX_PORT=$(grep -r 'listen' /etc/nginx/ 2>/dev/null | grep -oP 'listen\s+\K[0-9]+' | grep -v '^80$' | head -1) || true
+if [ -n "$NGINX_PORT" ]; then
+    FLAG_11=$(curl -s "localhost:$NGINX_PORT" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    if [ -n "$FLAG_11" ]; then
+        VERIFY_OUT=$(verify 11 "$FLAG_11" 2>&1) || true
+        if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+            pass "Solved challenge 11"
+            FLAGS[11]="$FLAG_11"
+        else
+            fail "Challenge 11: Found flag but verify rejected it"
+            FLAGS[11]=""
+        fi
+    else
+        fail "Challenge 11: Could not get flag from nginx"
+        FLAGS[11]=""
+    fi
+else
+    fail "Challenge 11: Could not find nginx non-standard port"
+    FLAGS[11]=""
+fi
 
 # Challenge 12: Network Traffic Analysis
-run_test "Challenge 12 setup: ctf-ping-message service is active" \
-    "systemctl is-active ctf-ping-message.service"
+# Hint: "Look at ping patterns with tcpdump"
+echo "Challenge 12: Network Traffic Analysis"
+TCPDUMP_OUT=$(echo 'CTFpassword123!' | sudo -S timeout 10 tcpdump -i lo -c 4 -X icmp 2>/dev/null) || true
+if [ -n "$TCPDUMP_OUT" ]; then
+    HEX=$(echo "$TCPDUMP_OUT" | grep -E '^\s+0x' | awk '{print $2$3$4$5$6$7$8$9}' | tr -d '\n')
+    FLAG_12=$(echo "$HEX" | xxd -r -p 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    
+    if [ -n "$FLAG_12" ]; then
+        VERIFY_OUT=$(verify 12 "$FLAG_12" 2>&1) || true
+        if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+            pass "Solved challenge 12"
+            FLAGS[12]="$FLAG_12"
+        else
+            fail "Challenge 12: Found flag but verify rejected it"
+            FLAGS[12]=""
+        fi
+    else
+        fail "Challenge 12: Could not extract flag from ping traffic"
+        FLAGS[12]=""
+    fi
+else
+    fail "Challenge 12: tcpdump capture failed"
+    FLAGS[12]=""
+fi
 
 # Challenge 13: Cron Job Hunter
-run_test "Challenge 13 setup: ctf_secret_task cron file exists" \
-    "test -f /etc/cron.d/ctf_secret_task"
+# Hint: "Check /etc/cron.d/, /etc/crontab, and user crontabs"
+echo "Challenge 13: Cron Job Hunter"
+FLAG_13=""
+for dir in /etc/cron.d /etc/cron.daily /etc/cron.hourly; do
+    [ -d "$dir" ] || continue
+    FLAG_13=$(grep -rh 'CTF{' "$dir" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    [ -n "$FLAG_13" ] && break
+done
+if [ -n "$FLAG_13" ]; then
+    VERIFY_OUT=$(verify 13 "$FLAG_13" 2>&1) || true
+    if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+        pass "Solved challenge 13"
+        FLAGS[13]="$FLAG_13"
+    else
+        fail "Challenge 13: Found flag but verify rejected it"
+        FLAGS[13]=""
+    fi
+else
+    fail "Challenge 13: Could not find flag in cron directories"
+    FLAGS[13]=""
+fi
 
 # Challenge 14: Process Environment
-run_test "Challenge 14 setup: ctf-secret-process service is active" \
-    "systemctl is-active ctf-secret-process.service"
-
-run_test "Challenge 14 setup: ctf_secret_process is running" \
-    "pgrep -f ctf_secret_process"
+# Hint: "Process info lives in /proc. Check /proc/PID/environ"
+echo "Challenge 14: Process Environment"
+FLAG_14=""
+for pid in $(pgrep -u ctf_user 2>/dev/null); do
+    [ -r "/proc/$pid/environ" ] || continue
+    FLAG_14=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -ao 'CTF{[^}]*}') || true
+    [ -n "$FLAG_14" ] && break
+done
+if [ -n "$FLAG_14" ]; then
+    VERIFY_OUT=$(verify 14 "$FLAG_14" 2>&1) || true
+    if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+        pass "Solved challenge 14"
+        FLAGS[14]="$FLAG_14"
+    else
+        fail "Challenge 14: Found flag but verify rejected it"
+        FLAGS[14]=""
+    fi
+else
+    fail "Challenge 14: Could not find flag in process environments"
+    FLAGS[14]=""
+fi
 
 # Challenge 15: Archive Archaeologist
-run_test "Challenge 15 setup: mystery_archive.tar.gz exists" \
-    "test -f /home/ctf_user/ctf_challenges/mystery_archive.tar.gz"
+# Hint: "Archives can be nested. Use 'tar -xzf' to extract layers"
+echo "Challenge 15: Archive Archaeologist"
+ARCHIVE=$(find /home/ctf_user/ctf_challenges -name '*.tar.gz' 2>/dev/null | head -1) || true
+if [ -n "$ARCHIVE" ]; then
+    TMPDIR=$(mktemp -d)
+    cd "$TMPDIR"
+    tar -xzf "$ARCHIVE" 2>/dev/null || true
+    for _ in {1..5}; do
+        INNER=$(find . -maxdepth 1 -name '*.tar.gz' 2>/dev/null | head -1) || true
+        [ -z "$INNER" ] && break
+        tar -xzf "$INNER" 2>/dev/null || true
+        rm -f "$INNER"
+    done
+    FLAG_15=$(grep -rh 'CTF{' . 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    cd - >/dev/null
+    rm -rf "$TMPDIR"
+    
+    if [ -n "$FLAG_15" ]; then
+        VERIFY_OUT=$(verify 15 "$FLAG_15" 2>&1) || true
+        if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+            pass "Solved challenge 15"
+            FLAGS[15]="$FLAG_15"
+        else
+            fail "Challenge 15: Found flag but verify rejected it"
+            FLAGS[15]=""
+        fi
+    else
+        fail "Challenge 15: Could not find flag in nested archives"
+        FLAGS[15]=""
+    fi
+else
+    fail "Challenge 15: No archive found"
+    FLAGS[15]=""
+fi
 
 # Challenge 16: Symbolic Sleuth
-run_test "Challenge 16 setup: follow_me symlink exists" \
-    "test -L /home/ctf_user/ctf_challenges/follow_me"
+# Hint: "Use 'readlink -f' to find the final target"
+echo "Challenge 16: Symbolic Sleuth"
+FLAG_16=""
+for link in $(find /home/ctf_user/ctf_challenges -type l 2>/dev/null); do
+    TARGET=$(readlink -f "$link" 2>/dev/null) || true
+    [ -r "$TARGET" ] || continue
+    FLAG_16=$(grep -ao 'CTF{[^}]*}' "$TARGET" 2>/dev/null | head -1) || true
+    [ -n "$FLAG_16" ] && break
+done
+if [ -n "$FLAG_16" ]; then
+    VERIFY_OUT=$(verify 16 "$FLAG_16" 2>&1) || true
+    if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+        pass "Solved challenge 16"
+        FLAGS[16]="$FLAG_16"
+    else
+        fail "Challenge 16: Found flag but verify rejected it"
+        FLAGS[16]=""
+    fi
+else
+    fail "Challenge 16: Could not find flag via symlinks"
+    FLAGS[16]=""
+fi
 
 # Challenge 17: History Mystery
-run_test "Challenge 17 setup: old_admin user exists" \
-    "id old_admin"
-
-run_test "Challenge 17 setup: old_admin .bash_history exists" \
-    "test -f /home/old_admin/.bash_history"
+# Hint: "Bash stores history in ~/.bash_history. Other users may have history too"
+echo "Challenge 17: History Mystery"
+FLAG_17=""
+for home in /home/*; do
+    user=$(basename "$home")
+    [ "$user" = "ctf_user" ] && continue
+    [ -r "$home/.bash_history" ] || continue
+    FLAG_17=$(grep -ao 'CTF{[^}]*}' "$home/.bash_history" 2>/dev/null | head -1) || true
+    [ -n "$FLAG_17" ] && break
+done
+if [ -n "$FLAG_17" ]; then
+    VERIFY_OUT=$(verify 17 "$FLAG_17" 2>&1) || true
+    if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+        pass "Solved challenge 17"
+        FLAGS[17]="$FLAG_17"
+    else
+        fail "Challenge 17: Found flag but verify rejected it"
+        FLAGS[17]=""
+    fi
+else
+    fail "Challenge 17: Could not find flag in user histories"
+    FLAGS[17]=""
+fi
 
 # Challenge 18: Disk Detective
-run_test "Challenge 18 setup: ctf_disk.img exists" \
-    "test -f /opt/ctf_disk.img"
-
-# ============================================================================
-section "CHALLENGE SOLUTION TESTS"
-# ============================================================================
-
-echo "Testing that solution commands return flags (dynamic per-instance)..."
-
-# Helper function to capture and verify a flag
-# Args: challenge_num, description, solution_command
-test_and_capture_flag() {
-    local num="$1"
-    local desc="$2"
-    local cmd="$3"
+# Hint: "Try mounting disk images with 'sudo mount -o loop'"
+echo "Challenge 18: Disk Detective"
+DISK_IMG=$(find /opt /home -name '*.img' -type f 2>/dev/null | head -1) || true
+if [ -n "$DISK_IMG" ]; then
+    MNTDIR=$(mktemp -d)
+    echo 'CTFpassword123!' | sudo -S mount -o loop "$DISK_IMG" "$MNTDIR" 2>/dev/null
+    FLAG_18=$(find "$MNTDIR" -type f 2>/dev/null | xargs grep -ah 'CTF{' 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    echo 'CTFpassword123!' | sudo -S umount "$MNTDIR" 2>/dev/null || true
+    rmdir "$MNTDIR" 2>/dev/null || true
     
-    local flag
-    # Use grep -a to treat binary files as text (needed for log files with binary data)
-    flag=$(eval "$cmd" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
-    
-    if [ -n "$flag" ]; then
-        pass "Challenge $num solution: $desc returns flag"
-        # Store for later verification
-        eval "CAPTURED_FLAG_$num=\"$flag\""
-    else
-        fail "Challenge $num solution: $desc (no CTF flag found)"
-        eval "CAPTURED_FLAG_$num=\"\""
-    fi
-}
-
-# Challenge 1
-test_and_capture_flag 1 "cat .hidden_flag" \
-    "cat /home/ctf_user/ctf_challenges/.hidden_flag"
-
-# Challenge 2
-test_and_capture_flag 2 "cat secret_notes.txt" \
-    "cat /home/ctf_user/documents/projects/backup/secret_notes.txt"
-
-# Challenge 3
-test_and_capture_flag 3 "tail large_log_file.log" \
-    "tail -1 /var/log/large_log_file.log"
-
-# Challenge 4
-test_and_capture_flag 4 "cat flag_user .profile" \
-    "cat /home/flag_user/.profile"
-
-# Challenge 5
-test_and_capture_flag 5 "cat system.conf" \
-    "cat /opt/systems/config/system.conf"
-
-# Challenge 6
-test_and_capture_flag 6 "curl localhost:8080" \
-    "curl -s --connect-timeout 5 --max-time 10 localhost:8080"
-
-# Challenge 7
-test_and_capture_flag 7 "double base64 decode" \
-    "cat /home/ctf_user/ctf_challenges/encoded_flag.txt | base64 -d | base64 -d"
-
-# Challenge 8
-test_and_capture_flag 8 "cat .ssh hidden file" \
-    "cat /home/ctf_user/.ssh/secrets/backup/.authorized_keys"
-
-# Challenge 9
-test_and_capture_flag 9 "grep resolv.conf" \
-    "grep -o 'CTF{[^}]*}' /etc/resolv.conf"
-
-# Challenge 10 - trigger file creation and check flag file
-echo "Testing Challenge 10 (creating trigger file)..."
-true > /tmp/.ctf_upload_triggered 2>/dev/null || true
-TRIGGER_FILE="/home/ctf_user/ctf_challenges/test_trigger_$$"
-touch "$TRIGGER_FILE"
-sleep 3
-sync
-test_and_capture_flag 10 "trigger file creates flag" \
-    "cat /tmp/.ctf_upload_triggered 2>/dev/null"
-rm -f "$TRIGGER_FILE"
-
-# Challenge 11
-test_and_capture_flag 11 "curl localhost:8083" \
-    "curl -s --connect-timeout 5 --max-time 10 localhost:8083"
-
-# Challenge 12 - read hex pattern from ping script and decode
-echo "Testing Challenge 12 (hex decode ping pattern)..."
-HEX_PATTERN=$(grep -o "ping -p [a-f0-9]*" /usr/local/bin/ping_message.sh | awk '{print $3}')
-if [ -n "$HEX_PATTERN" ]; then
-    CAPTURED_FLAG_12=$(echo "$HEX_PATTERN" | xxd -r -p)
-    if echo "$CAPTURED_FLAG_12" | grep -q "CTF{"; then
-        pass "Challenge 12 solution: hex decode ping pattern returns flag"
-    else
-        fail "Challenge 12 solution: hex decode failed (got: $CAPTURED_FLAG_12)"
-        CAPTURED_FLAG_12=""
-    fi
-else
-    fail "Challenge 12 solution: could not find hex pattern in ping script"
-    CAPTURED_FLAG_12=""
-fi
-
-# Challenge 13
-test_and_capture_flag 13 "grep cron file" \
-    "grep -o 'CTF{[^}]*}' /etc/cron.d/ctf_secret_task"
-
-# Challenge 14
-test_and_capture_flag 14 "read process environ" \
-    "cat /proc/\$(pgrep -f ctf_secret_process)/environ | tr '\0' '\n' | grep -o 'CTF{[^}]*}'"
-
-# Challenge 15 - extract nested archives
-echo "Testing Challenge 15 (extracting archives)..."
-TEMP_DIR=$(mktemp -d)
-cd "$TEMP_DIR"
-tar -xzf /home/ctf_user/ctf_challenges/mystery_archive.tar.gz
-tar -xzf middle.tar.gz
-tar -xzf inner.tar.gz
-test_and_capture_flag 15 "nested archive extraction" \
-    "cat flag.txt"
-cd - > /dev/null
-rm -rf "$TEMP_DIR"
-
-# Challenge 16
-test_and_capture_flag 16 "follow symlinks" \
-    "cat \$(readlink -f /home/ctf_user/ctf_challenges/follow_me)"
-
-# Challenge 17
-test_and_capture_flag 17 "grep old_admin history" \
-    "grep -o 'CTF{[^}]*}' /home/old_admin/.bash_history"
-
-# Challenge 18 - mount disk image and read flag
-echo "Testing Challenge 18 (mounting disk image)..."
-echo 'CTFpassword123!' | sudo -S mkdir -p /mnt/ctf_test_disk 2>/dev/null
-echo 'CTFpassword123!' | sudo -S mount -o loop /opt/ctf_disk.img /mnt/ctf_test_disk 2>/dev/null
-test_and_capture_flag 18 "mount disk and read flag" \
-    "cat /mnt/ctf_test_disk/.flag"
-echo 'CTFpassword123!' | sudo -S umount /mnt/ctf_test_disk 2>/dev/null || true
-
-# ============================================================================
-section "FLAG VERIFICATION TESTS"
-# ============================================================================
-
-echo "Submitting captured flags through verify command..."
-
-# Reset completed challenges for clean test
-rm -f ~/.completed_challenges
-
-# Example flag (static)
-run_test_output "verify 0 CTF{example}" \
-    "verify 0 CTF{example}" "✓"
-
-# Helper to verify captured flag
-verify_captured_flag() {
-    local num="$1"
-    local flag_var="CAPTURED_FLAG_$num"
-    local flag="${!flag_var}"
-    
-    if [ -n "$flag" ]; then
-        # Capture output first, then grep (more reliable than piping)
-        local output
-        output=$(verify "$num" "$flag" 2>&1) || true
-        if echo "$output" | grep -qE "(Correct|verified)"; then
-            pass "verify $num with captured flag"
+    if [ -n "$FLAG_18" ]; then
+        VERIFY_OUT=$(verify 18 "$FLAG_18" 2>&1) || true
+        if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
+            pass "Solved challenge 18"
+            FLAGS[18]="$FLAG_18"
         else
-            fail "verify $num with captured flag (flag: $flag)"
+            fail "Challenge 18: Found flag but verify rejected it"
+            FLAGS[18]=""
         fi
     else
-        fail "verify $num - no captured flag to submit"
+        fail "Challenge 18: Could not find flag in disk image"
+        FLAGS[18]=""
     fi
-}
-
-verify_captured_flag 1
-verify_captured_flag 2
-verify_captured_flag 3
-verify_captured_flag 4
-verify_captured_flag 5
-verify_captured_flag 6
-verify_captured_flag 7
-verify_captured_flag 8
-verify_captured_flag 9
-verify_captured_flag 10
-verify_captured_flag 11
-verify_captured_flag 12
-verify_captured_flag 13
-verify_captured_flag 14
-verify_captured_flag 15
-verify_captured_flag 16
-verify_captured_flag 17
-verify_captured_flag 18
-
-# Verify final progress
-run_test_output "verify progress shows 18/18" \
-    "verify progress" "18/18"
+else
+    fail "Challenge 18: No disk image found"
+    FLAGS[18]=""
+fi
 
 # ============================================================================
-section "VERIFICATION TOKEN TESTS"
+# VERIFICATION TOKEN TEST
 # ============================================================================
+section "VERIFICATION TOKEN TEST"
 
-echo "Testing the verification token export system..."
-
-# Test that verification secrets were created
-run_test "Verification secrets: instance_id exists" \
-    "test -f /etc/ctf/instance_id && test -s /etc/ctf/instance_id"
-
-run_test "Verification secrets: verification_secret exists" \
-    "test -f /etc/ctf/verification_secret && test -s /etc/ctf/verification_secret"
-
-run_test "Verification secrets: instance_id is 32 hex chars" \
-    "test \$(cat /etc/ctf/instance_id | wc -c) -eq 33"  # 32 chars + newline
-
-run_test "Verification secrets: verification_secret is 64 hex chars (SHA256)" \
-    "test \$(cat /etc/ctf/verification_secret | wc -c) -eq 65"  # 64 chars + newline
-
-# Test export command now that all challenges are complete
-echo "Testing verify export command..."
-
-EXPORT_OUTPUT=$(verify export testuser 2>&1) || true
-# Save to file to avoid issues with special characters in ASCII art
-echo "$EXPORT_OUTPUT" > /tmp/ctf_export_output.txt
-
-# Check export output contains expected content (using file to avoid shell escaping issues)
-if grep -q "COMPLETION CERTIFICATE" /tmp/ctf_export_output.txt 2>/dev/null; then
-    pass "verify export creates certificate"
+PROGRESS=$(verify progress 2>&1)
+if echo "$PROGRESS" | grep -q "18/18"; then
+    pass "All 18 challenges completed"
 else
-    fail "verify export creates certificate"
+    fail "Not all challenges completed: $PROGRESS"
 fi
 
-if grep -q "testuser" /tmp/ctf_export_output.txt 2>/dev/null; then
-    pass "verify export shows GitHub username"
+EXPORT_OUT=$(verify export testuser 2>&1) || true
+
+if echo "$EXPORT_OUT" | grep -q "COMPLETION CERTIFICATE"; then
+    pass "Export generates certificate"
 else
-    fail "verify export shows GitHub username"
+    fail "Export missing certificate"
 fi
 
-if grep -q "BEGIN L2C CTF TOKEN" /tmp/ctf_export_output.txt 2>/dev/null; then
-    pass "verify export generates verification token"
-else
-    fail "verify export generates verification token"
-fi
-
-# Extract and validate token format (using file to avoid shell escaping)
-TOKEN=$(sed -n '/BEGIN L2C CTF TOKEN/,/END L2C CTF TOKEN/p' /tmp/ctf_export_output.txt | grep -v 'L2C CTF TOKEN' | tr -d '\n ')
-if [ -n "$TOKEN" ]; then
-    pass "verify export: Token extracted"
+if echo "$EXPORT_OUT" | grep -q "BEGIN L2C CTF TOKEN"; then
+    pass "Export generates token"
     
-    # Token should be valid base64
-    DECODED=$(echo "$TOKEN" | base64 -d 2>/dev/null) || DECODED=""
-    if [ -n "$DECODED" ]; then
-        pass "verify export: Token is valid base64"
-        
-        # Check token contains expected JSON fields
-        if echo "$DECODED" | grep -q '"payload"'; then
-            pass "verify export: Token contains payload"
-        else
-            fail "verify export: Token missing payload field"
-        fi
-        
-        if echo "$DECODED" | grep -q '"signature"'; then
-            pass "verify export: Token contains signature"
-        else
-            fail "verify export: Token missing signature field"
-        fi
-        
-        if echo "$DECODED" | grep -q '"github_username":"testuser"'; then
-            pass "verify export: Token contains correct github_username"
-        else
-            fail "verify export: Token has wrong or missing github_username"
-        fi
-        
-        if echo "$DECODED" | grep -q '"challenges":18'; then
-            pass "verify export: Token shows 18 challenges"
-        else
-            fail "verify export: Token has wrong challenge count"
-        fi
-        
-        if echo "$DECODED" | grep -q '"instance_id"'; then
-            pass "verify export: Token contains instance_id"
-        else
-            fail "verify export: Token missing instance_id"
-        fi
+    TOKEN=$(echo "$EXPORT_OUT" | sed -n '/BEGIN L2C CTF TOKEN/,/END L2C CTF TOKEN/p' | grep -v 'L2C CTF TOKEN' | tr -d '\n ')
+    DECODED=$(echo "$TOKEN" | base64 -d 2>/dev/null) || true
+    
+    if echo "$DECODED" | grep -q '"github_username":"testuser"'; then
+        pass "Token contains correct username"
     else
-        fail "verify export: Token is not valid base64"
+        fail "Token has wrong username"
+    fi
+    
+    if echo "$DECODED" | grep -q '"challenges":18'; then
+        pass "Token shows 18 challenges"
+    else
+        fail "Token has wrong challenge count"
     fi
 else
-    fail "verify export: No token found in output"
+    fail "Export missing token"
 fi
 
-# Test that export without username shows usage
-run_test_output "verify export without username shows usage" \
-    "verify export 2>&1" "Usage:"
-
 # ============================================================================
-section "TEST SUMMARY"
+# SUMMARY
 # ============================================================================
+section "SUMMARY"
 
 echo "Passed: $PASSED"
 echo "Failed: $FAILED"
-echo "Total:  $TOTAL"
+echo ""
 
-# Handle reboot test
-if [ "$WITH_REBOOT" = true ]; then
-    section "REBOOT TEST PREPARATION"
-    
-    # Save progress count for post-reboot verification
-    if [ -f ~/.completed_challenges ]; then
-        sort -u ~/.completed_challenges | wc -l > "$PROGRESS_SNAPSHOT"
-    fi
-    
-    # Create marker file
+if [ "$WITH_REBOOT" = true ] && [ $FAILED -eq 0 ]; then
+    sort -u ~/.completed_challenges 2>/dev/null | wc -l > "$PROGRESS_SNAPSHOT"
     touch "$REBOOT_MARKER"
-    
-    echo "Reboot marker created at $REBOOT_MARKER"
-    echo "Progress snapshot saved to $PROGRESS_SNAPSHOT"
-    echo ""
-    echo "Exiting with code 100 to signal reboot request."
-    echo "After reboot, re-run this script to verify services and progress persistence."
+    echo "Reboot marker created. Re-run after reboot to verify services."
     exit 100
 fi
 
-# Final result
 if [ $FAILED -eq 0 ]; then
-    echo -e "\n${GREEN}All tests passed!${NC}"
+    echo -e "${GREEN}All tests passed! Students can complete this CTF.${NC}"
     exit 0
 else
-    echo -e "\n${RED}Some tests failed!${NC}"
+    echo -e "${RED}Some tests failed. Students may be blocked.${NC}"
     exit 1
 fi

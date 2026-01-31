@@ -5,7 +5,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.0"
+      version = ">= 4.55.0"  # Minimum version that supports azurerm_virtual_machine_power action
     }
     null = {
       source  = "hashicorp/null"

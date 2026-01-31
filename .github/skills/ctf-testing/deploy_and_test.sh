@@ -37,7 +37,6 @@ TEST_SCRIPT="$SCRIPT_DIR/test_ctf_challenges.sh"
 # Constants
 MAX_SSH_ATTEMPTS=30
 SSH_RETRY_INTERVAL=10
-VM_READY_TIMEOUT=60
 
 # SSH settings
 SSH_USER="ctf_user"
@@ -228,7 +227,8 @@ terraform_apply() {
     log INFO "Deploying $provider infrastructure..."
     cd "$provider_dir"
     
-    terraform init -input=false
+    # Use -upgrade to ensure latest compatible provider versions (avoids stale lock file issues)
+    terraform init -input=false -upgrade
     
     provider_vars=$(get_provider_vars "$provider")
     # shellcheck disable=SC2086

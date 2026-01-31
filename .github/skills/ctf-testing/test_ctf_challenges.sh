@@ -116,7 +116,7 @@ if ! command -v verify &>/dev/null; then
     exit 1
 fi
 
-VERIFY_OUTPUT=$(verify 0 CTF{example} 2>&1) || true
+VERIFY_OUTPUT=$(verify 0 "CTF{example}" 2>&1) || true
 if echo "$VERIFY_OUTPUT" | grep -q "✓"; then
     pass "verify command accepts example flag"
 else
@@ -307,10 +307,10 @@ fi
 # Hint: "SSH configurations often hide secrets. Explore ~/.ssh thoroughly"
 echo "Challenge 8: SSH Secrets"
 FLAG_8=""
-for f in $(find /home/ctf_user/.ssh -type f 2>/dev/null); do
+while IFS= read -r -d '' f; do
     FLAG_8=$(grep -ao 'CTF{[^}]*}' "$f" 2>/dev/null | head -1) || true
     [ -n "$FLAG_8" ] && break
-done
+done < <(find /home/ctf_user/.ssh -type f -print0 2>/dev/null)
 if [ -n "$FLAG_8" ]; then
     VERIFY_OUT=$(verify 8 "$FLAG_8" 2>&1) || true
     if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
@@ -526,12 +526,12 @@ fi
 # Hint: "Use 'readlink -f' to find the final target"
 echo "Challenge 16: Symbolic Sleuth"
 FLAG_16=""
-for link in $(find /home/ctf_user/ctf_challenges -type l 2>/dev/null); do
+while IFS= read -r -d '' link; do
     TARGET=$(readlink -f "$link" 2>/dev/null) || true
     [ -r "$TARGET" ] || continue
     FLAG_16=$(grep -ao 'CTF{[^}]*}' "$TARGET" 2>/dev/null | head -1) || true
     [ -n "$FLAG_16" ] && break
-done
+done < <(find /home/ctf_user/ctf_challenges -type l -print0 2>/dev/null)
 if [ -n "$FLAG_16" ]; then
     VERIFY_OUT=$(verify 16 "$FLAG_16" 2>&1) || true
     if echo "$VERIFY_OUT" | grep -qE "(Correct|verified)"; then
@@ -578,7 +578,7 @@ DISK_IMG=$(find /opt /home -name '*.img' -type f 2>/dev/null | head -1) || true
 if [ -n "$DISK_IMG" ]; then
     MNTDIR=$(mktemp -d)
     echo 'CTFpassword123!' | sudo -S mount -o loop "$DISK_IMG" "$MNTDIR" 2>/dev/null
-    FLAG_18=$(find "$MNTDIR" -type f 2>/dev/null | xargs grep -ah 'CTF{' 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    FLAG_18=$(find "$MNTDIR" -type f -print0 2>/dev/null | xargs -0 grep -ah 'CTF{' 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
     echo 'CTFpassword123!' | sudo -S umount "$MNTDIR" 2>/dev/null || true
     rmdir "$MNTDIR" 2>/dev/null || true
     
@@ -648,6 +648,7 @@ section "SUMMARY"
 
 echo "Passed: $PASSED"
 echo "Failed: $FAILED"
+echo "Flags captured: ${#FLAGS[@]}"
 echo ""
 
 if [ "$WITH_REBOOT" = true ] && [ $FAILED -eq 0 ]; then

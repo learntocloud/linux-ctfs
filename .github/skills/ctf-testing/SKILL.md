@@ -30,8 +30,9 @@ What to test? → Testing new challenge locally first?
 ## Prerequisites
 
 1. **terraform** (>= 1.0)
-2. **sshpass** - Install on macOS: `brew install hudochenkov/sshpass/sshpass`
-3. **Cloud CLI authenticated** for target provider:
+2. **jq** - Install: `sudo apt install jq` (Ubuntu) or `brew install jq` (macOS)
+3. **sshpass** - Install on macOS: `brew install hudochenkov/sshpass/sshpass`
+4. **Cloud CLI authenticated** for target provider:
    - AWS: `aws sts get-caller-identity`
    - Azure: `az account show`
    - GCP: `gcloud auth list --filter=status:ACTIVE`
@@ -52,6 +53,19 @@ The scripts are black boxes - run with `--help` or use these commands:
 | `deploy_and_test.sh all` | Test all providers (~45 min) |
 | `deploy_and_test.sh aws --with-reboot` | Test with reboot verification (~20 min) |
 
+## What Gets Tested
+
+The test script simulates a real user journey:
+
+1. **Verify command sanity check** - Confirms `verify` command works
+2. **Challenge solving** - All 18 challenges discovered and solved using hints
+3. **Verification token** - Token generation and format validation
+4. **Export certificate** - Certificate generation with correct metadata
+
+**With `--with-reboot`:**
+5. **Service resilience** - All systemd services restart after reboot
+6. **Progress persistence** - Completed challenges survive reboot
+
 ## Common Pitfalls
 
 ❌ **Don't** run tests without checking cloud CLI authentication first
@@ -61,25 +75,24 @@ The scripts are black boxes - run with `--help` or use these commands:
 ✅ **Do** run the cleanup verification commands in "Post-Test Cleanup" section
 
 ❌ **Don't** run `all` for quick iteration - it takes 45+ minutes
-✅ **Do** pick one provider (AWS is fastest) for development, `all` for releases
+✅ **Do** pick one provider (Azure is fastest) for development, `all` for releases
 
-## What Gets Tested
+## Features
 
-1. **Verify command subcommands** - progress, list, hint, time, export
-2. **Challenge setup** - Files exist, services running, permissions correct
-3. **Solution commands** - Each challenge returns valid flag
-4. **Flag submission** - All 19 flags accepted by `verify`
-5. **Verification token system** - Instance secrets, token generation, token format validation
-6. **Reboot resilience** (with `--with-reboot`) - Services restart, progress persists
+- **Timestamped logging** - All output includes `[HH:MM:SS]` timestamps
+- **Graceful interrupt handling** - Ctrl+C triggers cleanup of deployed infrastructure
+- **Proper VM wait logic** - Uses cloud-native waits instead of arbitrary sleeps
+- **IP validation** - Verifies retrieved IPs are valid before attempting SSH
 
 ## Expected Results
 
-A successful run shows **~84 tests passing**, followed by a short summary:
-- 7 verify subcommand tests
-- 24 challenge setup verifications
-- 19 solution command tests
-- 20 flag verification tests
-- 15 verification token tests
+A successful run shows **~25 tests passing**, followed by a summary:
+- 1 verify sanity check
+- 18 challenge solutions
+- 4 verification token tests
+- 2 export certificate tests
+
+**With `--with-reboot`:** Additional 6 service checks + 1 progress persistence check.
 
 Summary line: `RESULT: PASS (<providers>)` or `RESULT: FAIL (<providers>)`
 

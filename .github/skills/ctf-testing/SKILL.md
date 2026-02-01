@@ -1,13 +1,11 @@
 ---
 name: ctf-testing
-description: Deploy and test Linux CTF challenges across cloud providers (AWS, Azure, GCP). Use when testing CTF setup, validating challenges work correctly, running the full test suite, verifying services survive VM reboots, or after creating new challenges with ctf-challenge-creator skill.
+description: Deploy and test Linux CTF challenges across cloud providers (AWS, Azure, GCP). Use when testing CTF setup, validating challenges work correctly, running the full test suite, verifying services survive VM reboots, or after creating new challenges.
 ---
 
 # CTF Challenge Testing
 
 This skill deploys CTF infrastructure to cloud providers and validates all challenges work correctly.
-
-**Often used after:** `ctf-challenge-creator` skill to verify new challenges work.
 
 ## Decision Tree: Which Provider?
 
@@ -145,7 +143,3 @@ Reference files - treat as black boxes, run directly:
 
 - 📄 [deploy_and_test.sh](deploy_and_test.sh) - Orchestration script (runs locally)
 - 📄 [test_ctf_challenges.sh](test_ctf_challenges.sh) - VM test script (copied to and runs on deployed VM)
-
-## Related Skills
-
-- **ctf-challenge-creator** - Create new challenges, then use this skill to validate

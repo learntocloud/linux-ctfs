@@ -1,4 +1,4 @@
-# Local .terraform directories
+i# Local .terraform directories
 **/.terraform/*
 
 # .tfstate files
@@ -37,4 +37,9 @@ override.tf.json
 terraform.rc
 
 # Ignore terraform.lock.hcl file
+
 .terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+terraform practise/
+

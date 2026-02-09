@@ -319,7 +319,7 @@ export_certificate() {
         echo "Example: verify export octocat"
         echo ""
         echo "⚠️  Use your GitHub username! This will be verified when you"
-        echo "   submit your token at https://learntocloud.guide/phase2"
+        echo "   submit your token at https://learntocloud.guide"
         return 1
     fi
     local github_username="$1"
@@ -424,8 +424,10 @@ TOKENEOF
     echo "              🎫 VERIFICATION TOKEN                          " | lolcat  
     echo "============================================================" | lolcat
     echo ""
-    echo "To verify your completion:"
-    echo "  1. Go to https://learntocloud.guide/phase2"
+    echo "⚠️  Save this token! You'll need it to verify your progress"
+    echo "   at https://learntocloud.guide"
+    echo ""
+    echo "  1. Go to https://learntocloud.guide"
     echo "  2. Sign in with GitHub (as: $github_username)"
     echo "  3. Paste the token below"
     echo ""
@@ -507,6 +509,10 @@ Usage:
   verify progress     - Shows your progress
 
   To capture first flag, run: verify 0 CTF{example}
+
+When you complete all challenges, run: verify export <your-github-username>
+Save the token it generates — you'll need it to verify your
+progress at https://learntocloud.guide
 
 Good luck!
 Team L2C

@@ -1,11 +1,24 @@
 ---
 name: ctf-testing
-description: Deploy and test Linux CTF challenges across cloud providers (AWS, Azure, GCP). Use when testing CTF setup, validating challenges work correctly, running the full test suite, or verifying services survive VM reboots.
+description: Deploy and test Linux CTF challenges across cloud providers (AWS, Azure, GCP). Use when testing CTF setup, validating challenges work correctly, running the full test suite, verifying services survive VM reboots, or after creating new challenges with ctf-challenge-creator skill.
 ---
 
 # CTF Challenge Testing
 
-This skill helps deploy CTF infrastructure to cloud providers and validate all 18 challenges work correctly.
+This skill deploys CTF infrastructure to cloud providers and validates all challenges work correctly.
+
+**Often used after:** `ctf-challenge-creator` skill to verify new challenges work.
+
+## Decision Tree: Which Provider?
+
+```
+What to test? → Testing new challenge locally first?
+├─ Yes → Use Azure (fastest deploy, ~3 min)
+│
+└─ No → Full validation before release?
+    ├─ Quick check → Pick one: aws | azure | gcp
+    └─ Full release validation → Use "all" + --with-reboot
+```
 
 ## When to Use
 
@@ -17,15 +30,16 @@ This skill helps deploy CTF infrastructure to cloud providers and validate all 1
 ## Prerequisites
 
 1. **terraform** (>= 1.0)
-2. **sshpass** - Install on macOS: `brew install hudochenkov/sshpass/sshpass`
-3. **Cloud CLI authenticated** for target provider:
+2. **jq** - Install: `sudo apt install jq` (Ubuntu) or `brew install jq` (macOS)
+3. **sshpass** - Install on macOS: `brew install hudochenkov/sshpass/sshpass`
+4. **Cloud CLI authenticated** for target provider:
    - AWS: `aws sts get-caller-identity`
    - Azure: `az account show`
    - GCP: `gcloud auth list --filter=status:ACTIVE`
 
 ## Running Tests
 
-Run from repository root:
+The scripts are black boxes - run with `--help` or use these commands:
 
 ```bash
 ./.github/skills/ctf-testing/deploy_and_test.sh <provider> [--with-reboot]
@@ -41,21 +55,46 @@ Run from repository root:
 
 ## What Gets Tested
 
-1. **Verify command subcommands** - progress, list, hint, time, export
-2. **Challenge setup** - Files exist, services running, permissions correct
-3. **Solution commands** - Each challenge returns valid flag
-4. **Flag submission** - All 18 flags accepted by `verify`
-5. **Verification token system** - Instance secrets, token generation, token format validation
-6. **Reboot resilience** (with `--with-reboot`) - Services restart, progress persists
+The test script simulates a real user journey:
+
+1. **Verify command sanity check** - Confirms `verify` command works
+2. **Challenge solving** - All 18 challenges discovered and solved using hints
+3. **Verification token** - Token generation and format validation
+4. **Export certificate** - Certificate generation with correct metadata
+
+**With `--with-reboot`:**
+5. **Service resilience** - All systemd services restart after reboot
+6. **Progress persistence** - Completed challenges survive reboot
+
+## Common Pitfalls
+
+❌ **Don't** run tests without checking cloud CLI authentication first
+✅ **Do** verify with `aws sts get-caller-identity` / `az account show` / `gcloud auth list`
+
+❌ **Don't** forget to check for leftover resources after a failed run
+✅ **Do** run the cleanup verification commands in "Post-Test Cleanup" section
+
+❌ **Don't** run `all` for quick iteration - it takes 45+ minutes
+✅ **Do** pick one provider (Azure is fastest) for development, `all` for releases
+
+## Features
+
+- **Timestamped logging** - All output includes `[HH:MM:SS]` timestamps
+- **Graceful interrupt handling** - Ctrl+C triggers cleanup of deployed infrastructure
+- **Proper VM wait logic** - Uses cloud-native waits instead of arbitrary sleeps
+- **IP validation** - Verifies retrieved IPs are valid before attempting SSH
 
 ## Expected Results
 
-A successful run shows **~84 tests passing**:
-- 7 verify subcommand tests
-- 24 challenge setup verifications
-- 18 solution command tests
-- 20 flag verification tests
-- 15 verification token tests
+A successful run shows **~25 tests passing**, followed by a summary:
+- 1 verify sanity check
+- 18 challenge solutions
+- 4 verification token tests
+- 2 export certificate tests
+
+**With `--with-reboot`:** Additional 6 service checks + 1 progress persistence check.
+
+Summary line: `RESULT: PASS (<providers>)` or `RESULT: FAIL (<providers>)`
 
 ## Troubleshooting
 
@@ -102,5 +141,11 @@ cd <provider> && terraform destroy -auto-approve
 
 ## Scripts
 
-- [deploy_and_test.sh](deploy_and_test.sh) - Orchestration script (runs locally)
-- [test_ctf_challenges.sh](test_ctf_challenges.sh) - VM test script (runs on deployed VM)
+Reference files - treat as black boxes, run directly:
+
+- 📄 [deploy_and_test.sh](deploy_and_test.sh) - Orchestration script (runs locally)
+- 📄 [test_ctf_challenges.sh](test_ctf_challenges.sh) - VM test script (copied to and runs on deployed VM)
+
+## Related Skills
+
+- **ctf-challenge-creator** - Create new challenges, then use this skill to validate

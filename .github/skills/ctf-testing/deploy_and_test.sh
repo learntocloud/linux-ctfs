@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # CTF Deploy and Test Orchestration Script
 # Deploys infrastructure to cloud providers and runs tests
@@ -14,6 +14,7 @@
 #
 # Prerequisites:
 #   - terraform (>= 1.0)
+#   - jq (for AWS terraform config)
 #   - sshpass (macOS: brew install hudochenkov/sshpass/sshpass)
 #   - aws CLI (for AWS, must be logged in)
 #   - az CLI (for Azure, must be logged in)
@@ -33,6 +34,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TEST_SCRIPT="$SCRIPT_DIR/test_ctf_challenges.sh"
 
+# Constants
+MAX_SSH_ATTEMPTS=30
+SSH_RETRY_INTERVAL=10
+
 # SSH settings
 SSH_USER="ctf_user"
 SSH_PASS="CTFpassword123!"
@@ -44,6 +49,45 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
+
+# Cleanup tracking
+CURRENT_PROVIDER=""
+CLEANUP_ON_EXIT=false
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+log() {
+    local level="$1"
+    shift
+    local timestamp
+    timestamp=$(date '+%H:%M:%S')
+    case $level in
+        INFO)  echo -e "[$timestamp] ${BLUE}$*${NC}" ;;
+        OK)    echo -e "[$timestamp] ${GREEN}$*${NC}" ;;
+        WARN)  echo -e "[$timestamp] ${YELLOW}$*${NC}" ;;
+        ERROR) echo -e "[$timestamp] ${RED}$*${NC}" ;;
+        *)     echo -e "[$timestamp] $level $*" ;;
+    esac
+}
+
+cleanup_handler() {
+    local exit_code=$?
+    if [ "$CLEANUP_ON_EXIT" = true ] && [ -n "$CURRENT_PROVIDER" ]; then
+        echo ""
+        log WARN "Caught interrupt - cleaning up $CURRENT_PROVIDER infrastructure..."
+        terraform_destroy "$CURRENT_PROVIDER" || true
+    fi
+    exit $exit_code
+}
+
+trap cleanup_handler SIGINT SIGTERM
+
+sshpass_cmd() {
+    # Hide password from process list by using file descriptor
+    sshpass -f <(printf '%s' "$SSH_PASS") "$@"
+}
 
 # Parse arguments
 WITH_REBOOT=false
@@ -61,7 +105,7 @@ for arg in "$@"; do
             WITH_REBOOT=true
             ;;
         -h|--help)
-            head -30 "$0" | tail -28
+            head -32 "$0" | tail -30
             exit 0
             ;;
         *)
@@ -90,6 +134,11 @@ check_prerequisites() {
     # Check terraform
     if ! command -v terraform &>/dev/null; then
         missing+=("terraform")
+    fi
+    
+    # Check jq (required for AWS terraform config)
+    if ! command -v jq &>/dev/null; then
+        missing+=("jq")
     fi
     
     # Check sshpass
@@ -145,36 +194,45 @@ check_prerequisites() {
 # TERRAFORM OPERATIONS
 # ============================================================================
 
-terraform_apply() {
+# Get provider-specific terraform variables
+get_provider_vars() {
     local provider="$1"
-    local provider_dir="$REPO_ROOT/$provider"
-    
-    echo -e "${BLUE}Deploying $provider infrastructure...${NC}"
-    cd "$provider_dir"
-    
-    terraform init -input=false
-    
-    # Handle provider-specific variables
-    # use_local_setup=true to test with local ctf_setup.sh instead of GitHub
     case $provider in
         azure)
             local subscription_id
             subscription_id=$(az account show --query id -o tsv)
-            terraform apply -auto-approve -var="subscription_id=$subscription_id" -var="use_local_setup=true"
+            echo "-var=subscription_id=$subscription_id"
             ;;
         gcp)
             local project_id
             project_id=$(gcloud config get-value project 2>/dev/null)
             if [ -z "$project_id" ]; then
-                echo -e "${RED}ERROR: No GCP project set. Run 'gcloud config set project PROJECT_ID'${NC}"
+                log ERROR "No GCP project set. Run 'gcloud config set project PROJECT_ID'"
                 exit 1
             fi
-            terraform apply -auto-approve -var="gcp_project=$project_id" -var="use_local_setup=true"
+            echo "-var=gcp_project=$project_id"
             ;;
         *)
-            terraform apply -auto-approve -var="use_local_setup=true"
+            # AWS and others don't need extra vars
+            echo ""
             ;;
     esac
+}
+
+terraform_apply() {
+    local provider="$1"
+    local provider_dir="$REPO_ROOT/$provider"
+    local provider_vars
+    
+    log INFO "Deploying $provider infrastructure..."
+    cd "$provider_dir"
+    
+    # Use -upgrade to ensure latest compatible provider versions (avoids stale lock file issues)
+    terraform init -input=false -upgrade
+    
+    provider_vars=$(get_provider_vars "$provider")
+    # shellcheck disable=SC2086
+    terraform apply -auto-approve $provider_vars -var="use_local_setup=true"
     
     cd - > /dev/null
 }
@@ -182,25 +240,14 @@ terraform_apply() {
 terraform_destroy() {
     local provider="$1"
     local provider_dir="$REPO_ROOT/$provider"
+    local provider_vars
     
-    echo -e "${BLUE}Destroying $provider infrastructure...${NC}"
+    log INFO "Destroying $provider infrastructure..."
     cd "$provider_dir"
     
-    case $provider in
-        azure)
-            local subscription_id
-            subscription_id=$(az account show --query id -o tsv)
-            terraform destroy -auto-approve -var="subscription_id=$subscription_id"
-            ;;
-        gcp)
-            local project_id
-            project_id=$(gcloud config get-value project 2>/dev/null)
-            terraform destroy -auto-approve -var="gcp_project=$project_id"
-            ;;
-        *)
-            terraform destroy -auto-approve
-            ;;
-    esac
+    provider_vars=$(get_provider_vars "$provider")
+    # shellcheck disable=SC2086
+    terraform destroy -auto-approve $provider_vars
     
     cd - > /dev/null
 }
@@ -208,10 +255,19 @@ terraform_destroy() {
 get_public_ip() {
     local provider="$1"
     local provider_dir="$REPO_ROOT/$provider"
+    local ip
     
     cd "$provider_dir"
-    terraform output -raw public_ip_address 2>/dev/null || terraform output -raw public_ip 2>/dev/null
+    ip=$(terraform output -raw public_ip_address 2>/dev/null || terraform output -raw public_ip 2>/dev/null || echo "")
     cd - > /dev/null
+    
+    # Validate IP format
+    if [[ ! "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log ERROR "Invalid IP address retrieved: '$ip'"
+        return 1
+    fi
+    
+    echo "$ip"
 }
 
 # ============================================================================
@@ -220,22 +276,21 @@ get_public_ip() {
 
 wait_for_ssh() {
     local ip="$1"
-    local max_attempts=30
     local attempt=1
     
-    echo -e "${BLUE}Waiting for SSH to become available at $ip...${NC}"
+    log INFO "Waiting for SSH to become available at $ip..."
     
-    while [ $attempt -le $max_attempts ]; do
-        if sshpass -p "$SSH_PASS" ssh $SSH_OPTS "$SSH_USER@$ip" "echo 'SSH OK'" &>/dev/null; then
-            echo -e "${GREEN}SSH is available${NC}"
+    while [ $attempt -le $MAX_SSH_ATTEMPTS ]; do
+        if sshpass_cmd ssh $SSH_OPTS "$SSH_USER@$ip" "echo 'SSH OK'" &>/dev/null; then
+            log OK "SSH is available"
             return 0
         fi
-        echo "  Attempt $attempt/$max_attempts - waiting..."
-        sleep 10
+        echo "  Attempt $attempt/$MAX_SSH_ATTEMPTS - waiting..."
+        sleep $SSH_RETRY_INTERVAL
         ((attempt++))
     done
     
-    echo -e "${RED}SSH connection timed out${NC}"
+    log ERROR "SSH connection timed out"
     return 1
 }
 
@@ -243,13 +298,20 @@ reboot_vm() {
     local provider="$1"
     local ip="$2"
     
-    echo -e "${BLUE}Rebooting VM ($provider)...${NC}"
+    log INFO "Rebooting VM ($provider)..."
     
     case $provider in
         aws)
             local instance_id
             instance_id=$(cd "$REPO_ROOT/$provider" && terraform output -raw instance_id 2>/dev/null || \
                 aws ec2 describe-instances --filters "Name=ip-address,Values=$ip" --query 'Reservations[0].Instances[0].InstanceId' --output text)
+            
+            # Validate instance ID
+            if [ -z "$instance_id" ] || [ "$instance_id" = "None" ]; then
+                log ERROR "Failed to retrieve AWS instance ID for IP $ip"
+                return 1
+            fi
+            
             echo "  Stopping instance $instance_id..."
             aws ec2 stop-instances --instance-ids "$instance_id" > /dev/null
             aws ec2 wait instance-stopped --instance-ids "$instance_id"
@@ -262,15 +324,26 @@ reboot_vm() {
             ;;
         azure)
             echo "  Restarting Azure VM..."
-            az vm restart --resource-group ctf-resources --name ctf-vm --no-wait
-            sleep 30
+            az vm restart --resource-group ctf-resources --name ctf-vm
+            # az vm restart waits by default, but add explicit wait for running state
+            az vm wait --resource-group ctf-resources --name ctf-vm --created --timeout 120 2>/dev/null || true
             ;;
         gcp)
             echo "  Restarting GCP VM..."
             local zone
             zone=$(cd "$REPO_ROOT/$provider" && terraform output -raw zone 2>/dev/null || echo "us-central1-a")
             gcloud compute instances reset ctf-instance --zone="$zone" --quiet
-            sleep 30
+            # Wait for VM to be running
+            local attempts=0
+            while [ $attempts -lt 30 ]; do
+                local status
+                status=$(gcloud compute instances describe ctf-instance --zone="$zone" --format='value(status)' 2>/dev/null || echo "")
+                if [ "$status" = "RUNNING" ]; then
+                    break
+                fi
+                sleep 2
+                ((attempts++))
+            done
             ;;
     esac
     
@@ -285,20 +358,21 @@ reboot_vm() {
 run_tests() {
     local provider="$1"
     local ip="$2"
-    local reboot_flag=""
+    local test_flags=""
     
     if [ "$WITH_REBOOT" = true ]; then
-        reboot_flag="--with-reboot"
+        test_flags="$test_flags --with-reboot"
     fi
     
-    echo -e "${BLUE}Copying test script to VM...${NC}"
-    sshpass -p "$SSH_PASS" scp $SSH_OPTS "$TEST_SCRIPT" "$SSH_USER@$ip:/tmp/test_ctf_challenges.sh"
+    log INFO "Copying test script to VM..."
+    sshpass_cmd scp $SSH_OPTS "$TEST_SCRIPT" "$SSH_USER@$ip:/tmp/test_ctf_challenges.sh"
     
-    echo -e "${BLUE}Running tests on $provider VM ($ip)...${NC}"
+    log INFO "Running tests on $provider VM ($ip)..."
     echo ""
     
     local exit_code=0
-    sshpass -p "$SSH_PASS" ssh $SSH_OPTS "$SSH_USER@$ip" "chmod +x /tmp/test_ctf_challenges.sh && /tmp/test_ctf_challenges.sh $reboot_flag" || exit_code=$?
+    # shellcheck disable=SC2086
+    sshpass_cmd ssh $SSH_OPTS "$SSH_USER@$ip" "chmod +x /tmp/test_ctf_challenges.sh && /tmp/test_ctf_challenges.sh $test_flags" || exit_code=$?
     
     return $exit_code
 }
@@ -307,10 +381,10 @@ run_post_reboot_tests() {
     local provider="$1"
     local ip="$2"
     
-    echo -e "${BLUE}Running post-reboot verification on $provider...${NC}"
+    log INFO "Running post-reboot verification on $provider..."
     
     local exit_code=0
-    sshpass -p "$SSH_PASS" ssh $SSH_OPTS "$SSH_USER@$ip" "/tmp/test_ctf_challenges.sh" || exit_code=$?
+    sshpass_cmd ssh $SSH_OPTS "$SSH_USER@$ip" "/tmp/test_ctf_challenges.sh" || exit_code=$?
     
     return $exit_code
 }
@@ -323,6 +397,10 @@ test_provider() {
     local provider="$1"
     local result=0
     
+    # Enable cleanup on interrupt for this provider
+    CURRENT_PROVIDER="$provider"
+    CLEANUP_ON_EXIT=true
+    
     echo ""
     echo -e "${YELLOW}════════════════════════════════════════════════════════════════${NC}"
     echo -e "${YELLOW}  TESTING: $provider${NC}"
@@ -333,15 +411,33 @@ test_provider() {
     check_prerequisites "$provider"
     
     # Deploy
-    terraform_apply "$provider"
+    if ! terraform_apply "$provider"; then
+        log ERROR "Terraform apply failed for $provider"
+        CLEANUP_ON_EXIT=false
+        terraform_destroy "$provider" 2>/dev/null || true
+        CURRENT_PROVIDER=""
+        return 1
+    fi
     
     # Get IP
     local ip
-    ip=$(get_public_ip "$provider")
-    echo -e "${GREEN}VM deployed at: $ip${NC}"
+    if ! ip=$(get_public_ip "$provider"); then
+        log ERROR "Failed to get valid IP address for $provider"
+        CLEANUP_ON_EXIT=false
+        terraform_destroy "$provider" 2>/dev/null || true
+        CURRENT_PROVIDER=""
+        return 1
+    fi
+    log OK "VM deployed at: $ip"
     
     # Wait for SSH
-    wait_for_ssh "$ip"
+    if ! wait_for_ssh "$ip"; then
+        log ERROR "SSH connection failed for $provider"
+        CLEANUP_ON_EXIT=false
+        terraform_destroy "$provider"
+        CURRENT_PROVIDER=""
+        return 1
+    fi
     
     # Run tests
     local test_exit_code=0
@@ -350,7 +446,7 @@ test_provider() {
     # Handle reboot test
     if [ $test_exit_code -eq 100 ] && [ "$WITH_REBOOT" = true ]; then
         echo ""
-        echo -e "${YELLOW}Reboot requested - performing VM reboot...${NC}"
+        log WARN "Reboot requested - performing VM reboot..."
         
         local new_ip
         new_ip=$(reboot_vm "$provider" "$ip")
@@ -366,7 +462,9 @@ test_provider() {
     
     # Cleanup
     echo ""
+    CLEANUP_ON_EXIT=false
     terraform_destroy "$provider"
+    CURRENT_PROVIDER=""
     
     return $result
 }
@@ -379,7 +477,7 @@ main() {
     local failed_providers=()
     local passed_providers=()
     
-    echo -e "${YELLOW}CTF Challenge Test Suite${NC}"
+    log WARN "CTF Challenge Test Suite"
     echo "Providers to test: ${PROVIDERS_TO_TEST[*]}"
     echo "Reboot test: $WITH_REBOOT"
     echo ""
@@ -392,23 +490,14 @@ main() {
         fi
     done
     
-    # Final summary
+    # Final summary (short pass/fail)
     echo ""
-    echo -e "${YELLOW}════════════════════════════════════════════════════════════════${NC}"
-    echo -e "${YELLOW}  FINAL RESULTS${NC}"
-    echo -e "${YELLOW}════════════════════════════════════════════════════════════════${NC}"
-    echo ""
-    
-    if [ ${#passed_providers[@]} -gt 0 ]; then
-        echo -e "${GREEN}PASSED: ${passed_providers[*]}${NC}"
-    fi
-    
     if [ ${#failed_providers[@]} -gt 0 ]; then
-        echo -e "${RED}FAILED: ${failed_providers[*]}${NC}"
+        log ERROR "RESULT: FAIL (${failed_providers[*]})"
         exit 1
     fi
-    
-    echo -e "\n${GREEN}All tests passed!${NC}"
+
+    log OK "RESULT: PASS (${passed_providers[*]})"
     exit 0
 }
 

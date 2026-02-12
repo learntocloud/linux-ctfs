@@ -53,7 +53,7 @@ verify export <your-github-username>
 > [!IMPORTANT]  
 > Enter your GitHub username **exactly** as it appears on GitHub—no `@` symbol, no extra spaces, no special characters. For example: `verify export octocat` not `verify export @octocat`.
 
-Save the token it generates — you'll need it to verify your progress at [learntocloud.guide](https://learntocloud.guide).
+Save the token it generates — you'll need it to verify your progress at [learntocloud.guide/phase1](https://learntocloud.guide/phase1).
 
 ## Tips
 

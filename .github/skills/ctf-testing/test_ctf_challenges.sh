@@ -87,7 +87,7 @@ if [ -f "$REBOOT_MARKER" ]; then
     
     if [ -f "$PROGRESS_SNAPSHOT" ]; then
         EXPECTED=$(cat "$PROGRESS_SNAPSHOT")
-        ACTUAL=$(sort -u ~/.completed_challenges 2>/dev/null | wc -l)
+        ACTUAL=$(sort -u /var/ctf/completed_challenges 2>/dev/null | wc -l)
         if [ "$ACTUAL" -ge "$EXPECTED" ]; then
             pass "Progress persisted after reboot ($ACTUAL challenges)"
         else
@@ -652,7 +652,7 @@ echo "Flags captured: ${#FLAGS[@]}"
 echo ""
 
 if [ "$WITH_REBOOT" = true ] && [ $FAILED -eq 0 ]; then
-    sort -u ~/.completed_challenges 2>/dev/null | wc -l > "$PROGRESS_SNAPSHOT"
+    sort -u /var/ctf/completed_challenges 2>/dev/null | wc -l > "$PROGRESS_SNAPSHOT"
     touch "$REBOOT_MARKER"
     echo "Reboot marker created. Re-run after reboot to verify services."
     exit 100

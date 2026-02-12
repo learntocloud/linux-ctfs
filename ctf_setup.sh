@@ -97,6 +97,7 @@ cd /home/ctf_user/ctf_challenges || { echo "Failed to change directory"; exit 1;
 # =============================================================================
 
 sudo mkdir -p /etc/ctf
+sudo chmod 711 /etc/ctf
 cat > /tmp/ctf_hashes << HASHEOF
 $(for i in {0..18}; do echo "${FLAG_HASHES[$i]}"; done)
 HASHEOF
@@ -105,7 +106,12 @@ sudo chmod 644 /etc/ctf/flag_hashes
 
 echo "$INSTANCE_ID" | sudo tee /etc/ctf/instance_id > /dev/null
 echo "$VERIFICATION_SECRET" | sudo tee /etc/ctf/verification_secret > /dev/null
-sudo chmod 644 /etc/ctf/instance_id /etc/ctf/verification_secret
+sudo chmod 644 /etc/ctf/instance_id
+sudo chmod 600 /etc/ctf/verification_secret
+
+# Shared progress directory (so root and non-root users share the same progress)
+sudo mkdir -p /var/ctf
+sudo chmod 777 /var/ctf
 
 sudo tee /usr/local/bin/verify > /dev/null << 'EOFVERIFY'
 #!/bin/bash
@@ -119,7 +125,7 @@ fi
 mapfile -t ANSWER_HASHES < "$HASH_FILE"
 
 INSTANCE_ID=$(cat /etc/ctf/instance_id 2>/dev/null || echo "")
-VERIFICATION_SECRET=$(cat /etc/ctf/verification_secret 2>/dev/null || echo "")
+VERIFICATION_SECRET=$(sudo cat /etc/ctf/verification_secret 2>/dev/null || echo "")
 
 CHALLENGE_NAMES=(
     "Example Challenge"
@@ -165,7 +171,8 @@ CHALLENGE_HINTS=(
     "A disk image file exists on the system. Try mounting it with 'sudo mount -o loop <image> <mountpoint>' to explore its contents."
 )
 
-START_TIME_FILE=~/.ctf_start_time
+PROGRESS_FILE=/var/ctf/completed_challenges
+START_TIME_FILE=/var/ctf/ctf_start_time
 
 check_flag() {
     local challenge_num=$1
@@ -185,9 +192,9 @@ check_flag() {
         else
             echo "✓ Correct flag for Challenge $challenge_num!"
         fi
-        echo "$challenge_num" >> ~/.completed_challenges
-        sort -u ~/.completed_challenges > ~/.completed_challenges.tmp
-        mv ~/.completed_challenges.tmp ~/.completed_challenges
+        echo "$challenge_num" >> "$PROGRESS_FILE"
+        sort -u "$PROGRESS_FILE" > "${PROGRESS_FILE}.tmp"
+        mv "${PROGRESS_FILE}.tmp" "$PROGRESS_FILE"
     else
         echo "✗ Incorrect flag. Try again!"
     fi
@@ -196,8 +203,8 @@ check_flag() {
 
 show_progress() {
     local completed=0
-    if [ -f ~/.completed_challenges ]; then
-        completed=$(sort -u ~/.completed_challenges | wc -l)
+    if [ -f "$PROGRESS_FILE" ]; then
+        completed=$(sort -u "$PROGRESS_FILE" | wc -l)
         completed=$((completed-1)) # Subtract example challenge
     fi
     echo "Flags Found: $completed/18"
@@ -232,7 +239,7 @@ show_list() {
     echo "======================================"
     for i in {0..18}; do
         local status="[ ]"
-        if [ -f ~/.completed_challenges ] && grep -q "^${i}$" ~/.completed_challenges; then
+        if [ -f "$PROGRESS_FILE" ] && grep -q "^${i}$" "$PROGRESS_FILE"; then
             status="[✓]"
         fi
         if [ $i -eq 0 ]; then
@@ -260,8 +267,8 @@ show_hint() {
 
 export_certificate() {
     local completed=0
-    if [ -f ~/.completed_challenges ]; then
-        completed=$(sort -u ~/.completed_challenges | wc -l)
+    if [ -f "$PROGRESS_FILE" ]; then
+        completed=$(sort -u "$PROGRESS_FILE" | wc -l)
         completed=$((completed-1))
     fi
     
@@ -492,6 +499,7 @@ sudo chmod 777 /opt/systems/config/system.conf
 
 # Challenge 6: Service discovery
 echo "${FLAGS[6]}" | sudo tee /etc/ctf/flag_6 > /dev/null
+sudo chmod 600 /etc/ctf/flag_6
 cat > /usr/local/bin/secret_service.sh << 'EOF'
 #!/bin/bash
 FLAG=$(cat /etc/ctf/flag_6)
@@ -536,6 +544,7 @@ sudo sed -i "/^nameserver/s/$/${FLAGS[9]}/" /etc/resolv.conf
 
 # Challenge 10: Remote upload
 echo "${FLAGS[10]}" | sudo tee /etc/ctf/flag_10 > /dev/null
+sudo chmod 600 /etc/ctf/flag_10
 cat > /usr/local/bin/monitor_directory.sh << 'EOF'
 #!/bin/bash
 DIRECTORY="/home/ctf_user/ctf_challenges"
@@ -627,6 +636,7 @@ sudo chmod 644 /etc/cron.d/ctf_secret_task
 
 # Challenge 14: Process Environment
 echo "${FLAGS[14]}" | sudo tee /etc/ctf/flag_14 > /dev/null
+sudo chmod 600 /etc/ctf/flag_14
 cat > /usr/local/bin/ctf_secret_process.sh << 'EOF'
 #!/bin/bash
 export CTF_SECRET_FLAG=$(cat /etc/ctf/flag_14)

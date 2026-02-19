@@ -3,7 +3,7 @@
 variable "aws_region" {
   description = "The AWS region to deploy the CTF lab"
   type        = string
-  default     = "us-east-1"  # Default region if not specified
+  default     = "us-east-1" # Default region if not specified
 }
 
 variable "use_local_setup" {
@@ -31,7 +31,7 @@ data "aws_availability_zones" "available" {
 # Create a VPC
 resource "aws_vpc" "ctf_vpc" {
   cidr_block = "10.0.0.0/16"
-  
+
   tags = {
     Name = "CTF Lab VPC"
   }
@@ -48,8 +48,8 @@ resource "aws_internet_gateway" "ctf_igw" {
 
 # Create a Subnet
 resource "aws_subnet" "ctf_subnet" {
-  vpc_id     = aws_vpc.ctf_vpc.id
-  cidr_block = "10.0.1.0/24"
+  vpc_id            = aws_vpc.ctf_vpc.id
+  cidr_block        = "10.0.1.0/24"
   availability_zone = data.aws_availability_zones.available.names[0]
 
   tags = {
@@ -89,7 +89,7 @@ resource "aws_security_group" "ctf_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   ingress {
     from_port   = 80
     to_port     = 80
@@ -127,7 +127,7 @@ resource "aws_security_group" "ctf_sg" {
 # Create an EC2 Instance
 data "aws_ami" "ubuntu" {
   most_recent = true
-  
+
   filter {
     name   = "name"
     values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
@@ -141,8 +141,8 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_instance" "ctf_instance" {
-  ami           = data.aws_ami.ubuntu.id 
-  instance_type = "t3.micro"
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.small"
 
   vpc_security_group_ids = [aws_security_group.ctf_sg.id]
   subnet_id              = aws_subnet.ctf_subnet.id
@@ -164,7 +164,7 @@ resource "aws_instance" "ctf_instance" {
 
 resource "null_resource" "wait_for_setup" {
   depends_on = [aws_instance.ctf_instance]
-  
+
   provisioner "remote-exec" {
     connection {
       type     = "ssh"
@@ -173,7 +173,7 @@ resource "null_resource" "wait_for_setup" {
       password = "CTFpassword123!"
       timeout  = "10m"
     }
-    
+
     inline = [
       "while [ ! -f /var/log/setup_complete ]; do sleep 10; done"
     ]

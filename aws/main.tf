@@ -12,6 +12,7 @@ variable "use_local_setup" {
   default     = false
 }
 
+
 # Configure the AWS Provider with the variable region
 provider "aws" {
   region = var.aws_region
@@ -162,6 +163,31 @@ resource "aws_instance" "ctf_instance" {
   }
 }
 
+# Persistent EBS volume — survives terraform destroy via destroy.sh
+resource "aws_ebs_volume" "ctf_data" {
+  availability_zone = data.aws_availability_zones.available.names[0]
+  size              = 10 # GB
+  type              = "gp3"
+
+  tags = {
+    Name = "CTF Lab Data"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Attach the EBS volume to the EC2 instance
+resource "aws_volume_attachment" "ctf_data_attach" {
+  device_name = "/dev/xvdf"
+  volume_id   = aws_ebs_volume.ctf_data.id
+  instance_id = aws_instance.ctf_instance.id
+
+  # Do not detach/destroy the volume when the attachment resource is removed
+  skip_destroy = true
+}
+
 resource "null_resource" "wait_for_setup" {
   depends_on = [aws_instance.ctf_instance]
 
@@ -183,4 +209,10 @@ resource "null_resource" "wait_for_setup" {
 # Output the public IP of the instance
 output "public_ip_address" {
   value = aws_instance.ctf_instance.public_ip
+}
+
+# Output the persistent EBS volume ID
+output "ctf_ebs_volume_id" {
+  value       = aws_ebs_volume.ctf_data.id
+  description = "Persistent EBS volume ID — stays alive across terraform destroy"
 }

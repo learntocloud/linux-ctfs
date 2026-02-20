@@ -62,6 +62,21 @@ Save the token it generates — you'll need it to verify your progress at [learn
 - Use `verify hint [num]` when stuck on a challenge
 - Experiment freely—you can't break anything permanently
 
+## Getting Help / Reporting Issues
+
+If you're having trouble deploying or accessing the lab (Terraform errors, cloud permissions, SSH issues, the `verify` command not working), please **open a GitHub issue**:
+
+https://github.com/learntocloud/linux-ctfs/issues
+
+To help us troubleshoot quickly, include:
+
+- Cloud provider (AWS/Azure/GCP) and region/zone
+- Your OS and terminal (Windows/macOS/Linux, WSL, etc.)
+- `terraform version`
+- CLI status/output confirming you're authenticated (`aws sts get-caller-identity`, `az account show`, or `gcloud auth list --filter=status:ACTIVE`)
+- The command you ran and the **exact error output** (redact any secrets)
+- Whether the failure is during `terraform apply`, SSH connection, or inside the VM (e.g., `verify progress`)
+
 ## License
 
 [MIT License](LICENSE)

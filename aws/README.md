@@ -59,7 +59,16 @@ Type `yes` when prompted.
 2. Check that you're using Terraform v1.9.0 or later
 3. Verify you have permissions to create EC2, VPC, and Security Group resources
 
-If problems persist, please open an issue in this repository.
+If problems persist, please open an issue:
+
+https://github.com/learntocloud/linux-ctfs/issues
+
+Include:
+- AWS region
+- `terraform version`
+- `aws sts get-caller-identity` output (no secrets)
+- The exact `terraform apply` error output (redact any secrets)
+- Whether SSH fails or the issue happens after login (e.g., `verify progress`)
 
 ## Security Note
 

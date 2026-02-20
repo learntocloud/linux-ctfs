@@ -68,7 +68,16 @@ Type `yes` when prompted.
 2. Check that you're using Terraform v1.9.0 or later
 3. Verify you have permissions to create Compute Engine instances and firewall rules
 
-If problems persist, please open an issue in this repository.
+If problems persist, please open an issue:
+
+https://github.com/learntocloud/linux-ctfs/issues
+
+Include:
+- GCP project + region/zone
+- `terraform version`
+- `gcloud auth list --filter=status:ACTIVE` output (no secrets)
+- The exact `terraform apply` error output (redact any secrets)
+- Whether SSH fails or the issue happens after login (e.g., `verify progress`)
 
 ## Security Note
 

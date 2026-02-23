@@ -557,7 +557,7 @@ touch /tmp/.ctf_upload_triggered 2>/dev/null || true
 chmod 666 /tmp/.ctf_upload_triggered 2>/dev/null || true
 inotifywait -m -e create --format '%f' "$DIRECTORY" | while read FILE
 do
-    echo "A new file named $FILE has been added to $DIRECTORY. Here is your flag: $FLAG" | wall
+    printf '\n========== CHALLENGE 10: REMOTE UPLOAD ==========\nA new file was uploaded to %s.\nHere is your flag: %s\n==================================================\n' "$DIRECTORY" "$FLAG" | wall
     echo "$FLAG" > /tmp/.ctf_upload_triggered
     sync
 done

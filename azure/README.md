@@ -95,6 +95,24 @@ Include:
 - The exact `terraform apply` error output (redact any secrets)
 - Whether SSH fails or the issue happens after login (e.g., `verify progress`)
 
+### VM Size / Capacity Errors (Free Azure Subscription)
+
+If you encounter an error like:
+
+SkuNotAvailable: The requested VM size ... is currently not available in location "your location"
+
+This is usually due to regional capacity restrictions or limitations on free/trial subscriptions.
+
+**Fix:**
+
+1. Edit `main.tf` and change the VM size:
+
+size = "Standard_B2ts_v2"
+
+Use a region with available capacity (for example):
+
+terraform apply -var="az_region=westeurope"
+
 ## Security Note
 
 This lab uses password authentication for simplicity. In production, use key-based authentication.

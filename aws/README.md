@@ -72,4 +72,20 @@ Include:
 
 ## Security Note
 
+## EC2 Instance Control
+
+You can control the EC2 instance lifecycle (stop/start) using Terraform.
+
+### Stop the EC2 instance
+```bash
+terraform apply -target=null_resource.stop_instance
+
+Add this:
+
+```md
+### Start the EC2 instance
+```bash
+terraform apply -target=null_resource.start_instance
+
+
 This lab uses password authentication for simplicity. In production, use key-based authentication.

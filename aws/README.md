@@ -59,6 +59,23 @@ terraform apply \
   -auto-approve
 ```
 
+Note: This module uses an ephemeral public IP. After stopping/starting the instance, public_ip_address may change.
+
+After a restart, check for a new IP.
+
+```sh
+terraform output public_ip_address
+```
+If you see a “Remote host identification has changed” warning after a restart, remove the old key, then reconnect:
+
+```sh
+# 1) Remove the old host key for that IP
+ssh-keygen -R <public_ip>
+
+# 2) Reconnect and accept the new key
+ssh <user>@<public_ip>
+```
+
 ## Cleaning Up
 
 Destroy the resources when you're done to avoid charges:

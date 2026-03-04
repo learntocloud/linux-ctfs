@@ -43,6 +43,22 @@
 
 1. When prompted, enter the password: `CTFpassword123!`
 
+## Starting/Stopping the Lab VM
+
+If you'd like to pause the lab, you can utilize the following commands to start or stop the VM and reduce lab cost:
+
+```sh
+# power off (stop instance)
+terraform apply \
+  -var ctf_instance_state="stopped" \
+  -auto-approve
+
+# power on (start instance)
+terraform apply \
+  -var ctf_instance_state="running" \
+  -auto-approve
+```
+
 ## Cleaning Up
 
 Destroy the resources when you're done to avoid charges:
@@ -62,21 +78,5 @@ Type `yes` when prompted.
 If problems persist, please open an issue in this repository.
 
 ## Security Note
-
-## EC2 Instance Control
-
-You can control the EC2 instance lifecycle (stop/start) using Terraform.
-
-### Stop the EC2 instance
-```bash
-terraform apply -target=null_resource.stop_instance
-
-Add this:
-
-```md
-### Start the EC2 instance
-```bash
-terraform apply -target=null_resource.start_instance
-
 
 This lab uses password authentication for simplicity. In production, use key-based authentication.

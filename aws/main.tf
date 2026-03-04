@@ -198,6 +198,11 @@ variable "ctf_instance_state" {
   description = "Desired state of the EC2 instance (running or stopped)"
   type        = string
   default     = "running"
+
+  validation {
+    condition     = contains(["running", "stopped"], var.ctf_instance_state)
+    error_message = "ctf_instance_state must be either \"running\" or \"stopped\"."
+  }
 }
 
 # Control EC2 instance state declaratively

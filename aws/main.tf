@@ -204,4 +204,7 @@ variable "ctf_instance_state" {
 resource "aws_ec2_instance_state" "ctf_instance_state" {
   instance_id = aws_instance.ctf_instance.id
   state       = var.ctf_instance_state
+
+  # Ensure the instance is fully set up before changing its power state
+  depends_on = [null_resource.wait_for_setup]
 }

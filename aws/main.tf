@@ -1,3 +1,12 @@
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
+  }
+}
 # Configure the AWS Provider
 # Define the region variable
 variable "aws_region" {
@@ -183,4 +192,24 @@ resource "null_resource" "wait_for_setup" {
 # Output the public IP of the instance
 output "public_ip_address" {
   value = aws_instance.ctf_instance.public_ip
+}
+# Desired state of the EC2 instance
+variable "ctf_instance_state" {
+  description = "Desired state of the EC2 instance (running or stopped)"
+  type        = string
+  default     = "running"
+
+  validation {
+    condition     = contains(["running", "stopped"], var.ctf_instance_state)
+    error_message = "ctf_instance_state must be either \"running\" or \"stopped\"."
+  }
+}
+
+# Control EC2 instance state declaratively
+resource "aws_ec2_instance_state" "ctf_instance_state" {
+  instance_id = aws_instance.ctf_instance.id
+  state       = var.ctf_instance_state
+
+  # Ensure the instance is fully set up before changing its power state
+  depends_on = [null_resource.wait_for_setup]
 }

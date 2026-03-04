@@ -43,6 +43,39 @@
 
 1. When prompted, enter the password: `CTFpassword123!`
 
+## Starting/Stopping the Lab VM
+
+If you'd like to pause the lab, you can utilize the following commands to start or stop the VM and reduce lab cost:
+
+```sh
+# power off (stop instance)
+terraform apply \
+  -var ctf_instance_state="stopped" \
+  -auto-approve
+
+# power on (start instance)
+terraform apply \
+  -var ctf_instance_state="running" \
+  -auto-approve
+```
+
+Note: This module uses an ephemeral public IP. After stopping/starting the instance, public_ip_address may change.
+
+After a restart, check for a new IP.
+
+```sh
+terraform output public_ip_address
+```
+If you see a “Remote host identification has changed” warning after a restart, remove the old key, then reconnect:
+
+```sh
+# 1) Remove the old host key for that IP
+ssh-keygen -R <public_ip>
+
+# 2) Reconnect and accept the new key
+ssh <user>@<public_ip>
+```
+
 ## Cleaning Up
 
 Destroy the resources when you're done to avoid charges:

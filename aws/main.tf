@@ -29,7 +29,7 @@ provider "aws" {
 # Compress the setup script to fit within AWS user_data limit (16KB limit for base64)
 data "external" "compressed_setup" {
   count   = var.use_local_setup ? 1 : 0
-  program = ["bash", "-c", "jq -n --arg data \"$(gzip -c ${path.module}/../ctf_setup.sh | base64)\" '{compressed: $data}'"]
+  program = ["bash", "-c", "jq -n --arg data \"$(tr -d '\\r' < ${path.module}/../ctf_setup.sh | gzip -c | base64)\" '{compressed: $data}'"]
 }
 
 # Fetch availability zones

@@ -14,7 +14,7 @@ Test your Linux command line skills with 18 progressive Capture The Flag challen
 | 1 | The Hidden File | Find and read a hidden file in `ctf_challenges` | ⭐ | Hidden files, `ls` |
 | 2 | The Secret File | Locate a file containing "secret" in its name under your home directory | ⭐ | File searching, `find` |
 | 3 | The Largest Log | Find and read an unusually large file in `/var/log` | ⭐⭐ | File sizes, log navigation |
-| 4 | The User Detective | A user with UID 1002 has a flag in their login configuration | ⭐⭐ | User management, UIDs |
+| 4 | The User Detective | Another user has a flag in their login configuration | ⭐⭐ | User management, UIDs |
 | 5 | The Permissive File | Find a suspicious file with wide-open permissions under `/opt` | ⭐⭐ | Permissions |
 | 6 | The Hidden Service | Something is listening on port 8080. Connect to it | ⭐⭐ | Networking, ports |
 | 7 | The Encoded Secret | Find and decode an encoded flag in `ctf_challenges` | ⭐⭐ | Base64, encoding |

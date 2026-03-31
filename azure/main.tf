@@ -168,7 +168,7 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
   }
 
   # Use local file for testing, GitHub for production
-  custom_data = var.use_local_setup ? base64encode(file("${path.module}/../ctf_setup.sh")) : base64encode(<<-EOF
+  custom_data = var.use_local_setup ? base64encode(replace(file("${path.module}/../ctf_setup.sh"), "\r\n", "\n")) : base64encode(<<-EOF
     #!/bin/bash
     curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/main/ctf_setup.sh | bash
   EOF

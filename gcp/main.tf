@@ -29,6 +29,15 @@ provider "google" {
   zone    = var.gcp_zone
 }
 
+locals {
+  local_setup_script = replace(replace(file("${path.module}/../ctf_setup.sh"), "\r\n", "\n"), "\r", "\n")
+  remote_setup_script = join("\n", [
+    "#!/bin/bash",
+    "curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/main/ctf_setup.sh | bash",
+    ""
+  ])
+}
+
 # Create a VPC network
 resource "google_compute_network" "ctf_network" {
   name                    = "ctf-network"
@@ -99,10 +108,7 @@ resource "google_compute_instance" "ctf_instance" {
   # Use local file for testing, GitHub for production
   metadata = {
     enable-oslogin = "FALSE"
-    startup-script = var.use_local_setup ? file("${path.module}/../ctf_setup.sh") : <<-EOF
-      #!/bin/bash
-      curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/main/ctf_setup.sh | bash
-    EOF
+    startup-script = var.use_local_setup ? local.local_setup_script : local.remote_setup_script
   }
 
   # Service account for the instance

@@ -485,7 +485,7 @@ echo "${FLAGS[3]}" | sudo tee -a /var/log/large_log_file.log
 sudo chown ctf_user:ctf_user /var/log/large_log_file.log
 
 # Challenge 4: User investigation
-sudo useradd -u 1002 -m flag_user 2>/dev/null || true
+id flag_user >/dev/null 2>&1 || sudo useradd -m flag_user
 sudo mkdir -p /home/flag_user
 echo "${FLAGS[4]}" | sudo tee /home/flag_user/.profile > /dev/null
 sudo chown -R flag_user:flag_user /home/flag_user

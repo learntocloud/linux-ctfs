@@ -55,6 +55,29 @@ verify export <your-github-username>
 
 Save the token it generates — you'll need it to verify your progress at [learntocloud.guide/phase1](https://learntocloud.guide/phase1).
 
+### Troubleshooting Your Token
+
+Some terminals truncate long lines when copying. If your token isn't being accepted, it may be incomplete. The full token should be around **300+ characters**.
+
+1. **Check the length:**
+   ```bash
+   verify export <your-github-username> 2>/dev/null | sed -n '/BEGIN/,/END/{/BEGIN\|END/d;p}' | wc -c
+   ```
+   If the result is less than 300, your terminal is truncating the token.
+
+2. **Save it to a file:**
+   ```bash
+   verify export <your-github-username> 2>/dev/null | sed -n '/BEGIN/,/END/{/BEGIN\|END/d;p}' > ~/token.txt
+   ```
+
+3. **Open in nano and compare:**
+   ```bash
+   nano ~/token.txt
+   ```
+   `nano` will word-wrap properly. Does it match what you see in terminal? If it's longer in `nano`, your terminal was truncating it — use the full value from `nano`.
+
+4. **Still not working?** Open a [GitHub issue](https://github.com/learntocloud/linux-ctfs/issues) with the output of `wc -c ~/token.txt`.
+
 ## Tips
 
 - Use `man` pages to learn commands (e.g., `man find`)

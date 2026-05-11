@@ -3,7 +3,7 @@
 Test your Linux command line skills with 18 progressive Capture The Flag challenges. All flags follow the format `CTF{some_text_here}`.
 
 > [!IMPORTANT]  
-> Please complete [Phase 1 Guide](https://learntocloud.guide/phase1/) before attempting these challenges. Do not share solutions publicly - focus on sharing your learning journey instead.
+> Please complete [Phase 1 Guide](https://learntocloud.guide/phase/1) before attempting these challenges. Do not share solutions publicly - focus on sharing your learning journey instead.
 
 ## Challenges
 

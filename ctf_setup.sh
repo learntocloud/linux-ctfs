@@ -173,6 +173,102 @@ CHALLENGE_HINTS=(
 
 PROGRESS_FILE=/var/ctf/completed_challenges
 START_TIME_FILE=/var/ctf/ctf_start_time
+ELAPSED_TIME_FILE=/var/ctf/ctf_elapsed_seconds
+TIMER_SESSION_FILE=/var/ctf/ctf_timer_session
+TIMER_LAST_UPDATE_FILE=/var/ctf/ctf_timer_last_update
+
+read_timer_value() {
+    local file="$1"
+    local value=0
+    if [ -f "$file" ]; then
+        read -r value < "$file" || value=0
+    fi
+    if [[ "$value" =~ ^[0-9]+$ ]]; then
+        echo "$value"
+    else
+        echo 0
+    fi
+}
+
+current_session_id() {
+    ps -o sid= -p "$$" 2>/dev/null | tr -d ' ' || echo "$$"
+}
+
+current_session_start() {
+    local session_id="$1"
+    local session_start
+    session_start=$(ps -o lstart= -p "$session_id" 2>/dev/null || true)
+    if [ -n "$session_start" ]; then
+        date -d "$session_start" +%s 2>/dev/null || date +%s
+    else
+        date +%s
+    fi
+}
+
+update_timer() {
+    local now had_start migrated_elapsed
+    now=$(date +%s)
+    had_start=false
+    migrated_elapsed=false
+    if [ -f "$START_TIME_FILE" ]; then
+        had_start=true
+    fi
+    if [ ! -f "$START_TIME_FILE" ]; then
+        echo "$now" > "$START_TIME_FILE"
+    fi
+    if [ ! -f "$ELAPSED_TIME_FILE" ]; then
+        local start_time
+        start_time=$(read_timer_value "$START_TIME_FILE")
+        if [ "$start_time" -gt 0 ] && [ "$start_time" -lt "$now" ]; then
+            echo $((now - start_time)) > "$ELAPSED_TIME_FILE"
+            if [ "$had_start" = true ]; then
+                migrated_elapsed=true
+            fi
+        else
+            echo 0 > "$ELAPSED_TIME_FILE"
+        fi
+    fi
+
+    local session_id session_start last_session last_update elapsed from_time delta
+    session_id=$(current_session_id)
+    session_start=$(current_session_start "$session_id")
+    last_session=$(cat "$TIMER_SESSION_FILE" 2>/dev/null || true)
+    last_update=$(read_timer_value "$TIMER_LAST_UPDATE_FILE")
+    elapsed=$(read_timer_value "$ELAPSED_TIME_FILE")
+
+    if [ "$migrated_elapsed" = true ]; then
+        from_time="$now"
+    elif [ "$last_session" = "$session_id" ] && [ "$last_update" -gt 0 ]; then
+        from_time="$last_update"
+    else
+        from_time="$session_start"
+    fi
+
+    if [ "$from_time" -lt "$now" ]; then
+        delta=$((now - from_time))
+    else
+        delta=0
+    fi
+
+    echo $((elapsed + delta)) > "$ELAPSED_TIME_FILE"
+    echo "$session_id" > "$TIMER_SESSION_FILE"
+    echo "$now" > "$TIMER_LAST_UPDATE_FILE"
+}
+
+format_elapsed_time() {
+    local elapsed="$1"
+    local hours=$((elapsed / 3600))
+    local minutes=$(((elapsed % 3600) / 60))
+    local seconds=$((elapsed % 60))
+    printf "Elapsed Time: %02d:%02d:%02d\n" $hours $minutes $seconds
+}
+
+format_completion_time() {
+    local elapsed="$1"
+    local hours=$((elapsed / 3600))
+    local minutes=$(((elapsed % 3600) / 60))
+    printf "%02d:%02d" $hours $minutes
+}
 
 check_flag() {
     local challenge_num=$1
@@ -214,23 +310,16 @@ show_progress() {
 }
 
 init_timer() {
-    if [ ! -f "$START_TIME_FILE" ]; then
-        date +%s > "$START_TIME_FILE"
-    fi
+    update_timer
 }
 
 show_time() {
-    if [ ! -f "$START_TIME_FILE" ]; then
+    if [ ! -f "$START_TIME_FILE" ] && [ ! -f "$ELAPSED_TIME_FILE" ]; then
         echo "Timer not started. Complete your first challenge to start the timer."
         return
     fi
-    local start_time=$(cat "$START_TIME_FILE")
-    local current_time=$(date +%s)
-    local elapsed=$((current_time - start_time))
-    local hours=$((elapsed / 3600))
-    local minutes=$(((elapsed % 3600) / 60))
-    local seconds=$((elapsed % 60))
-    printf "Elapsed Time: %02d:%02d:%02d\n" $hours $minutes $seconds
+    update_timer
+    format_elapsed_time "$(read_timer_value "$ELAPSED_TIME_FILE")"
 }
 
 show_list() {
@@ -289,13 +378,9 @@ export_certificate() {
     local github_username="$1"
     
     local completion_time="Unknown"
-    if [ -f "$START_TIME_FILE" ]; then
-        local start_time=$(cat "$START_TIME_FILE")
-        local end_time=$(date +%s)
-        local elapsed=$((end_time - start_time))
-        local hours=$((elapsed / 3600))
-        local minutes=$(((elapsed % 3600) / 60))
-        completion_time=$(printf "%02d:%02d" $hours $minutes)
+    if [ -f "$START_TIME_FILE" ] || [ -f "$ELAPSED_TIME_FILE" ]; then
+        update_timer
+        completion_time=$(format_completion_time "$(read_timer_value "$ELAPSED_TIME_FILE")")
     fi
     
     local cert_file=~/ctf_certificate_$(date +%Y%m%d_%H%M%S).txt

@@ -52,7 +52,7 @@ The token is a base64-encoded JSON object containing:
 |-------|------|-------------|
 | `github_username` | string | User's GitHub username (verified via OAuth) |
 | `date` | string | Completion date (YYYY-MM-DD) |
-| `time` | string | Total time to complete (HH:MM) |
+| `time` | string | Active lab time to complete (HH:MM), persisted across SSH sessions and VM reboots |
 | `challenges` | number | Number of challenges completed (always 18) |
 | `timestamp` | number | Unix timestamp when token was generated |
 | `instance_id` | string | Unique identifier for this VM instance (32 hex chars) |

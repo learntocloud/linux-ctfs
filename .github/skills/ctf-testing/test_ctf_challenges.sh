@@ -47,6 +47,10 @@ readonly NC='\033[0m'  # No Color
 # File paths for reboot test coordination
 readonly REBOOT_MARKER="/tmp/.ctf_reboot_test_marker"
 readonly PROGRESS_SNAPSHOT="/tmp/.ctf_progress_snapshot"
+readonly TIME_SNAPSHOT="/tmp/.ctf_time_snapshot"
+readonly CTF_ELAPSED_TIME_FILE="/var/ctf/ctf_elapsed_seconds"
+readonly CTF_TIMER_SESSION_FILE="/var/ctf/ctf_timer_session"
+readonly CTF_TIMER_LAST_UPDATE_FILE="/var/ctf/ctf_timer_last_update"
 
 # =============================================================================
 # GLOBAL STATE
@@ -100,6 +104,13 @@ _section() {
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
+_time_to_seconds() {
+    local time_value="${1}"
+    local hours minutes seconds
+    IFS=: read -r hours minutes seconds <<< "${time_value}"
+    echo $((10#${hours} * 3600 + 10#${minutes} * 60 + 10#${seconds}))
+}
+
 # Verify a flag with the verify command and record result
 # Arguments:
 #   $1 - Challenge number
@@ -147,13 +158,24 @@ if [[ -f "${REBOOT_MARKER}" ]]; then
         EXPECTED=$(cat "$PROGRESS_SNAPSHOT")
         ACTUAL=$(sort -u /var/ctf/completed_challenges 2>/dev/null | wc -l)
         if [ "$ACTUAL" -ge "$EXPECTED" ]; then
-            pass "Progress persisted after reboot ($ACTUAL challenges)"
+            _pass "Progress persisted after reboot ($ACTUAL challenges)"
         else
             _fail "Progress lost after reboot (expected ${EXPECTED}, got ${ACTUAL})"
         fi
     fi
+
+    if [ -f "$TIME_SNAPSHOT" ]; then
+        EXPECTED_TIME=$(cat "$TIME_SNAPSHOT")
+        TIME_OUTPUT=$(verify time 2>&1) || true
+        ACTUAL_TIME=$(echo "${TIME_OUTPUT}" | grep -aoE '[0-9]{2}:[0-9]{2}:[0-9]{2}' | head -1) || true
+        if [[ -n "${ACTUAL_TIME}" ]] && [[ "$(_time_to_seconds "${ACTUAL_TIME}")" -ge "${EXPECTED_TIME}" ]]; then
+            _pass "Elapsed time persisted after reboot (${ACTUAL_TIME})"
+        else
+            _fail "Elapsed time lost after reboot (expected at least ${EXPECTED_TIME}s, got ${TIME_OUTPUT})"
+        fi
+    fi
     
-    rm -f "${REBOOT_MARKER}" "${PROGRESS_SNAPSHOT}"
+    rm -f "${REBOOT_MARKER}" "${PROGRESS_SNAPSHOT}" "${TIME_SNAPSHOT}"
     
     echo ""
     echo "Passed: ${PASSED} | Failed: ${FAILED}"
@@ -570,12 +592,24 @@ else
     _fail "Not all challenges completed: ${PROGRESS}"
 fi
 
+TIMER_SESSION_ID=$(ps -o sid= -p "$$" 2>/dev/null | tr -d ' ' || echo "$$")
+TIMER_NOW=$(date +%s)
+echo 3660 > "${CTF_ELAPSED_TIME_FILE}"
+echo "${TIMER_SESSION_ID}" > "${CTF_TIMER_SESSION_FILE}"
+echo "${TIMER_NOW}" > "${CTF_TIMER_LAST_UPDATE_FILE}"
+
 EXPORT_OUT=$(verify export testuser 2>&1) || true
 
 if echo "${EXPORT_OUT}" | grep -q "COMPLETION CERTIFICATE"; then
     _pass "Export generates certificate"
 else
     _fail "Export missing certificate"
+fi
+
+if echo "${EXPORT_OUT}" | grep -q "Completion Time: 01:01"; then
+    _pass "Certificate uses persisted elapsed time"
+else
+    _fail "Certificate has wrong completion time"
 fi
 
 if echo "${EXPORT_OUT}" | grep -q "BEGIN L2C CTF TOKEN"; then
@@ -598,6 +632,12 @@ if echo "${EXPORT_OUT}" | grep -q "BEGIN L2C CTF TOKEN"; then
     else
         _fail "Token has wrong challenge count"
     fi
+
+    if echo "${DECODED}" | grep -q '"time":"01:01"'; then
+        _pass "Token contains persisted elapsed time"
+    else
+        _fail "Token has wrong completion time"
+    fi
 else
     _fail "Export missing token"
 fi
@@ -614,6 +654,7 @@ echo ""
 
 if [ "$WITH_REBOOT" = true ] && [ $FAILED -eq 0 ]; then
     sort -u /var/ctf/completed_challenges 2>/dev/null | wc -l > "$PROGRESS_SNAPSHOT"
+    cat "${CTF_ELAPSED_TIME_FILE}" > "$TIME_SNAPSHOT"
     touch "$REBOOT_MARKER"
     echo "Reboot marker created. Re-run after reboot to verify services."
     exit 100

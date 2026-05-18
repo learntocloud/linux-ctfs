@@ -95,23 +95,59 @@ Include:
 - The exact `terraform apply` error output (redact any secrets)
 - Whether SSH fails or the issue happens after login (e.g., `verify progress`)
 
-### VM Size / Capacity Errors (Free Azure Subscription)
+### VM Size / Capacity Errors
 
 If you encounter an error like:
 
+```text
 SkuNotAvailable: The requested VM size ... is currently not available in location "your location"
+```
 
-This is usually due to regional capacity restrictions or limitations on free/trial subscriptions.
+This is usually due to regional capacity restrictions, subscription limits, or VM quota in the selected region. The default VM size is `Standard_B1s`, and the default region is `East US`.
 
-**Fix:**
+Check whether `Standard_B1s` is available in a region:
 
-1. Edit `main.tf` and change the VM size:
+```sh
+az vm list-skus \
+  --location eastus \
+  --resource-type virtualMachines \
+  --size Standard_B1s \
+  --all \
+  --query "[?name=='Standard_B1s'].{name:name, restrictions:restrictions}" \
+  -o json
+```
 
-size = "Standard_B2ts_v2"
+If `restrictions` is `[]`, Azure reports that SKU as available for your subscription in that region. If restrictions are returned, try another region or VM size.
 
-Use a region with available capacity (for example):
+Check VM quota in a region:
 
-terraform apply -var="az_region=westeurope"
+```sh
+az vm list-usage --location eastus -o table
+```
+
+To check several common regions:
+
+```sh
+for region in eastus southcentralus westus; do
+  echo "== $region =="
+  az vm list-skus \
+    --location "$region" \
+    --resource-type virtualMachines \
+    --size Standard_B1s \
+    --all \
+    --query "[?name=='Standard_B1s'].{name:name, restrictions:restrictions}" \
+    -o json
+  az vm list-usage --location "$region" -o table
+done
+```
+
+If your selected region is restricted, retry with a known available region:
+
+```sh
+terraform apply \
+  -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID" \
+  -var az_region="eastus"
+```
 
 ## Security Note
 

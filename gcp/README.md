@@ -51,6 +51,10 @@
 
 1. When prompted, enter the password: `CTFpassword123!`
 
+## Timer Behavior
+
+`verify time` uses wall clock elapsed time. The timer starts on your first challenge submission and freezes on your first successful `verify export` after 18/18.
+
 
 ## Cleaning Up
 

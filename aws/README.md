@@ -76,6 +76,9 @@ ssh-keygen -R <public_ip>
 ssh <user>@<public_ip>
 ```
 
+> [!NOTE]
+> `verify time` uses wall clock elapsed time. If the lab is stopped before you complete and export, stopped time still counts in elapsed time.
+
 ## Cleaning Up
 
 Destroy the resources when you're done to avoid charges:

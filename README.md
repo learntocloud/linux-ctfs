@@ -55,6 +55,13 @@ verify export <your-github-username>
 
 Save the token it generates — you'll need it to verify your progress at [learntocloud.guide/phase1](https://learntocloud.guide/phase1).
 
+### Timer and progress behavior
+
+- `verify time` shows **wall clock elapsed time** (not active keyboard time).
+- The timer starts when you first submit a challenge with `verify <number> <flag>`.
+- The timer freezes on your first successful `verify export` after reaching 18/18.
+- Run `verify 0 CTF{example}` early. The example challenge is part of verify progress tracking.
+
 ### Troubleshooting Your Token
 
 Some terminals truncate long lines when copying. If your token isn't being accepted, it may be incomplete. The full token should be around **300+ characters**.

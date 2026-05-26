@@ -173,6 +173,7 @@ CHALLENGE_HINTS=(
 
 PROGRESS_FILE=/var/ctf/completed_challenges
 START_TIME_FILE=/var/ctf/ctf_start_time
+END_TIME_FILE=/var/ctf/ctf_end_time
 
 check_flag() {
     local challenge_num=$1
@@ -219,14 +220,45 @@ init_timer() {
     fi
 }
 
+get_elapsed_seconds() {
+    if [ ! -f "$START_TIME_FILE" ]; then
+        return 1
+    fi
+
+    local start_time end_time
+    start_time=$(cat "$START_TIME_FILE")
+    if [ -f "$END_TIME_FILE" ]; then
+        end_time=$(cat "$END_TIME_FILE")
+    else
+        end_time=$(date +%s)
+    fi
+
+    echo $((end_time - start_time))
+}
+
+freeze_end_time_on_export() {
+    if [ -f "$END_TIME_FILE" ]; then
+        return
+    fi
+
+    local completed=0
+    if [ -f "$PROGRESS_FILE" ]; then
+        completed=$(sort -u "$PROGRESS_FILE" | wc -l)
+        completed=$((completed-1))
+    fi
+
+    if [ "$completed" -ge 18 ]; then
+        date +%s > "$END_TIME_FILE"
+    fi
+}
+
 show_time() {
     if [ ! -f "$START_TIME_FILE" ]; then
         echo "Timer not started. Complete your first challenge to start the timer."
         return
     fi
-    local start_time=$(cat "$START_TIME_FILE")
-    local current_time=$(date +%s)
-    local elapsed=$((current_time - start_time))
+    local elapsed
+    elapsed=$(get_elapsed_seconds)
     local hours=$((elapsed / 3600))
     local minutes=$(((elapsed % 3600) / 60))
     local seconds=$((elapsed % 60))
@@ -287,12 +319,13 @@ export_certificate() {
         return 1
     fi
     local github_username="$1"
-    
+
+    freeze_end_time_on_export
+
     local completion_time="Unknown"
     if [ -f "$START_TIME_FILE" ]; then
-        local start_time=$(cat "$START_TIME_FILE")
-        local end_time=$(date +%s)
-        local elapsed=$((end_time - start_time))
+        local elapsed
+        elapsed=$(get_elapsed_seconds)
         local hours=$((elapsed / 3600))
         local minutes=$(((elapsed % 3600) / 60))
         completion_time=$(printf "%02d:%02d" $hours $minutes)
@@ -457,10 +490,13 @@ and review your progress.
 
 Usage:
   verify [challenge number] [flag] - Submit flag for verification
-  verify 0 CTF{example} - Example flag
+  verify 0 CTF{example} - Example flag (required)
   verify progress     - Shows your progress
+  verify time         - Shows elapsed wall clock time
 
-  To capture first flag, run: verify 0 CTF{example}
+  Run this first to initialize progress: verify 0 CTF{example}
+  Note: Timer starts on your first challenge submission.
+  It freezes on your first successful verify export after 18/18.
 
 When you complete all challenges, run: verify export <your-github-username>
 Save the token it generates — you'll need it to verify your

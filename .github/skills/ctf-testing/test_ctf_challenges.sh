@@ -174,6 +174,15 @@ if ! command -v verify &>/dev/null; then
     exit 1
 fi
 
+# Timer should not start before first numeric verify command
+rm -f /var/ctf/ctf_start_time /var/ctf/ctf_end_time
+TIMER_PRESTART_OUT=$(verify time 2>&1) || true
+if echo "${TIMER_PRESTART_OUT}" | grep -q "Timer not started"; then
+    _pass "verify time shows pre-start message"
+else
+    _fail "verify time pre-start behavior incorrect"
+fi
+
 VERIFY_OUTPUT=$(verify 0 "CTF{example}" 2>&1) || true
 if echo "${VERIFY_OUTPUT}" | grep -q "✓"; then
     _pass "verify command accepts example flag"
@@ -181,6 +190,12 @@ else
     _fail "verify command broken - SETUP BUG"
     echo "Cannot continue without working verify command"
     exit 1
+fi
+
+if [[ -f /var/ctf/ctf_start_time ]]; then
+    _pass "Timer starts after first numeric verify command"
+else
+    _fail "Timer did not start after first numeric verify command"
 fi
 
 # ============================================================================
@@ -600,6 +615,15 @@ if echo "${EXPORT_OUT}" | grep -q "BEGIN L2C CTF TOKEN"; then
     fi
 else
     _fail "Export missing token"
+fi
+
+FIRST_TIME_OUT=$(verify time 2>&1) || true
+sleep 2
+SECOND_TIME_OUT=$(verify time 2>&1) || true
+if [[ "${FIRST_TIME_OUT}" == "${SECOND_TIME_OUT}" ]]; then
+    _pass "verify time is frozen after first successful export"
+else
+    _fail "verify time changed after export (freeze failed)"
 fi
 
 # ============================================================================

@@ -55,18 +55,35 @@
 
 If you'd like to pause the lab, you can utilize the following commands to start or stop the VM and reduce lab cost:
 
+To power off the VM:
+
+1. exit from the SSH session:
+
+    ```sh
+    exit
+    ```
+ 2. Use the following commands to power off or on the VM:
 ```sh
 # power off
-terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_off \
-    -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID" \
-    -var az_region="YOUR_AZURE_REGION" \
-    -auto-approve
-# power on
-terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_on \
-    -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID" \
-    -var az_region="YOUR_AZURE_REGION" \
-    -auto-approve
+terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_off 
+3. Type `yes` when prompted.
+
+To power on the VM:
+1. Use the following command to power on the VM:
+```sh
+terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_on 
 ```
+
+1. type `yes` when prompted.
+1. Connect to the VM via SSH:
+    ```sh
+    ssh ctf_user@<public_ip_address>
+    ```
+
+> [!NOTE]
+> `verify time` uses wall clock elapsed time. If the lab is powered off before you complete and export, powered-off time still counts in elapsed time.
+
+
 
 ## Cleaning Up
 

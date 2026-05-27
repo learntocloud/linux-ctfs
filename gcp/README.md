@@ -36,6 +36,20 @@
 
     Type `yes` when prompted.
 
+    By default, Terraform uses release mode. The VM downloads the setup package from the latest GitHub Release, verifies its SHA-256 checksum, and runs setup during first boot.
+
+    Maintainers can choose a specific setup release if they need to pin or roll back the setup package:
+
+    ```sh
+    terraform apply \
+      -var gcp_project="YOUR_GCP_PROJECT_ID" \
+      -var gcp_region="YOUR_GCP_REGION" \
+      -var gcp_zone="YOUR_GCP_ZONE" \
+      -var setup_release_tag="v0.1.0"
+    ```
+
+    If you are testing unmerged local setup changes, add `-var use_local_setup=true` to the `terraform apply` command. Contributor mode uploads your local setup files and uses SSH to run them on the VM.
+
 4. Note the `public_ip_address` output—you'll use this to connect.
 
 
@@ -82,6 +96,11 @@ Include:
 - `gcloud auth list --filter=status:ACTIVE` output (no secrets)
 - The exact `terraform apply` error output (redact any secrets)
 - Whether SSH fails or the issue happens after login (e.g., `verify progress`)
+- If SSH works but the lab is not ready, check `/var/log/ctf_setup.log`, `/var/lib/cloud/instance/ctf-setup.done`, `/var/lib/linux-ctfs/setup.done`, and `/var/lib/linux-ctfs/setup.failed`
+
+### Changing Setup Versions
+
+The setup script runs during first boot. If you change `setup_release_tag` after a VM already exists, or if the default `latest` release changes, recreate the VM so first-boot setup runs with the new package.
 
 ## Security Note
 

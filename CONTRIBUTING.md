@@ -1,106 +1,145 @@
 # Contributing to Linux CTF
 
-Thank you for your interest in contributing! This guide will help you get started.
+Thanks for helping improve Linux CTF. This guide covers what contributors need today to make, test, and submit changes.
 
 ## Before You Start
 
-**Please open an issue before submitting a PR.** This lets us discuss the proposed changes and ensure they align with the project goals. This applies to:
+Open an issue before submitting a PR. This gives maintainers a chance to discuss the change before you spend time on it.
+
+Open an issue for:
 
 - New challenges
 - Bug fixes in existing challenges
 - Infrastructure changes
-- Documentation improvements
+- Documentation updates
 
 ## What We Accept
 
-✅ Bug fixes for challenge infrastructure  
-✅ Improvements to setup reliability  
-✅ Cloud provider optimizations  
-✅ Documentation clarifications  
+Good contributions include:
 
-❌ Challenge solutions or hints beyond what `verify hint` provides  
-❌ Changes that make challenges significantly easier  
+- Challenge setup fixes
+- Setup reliability improvements
+- Cloud provider fixes or optimizations
+- Clear documentation improvements
 
-## Testing Requirements
+Do not contribute:
 
-**All tests must pass before submitting a PR.** You must verify your changes work on at least one cloud provider.
+- Challenge solutions in learner-facing docs
+- Extra hints beyond what `verify hint` provides
+- Files that copy flags, answers, or solution commands
+- Changes that make a challenge much easier unless the issue asks for that
+
+Keep solution commands only in `.github/skills/ctf-testing/test_ctf_challenges.sh`.
+
+## Pull Request Checklist
+
+Before opening a PR:
+
+1. Create a feature branch.
+2. Make focused changes tied to an issue.
+3. Run the relevant local checks.
+4. Run a basic CTF test on at least one cloud provider.
+5. Include the issue number, what you tested, and the result in the PR description.
+
+## Local Checks
+
+Run the checks that match the files you changed.
+
+For setup or verify changes:
+
+```bash
+python3 -m compileall -q setup verify
+bash -n ctf_setup.sh
+shellcheck -S warning -e SC1091 -e SC2086 ctf_setup.sh .github/skills/ctf-testing/test_ctf_challenges.sh .github/skills/ctf-testing/deploy_and_test.sh
+```
+
+For Terraform changes:
+
+```bash
+terraform -chdir=aws fmt -check && terraform -chdir=aws validate
+terraform -chdir=azure fmt -check && terraform -chdir=azure validate
+terraform -chdir=gcp fmt -check && terraform -chdir=gcp validate
+```
+
+If you only changed one provider, you only need to run that provider's Terraform checks.
+
+## Cloud Testing
+
+All PRs that change setup, challenges, verify behavior, or Terraform should be tested on at least one cloud provider.
 
 ### Prerequisites
 
-1. **Terraform** (>= 1.0)
-2. **sshpass**
-   - macOS: `brew install hudochenkov/sshpass/sshpass`
-   - Linux: `apt install sshpass` or `yum install sshpass`
-   - Windows: Use WSL (Windows Subsystem for Linux)
-3. **Cloud CLI** authenticated for your chosen provider:
+Install:
 
-| Provider | Verify Authentication |
-|----------|----------------------|
+1. `terraform` 1.0 or newer
+2. `jq`
+3. `sshpass`
+4. The cloud CLI for the provider you want to test
+
+Check cloud authentication before running a test:
+
+| Provider | Authentication check |
+| --- | --- |
 | AWS | `aws sts get-caller-identity` |
 | Azure | `az account show` |
 | GCP | `gcloud auth list --filter=status:ACTIVE` |
 
-### Running Tests
+### Basic and Full Tests
 
-#### Option 1: Using an AI Coding Assistant (Recommended)
+The testing script uses contributor mode automatically. It uploads your local `ctf_setup.sh`, `setup/`, and `verify/` files to the VM, so it tests your working tree. It does not test GitHub Release assets.
 
-If you use an AI coding assistant with agent/tool capabilities:
+| Test type | Command | Use when |
+| --- | --- | --- |
+| Basic AWS | `./.github/skills/ctf-testing/deploy_and_test.sh aws` | Testing normal challenge behavior on AWS |
+| Basic Azure | `./.github/skills/ctf-testing/deploy_and_test.sh azure` | Testing normal challenge behavior on Azure |
+| Basic GCP | `./.github/skills/ctf-testing/deploy_and_test.sh gcp` | Testing normal challenge behavior on GCP |
+| Basic all providers | `./.github/skills/ctf-testing/deploy_and_test.sh all` | Checking all providers without reboot |
+| Full AWS | `./.github/skills/ctf-testing/deploy_and_test.sh aws --with-reboot` | Testing AWS plus reboot behavior |
+| Full Azure | `./.github/skills/ctf-testing/deploy_and_test.sh azure --with-reboot` | Testing Azure plus reboot behavior |
+| Full GCP | `./.github/skills/ctf-testing/deploy_and_test.sh gcp --with-reboot` | Testing GCP plus reboot behavior |
+| Full all providers | `./.github/skills/ctf-testing/deploy_and_test.sh all --with-reboot` | Release confidence across all providers |
 
-| Tool | How to Test |
-|------|-------------|
-| GitHub Copilot (VS Code) | Open Chat in agent mode, prompt: `Test the AWS lab` |
-| Claude Code | Prompt: `Test the AWS lab` |
-| Cursor, Windsurf, etc. | Use agent mode and prompt: `Test the AWS lab` |
+Basic tests validate the `verify` command, all 18 challenges, export certificates, and verification tokens.
 
-Replace `AWS` with `Azure` or `GCP` as needed. The AI will use the CTF testing skill to deploy, test, and clean up.
+Full tests do everything in a basic test, then reboot the VM and check required services plus progress persistence.
 
-#### Option 2: Manual
+If you use an AI coding assistant with skills, use prompts like:
 
-Run from the repository root:
+- `Run a basic test on Azure`
+- `Run a basic test on GCP`
+- `Run a full test on AWS`
+- `Run a full test on all providers`
+
+See `.github/skills/ctf-testing/SKILL.md` for the agent workflow.
+
+## Deployment Modes
+
+Most contributors only need to know this:
+
+- Normal learner deployments use release mode.
+- Contributor testing uses local files.
+- `deploy_and_test.sh` handles contributor mode for you.
+
+If you manually run Terraform to test local setup changes, pass:
 
 ```bash
-./.github/skills/ctf-testing/deploy_and_test.sh <provider>
+terraform apply -var use_local_setup=true
 ```
 
-Examples:
-```bash
-./.github/skills/ctf-testing/deploy_and_test.sh aws
-./.github/skills/ctf-testing/deploy_and_test.sh azure
-./.github/skills/ctf-testing/deploy_and_test.sh gcp
+Release mode downloads a setup package from GitHub Releases. Testing release mode requires published release assets, so it is usually maintainer work.
+
+## Troubleshooting
+
+If setup fails on a VM, check:
+
+```text
+/var/lib/linux-ctfs/setup.failed
+/var/log/ctf_setup.log
+/var/log/cloud-init-output.log
 ```
 
-For thorough testing (includes reboot verification):
-```bash
-./.github/skills/ctf-testing/deploy_and_test.sh aws --with-reboot
-```
+If cloud cleanup fails, run `terraform destroy` from the provider directory and report any resources that remain.
 
-### What Gets Tested
+## Questions
 
-- All 18 challenges are properly set up
-- Services are running and accessible
-- Flags can be discovered and submitted
-- Progress tracking works
-- Verification token generation and format
-- (With `--with-reboot`) Services survive VM restart
-
-See [.github/skills/ctf-testing/SKILL.md](.github/skills/ctf-testing/SKILL.md) for detailed documentation.
-
-## Pull Request Process
-
-1. **Open an issue first** to discuss your proposed changes
-2. **Fork the repository** and create a feature branch
-3. **Make your changes** with clear, descriptive commits
-4. **Run tests** on at least one cloud provider
-5. **Submit your PR** referencing the issue number
-6. **Respond to feedback** from maintainers
-
-## Code Style
-
-- Shell scripts should pass `shellcheck`
-- Terraform should be formatted with `terraform fmt`
-- Use descriptive variable and function names
-- Add comments for non-obvious logic
-
-## Questions?
-
-If you're unsure about anything, open an issue and ask. We're happy to help!
+If you are unsure what to test or how to scope a change, open an issue and ask.

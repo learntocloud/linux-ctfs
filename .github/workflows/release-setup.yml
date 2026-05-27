@@ -1,0 +1,56 @@
+name: Release setup package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to upload assets to"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  package-setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve release tag
+        id: release
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out release code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+
+      - name: Build deterministic setup archive
+        run: |
+          set -euo pipefail
+          asset="linux-ctfs-setup.tar.gz"
+          tar \
+            --sort=name \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            --mtime="UTC 1970-01-01" \
+            -cf - ctf_setup.sh setup verify | gzip -n > "$asset"
+          sha256sum "$asset" > "$asset.sha256"
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" \
+            "linux-ctfs-setup.tar.gz" \
+            "linux-ctfs-setup.tar.gz.sha256" \
+            --clobber

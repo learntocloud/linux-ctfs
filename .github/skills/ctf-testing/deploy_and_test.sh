@@ -353,6 +353,41 @@ _wait_for_ssh() {
     return 1
 }
 
+# Wait for setup markers before running challenge tests
+# Arguments:
+#   $1 - IP address of the VM
+# Returns:
+#   0 on success, 1 on timeout
+_wait_for_setup() {
+    local ip="$1"
+    local attempt=1
+
+    _log INFO "Waiting for CTF setup to finish..."
+
+    while [[ ${attempt} -le ${MAX_SSH_ATTEMPTS} ]]; do
+        # shellcheck disable=SC2086
+        if _sshpass_cmd ssh ${SSH_OPTS} "${SSH_USER}@${ip}" \
+            "test -f /var/lib/linux-ctfs/setup.done || test -f /var/lib/cloud/instance/ctf-setup.done || test -f /var/log/setup_complete" &>/dev/null; then
+            _log OK "CTF setup is complete"
+            return 0
+        fi
+
+        # shellcheck disable=SC2086
+        if _sshpass_cmd ssh ${SSH_OPTS} "${SSH_USER}@${ip}" \
+            "test -f /var/lib/linux-ctfs/setup.failed" &>/dev/null; then
+            _log ERROR "CTF setup reported failure. Check /var/log/ctf_setup.log on the VM."
+            return 1
+        fi
+
+        echo "  Attempt ${attempt}/${MAX_SSH_ATTEMPTS} - waiting..."
+        sleep "${SSH_RETRY_INTERVAL}"
+        ((attempt++))
+    done
+
+    _log ERROR "CTF setup timed out"
+    return 1
+}
+
 # Reboot/restart a VM and return the new IP address
 # Arguments:
 #   $1 - Cloud provider name (aws, azure, gcp)
@@ -532,6 +567,15 @@ _test_provider() {
     # Wait for SSH
     if ! _wait_for_ssh "${ip}"; then
         _log ERROR "SSH connection failed for ${provider}"
+        CLEANUP_ON_EXIT=false
+        _terraform_destroy "${provider}"
+        CURRENT_PROVIDER=""
+        return 1
+    fi
+
+    # Wait for setup markers
+    if ! _wait_for_setup "${ip}"; then
+        _log ERROR "Setup did not complete for ${provider}"
         CLEANUP_ON_EXIT=false
         _terraform_destroy "${provider}"
         CURRENT_PROVIDER=""

@@ -19,7 +19,7 @@ Test your Linux command line skills with 18 progressive Capture The Flag challen
 | 6 | The Hidden Service | Something is listening on port 8080. Connect to it | ⭐⭐ | Networking, ports |
 | 7 | The Encoded Secret | Find and decode an encoded flag in `ctf_challenges` | ⭐⭐ | Base64, encoding |
 | 8 | SSH Key Authentication | Configure SSH key authentication and find a hidden flag | ⭐⭐ | SSH configuration |
-| 9 | DNS Troubleshooting | Someone modified a critical DNS config file. Fix it | ⭐⭐ | DNS, `/etc/resolv.conf` |
+| 9 | DNS Inspection | Inspect the system DNS configuration without changing live resolver files | ⭐⭐ | DNS, `systemd-resolved` |
 | 10 | Remote Upload | Transfer any file to `ctf_challenges` to trigger the flag | ⭐⭐ | File transfer, SCP |
 | 11 | Web Configuration | The web server is running on a non-standard port. Find and fix it | ⭐⭐ | Nginx, services |
 | 12 | Network Traffic Analysis | Someone is sending secret messages via ping packets | ⭐⭐⭐ | Packet inspection, tcpdump |
@@ -106,6 +106,7 @@ To help us troubleshoot quickly, include:
 - CLI status/output confirming you're authenticated (`aws sts get-caller-identity`, `az account show`, or `gcloud auth list --filter=status:ACTIVE`)
 - The command you ran and the **exact error output** (redact any secrets)
 - Whether the failure is during `terraform apply`, SSH connection, or inside the VM (e.g., `verify progress`)
+- If SSH works but the lab is not ready, check `/var/log/ctf_setup.log`, `/var/lib/cloud/instance/ctf-setup.done`, `/var/lib/linux-ctfs/setup.done`, and `/var/lib/linux-ctfs/setup.failed`
 
 ## License
 

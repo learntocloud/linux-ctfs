@@ -37,19 +37,6 @@
 
     Type `yes` when prompted.
 
-    By default, Terraform uses release mode. The VM downloads the setup package from the latest GitHub Release, verifies its SHA-256 checksum, and runs setup during first boot.
-
-    Maintainers can choose a specific setup release if they need to pin or roll back the setup package:
-
-    ```sh
-    terraform apply \
-      -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID" \
-      -var az_region="YOUR_AZURE_REGION" \
-      -var setup_release_tag="v0.1.0"
-    ```
-
-    If you are testing unmerged local setup changes, add `-var use_local_setup=true` to the `terraform apply` command. Contributor mode uploads your local setup files and uses SSH to run them on the VM.
-
 4. Note the `public_ip_address` output—you'll use this to connect.
 
 ## Accessing the Lab
@@ -66,37 +53,32 @@
 
 ## Starting/Stopping the Lab VM
 
-If you'd like to pause the lab, you can utilize the following commands to start or stop the VM and reduce lab cost:
+If you want to pause the lab and reduce cost, use these commands.
 
-To power off the VM:
+Power off the VM:
 
-1. exit from the SSH session:
-
-    ```sh
-    exit
-    ```
- 2. Use the following commands to power off or on the VM:
 ```sh
-# power off
-terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_off 
-3. Type `yes` when prompted.
-
-To power on the VM:
-1. Use the following command to power on the VM:
-```sh
-terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_on 
+terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_off
 ```
 
-1. type `yes` when prompted.
-1. Connect to the VM via SSH:
-    ```sh
-    ssh ctf_user@<public_ip_address>
-    ```
+Type `yes` when prompted.
+
+Power on the VM:
+
+```sh
+terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_on
+```
+
+Type `yes` when prompted.
+
+Connect again:
+
+```sh
+ssh ctf_user@<public_ip_address>
+```
 
 > [!NOTE]
 > `verify time` uses wall clock elapsed time. If the lab is powered off before you complete and export, powered-off time still counts in elapsed time.
-
-
 
 ## Cleaning Up
 
@@ -123,12 +105,7 @@ Include:
 - `terraform version`
 - `az account show` output (no secrets)
 - The exact `terraform apply` error output (redact any secrets)
-- Whether SSH fails or the issue happens after login (e.g., `verify progress`)
-- If SSH works but the lab is not ready, check `/var/log/ctf_setup.log`, `/var/lib/cloud/instance/ctf-setup.done`, `/var/lib/linux-ctfs/setup.done`, and `/var/lib/linux-ctfs/setup.failed`
-
-### Changing Setup Versions
-
-The setup script runs during first boot. If you change `setup_release_tag` after a VM already exists, or if the default `latest` release changes, recreate the VM so first-boot setup runs with the new package.
+- Whether SSH fails or the issue happens after login, such as when running `verify progress`
 
 ### VM Size / Capacity Errors
 

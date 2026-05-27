@@ -147,7 +147,7 @@ if [[ -f "${REBOOT_MARKER}" ]]; then
         EXPECTED=$(cat "$PROGRESS_SNAPSHOT")
         ACTUAL=$(sort -u /var/ctf/completed_challenges 2>/dev/null | wc -l)
         if [ "$ACTUAL" -ge "$EXPECTED" ]; then
-            pass "Progress persisted after reboot ($ACTUAL challenges)"
+            _pass "Progress persisted after reboot ($ACTUAL challenges)"
         else
             _fail "Progress lost after reboot (expected ${EXPECTED}, got ${ACTUAL})"
         fi
@@ -356,19 +356,20 @@ else
     FLAGS[8]=""
 fi
 
-# Challenge 9: DNS Configuration
-# Hint: "DNS settings are stored in /etc/resolv.conf"
-echo "Challenge 9: DNS Configuration"
-if [[ -r /etc/resolv.conf ]]; then
-    FLAG_9=$(grep -ao 'CTF{[^}]*}' /etc/resolv.conf 2>/dev/null | head -1) || true
+# Challenge 9: DNS Inspection
+# Hint: "Inspect systemd-resolved configuration safely"
+echo "Challenge 9: DNS Inspection"
+DNS_DROP_IN="/etc/systemd/resolved.conf.d/ctf-dns.conf"
+if [[ -r "${DNS_DROP_IN}" ]]; then
+    FLAG_9=$(grep -ao 'CTF{[^}]*}' "${DNS_DROP_IN}" 2>/dev/null | head -1) || true
     if [[ -n "${FLAG_9}" ]]; then
         _verify_flag 9 "${FLAG_9}" "Solved challenge 9" "Challenge 9: Found flag but verify rejected it - SETUP BUG"
     else
-        _fail "Challenge 9: resolv.conf has no CTF flag - SETUP BUG"
+        _fail "Challenge 9: DNS drop-in has no CTF flag - SETUP BUG"
         FLAGS[9]=""
     fi
 else
-    _fail "Challenge 9: /etc/resolv.conf not readable - SETUP BUG"
+    _fail "Challenge 9: DNS drop-in not readable - SETUP BUG"
     FLAGS[9]=""
 fi
 

@@ -1,0 +1,9 @@
+[project]
+name = "linux-ctf-setup"
+version = "0.1.0"
+description = "Provision the Learn to Cloud Linux CTF VM."
+requires-python = ">=3.13"
+dependencies = []
+
+[tool.uv]
+package = false

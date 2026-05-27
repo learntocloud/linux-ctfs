@@ -1,29 +1,31 @@
 ---
 name: ctf-testing
-description: Deploy and test Linux CTF challenges across cloud providers (AWS, Azure, GCP). Use when testing CTF setup, validating challenges work correctly, running the full test suite, verifying services survive VM reboots, or after creating new challenges.
+description: Deploy and test Linux CTF challenges across cloud providers (AWS, Azure, GCP). Use when running basic tests without reboot or full tests with reboot for CTF setup, challenge validation, and release confidence.
 ---
 
 # CTF Challenge Testing
 
-This skill deploys CTF infrastructure to cloud providers and validates all challenges work correctly.
-
-## Decision Tree: Which Provider?
-
-```
-What to test? → Testing new challenge locally first?
-├─ Yes → Use Azure (fastest deploy, ~3 min)
-│
-└─ No → Full validation before release?
-    ├─ Quick check → Pick one: aws | azure | gcp
-    └─ Full release validation → Use "all" + --with-reboot
-```
+This skill deploys CTF infrastructure to cloud providers and validates that learners can complete the lab.
 
 ## When to Use
 
-- Testing changes to `ctf_setup.sh`
+- Testing changes to `ctf_setup.sh`, `setup/`, or `verify/`
 - Validating challenge setup across AWS, Azure, or GCP
-- Running the full test suite before releases
+- Running the full contributor-mode test suite before releases
 - Verifying services survive VM reboots
+
+## Trigger Examples
+
+Use this skill when the user asks things like:
+
+- "Run a basic test on Azure"
+- "Run a basic test on GCP"
+- "Run a basic test on AWS"
+- "Run a full test on Azure"
+- "Run a full test on GCP"
+- "Run a full test on AWS"
+- "Run a basic test on all providers"
+- "Run a full test on all providers"
 
 ## Prerequisites
 
@@ -35,107 +37,59 @@ What to test? → Testing new challenge locally first?
    - Azure: `az account show`
    - GCP: `gcloud auth list --filter=status:ACTIVE`
 
-## Running Tests
+## Agent Workflow
 
-The scripts are black boxes - run with `--help` or use these commands:
+1. **Determine the mode and provider.**
+   - Basic test means no reboot. Use this when the user asks for a basic test or does not mention reboot.
+   - Full test means reboot. Use this when the user asks for a full test or asks to verify reboot behavior.
+   - Provider must be `aws`, `azure`, `gcp`, or `all`. Azure is usually the fastest single-provider test.
+2. **Check provider authentication before deploying.**
+   - AWS: `aws sts get-caller-identity`
+   - Azure: `az account show`
+   - GCP: `gcloud auth list --filter=status:ACTIVE`
+3. **Run the requested test from the repository root.**
 
-```bash
-./.github/skills/ctf-testing/deploy_and_test.sh <provider> [--with-reboot]
-```
+   | User request | Command | What gets tested |
+   | --- | --- | --- |
+   | Basic test on AWS | `./.github/skills/ctf-testing/deploy_and_test.sh aws` | Verify command sanity checks, all 18 challenges, export certificate, token format, username, challenge count, and frozen completion time |
+   | Basic test on Azure | `./.github/skills/ctf-testing/deploy_and_test.sh azure` | Verify command sanity checks, all 18 challenges, export certificate, token format, username, challenge count, and frozen completion time |
+   | Basic test on GCP | `./.github/skills/ctf-testing/deploy_and_test.sh gcp` | Verify command sanity checks, all 18 challenges, export certificate, token format, username, challenge count, and frozen completion time |
+   | Basic test on all providers | `./.github/skills/ctf-testing/deploy_and_test.sh all` | Same basic checks across AWS, Azure, and GCP |
+   | Full test on AWS | `./.github/skills/ctf-testing/deploy_and_test.sh aws --with-reboot` | Basic checks plus reboot, required service checks, and progress persistence |
+   | Full test on Azure | `./.github/skills/ctf-testing/deploy_and_test.sh azure --with-reboot` | Basic checks plus reboot, required service checks, and progress persistence |
+   | Full test on GCP | `./.github/skills/ctf-testing/deploy_and_test.sh gcp --with-reboot` | Basic checks plus reboot, required service checks, and progress persistence |
+   | Full test on all providers | `./.github/skills/ctf-testing/deploy_and_test.sh all --with-reboot` | Same full checks across AWS, Azure, and GCP |
 
-| Command | Description |
-|---------|-------------|
-| `deploy_and_test.sh aws` | Test AWS only (~15 min) |
-| `deploy_and_test.sh azure` | Test Azure only (~15 min) |
-| `deploy_and_test.sh gcp` | Test GCP only (~15 min) |
-| `deploy_and_test.sh all` | Test all providers (~45 min) |
-| `deploy_and_test.sh aws --with-reboot` | Test with reboot verification (~20 min) |
+   The deployment script uses contributor mode, so Terraform uploads the local setup package and runs the code from your working tree. It does not test GitHub Release assets.
+4. **Treat cleanup as part of the test, not an optional follow-up.**
+   - Verify no test resources remain after the script exits.
+   - If resources remain, run provider-specific cleanup or `terraform destroy` from the provider directory.
+   - If cleanup still fails, report the remaining resources clearly.
+5. **Report the result plainly.**
+   - Include provider, mode, pass/fail result, cleanup status, and blocker if any.
+   - A successful basic run shows about 27 tests passing.
+   - A successful full run includes a second pass after reboot with 5 service checks and 1 progress persistence check.
+   - Summary line: `RESULT: PASS (<providers>)` or `RESULT: FAIL (<providers>)`.
 
-## What Gets Tested
+## Failure Handling
 
-The test script simulates a real user journey:
+When a run fails, identify the first failing layer:
 
-1. **Verify command sanity check** - Confirms `verify` command works
-2. **Challenge solving** - All 18 challenges discovered and solved using hints
-3. **Verification token** - Token generation and format validation
-4. **Export certificate** - Certificate generation with correct metadata
+| Failure point | What to collect |
+| --- | --- |
+| Terraform failed | Provider name and Terraform error |
+| SSH failed | VM IP and SSH wait output |
+| Setup failed | `/var/lib/linux-ctfs/setup.failed`, `/var/log/ctf_setup.log`, and `/var/log/cloud-init-output.log` |
+| Challenge failed | Challenge number and failing test output |
+| Reboot failed | Failed service name and `journalctl -u <service-name>` output |
+| Cleanup failed | Remaining cloud resources |
 
-**With `--with-reboot`:**
-5. **Service resilience** - All systemd services restart after reboot
-6. **Progress persistence** - Completed challenges survive reboot
+## CTF Safety Rules
 
-## Common Pitfalls
-
-❌ **Don't** run tests without checking cloud CLI authentication first
-✅ **Do** verify with `aws sts get-caller-identity` / `az account show` / `gcloud auth list`
-
-❌ **Don't** forget to check for leftover resources after a failed run
-✅ **Do** run the cleanup verification commands in "Post-Test Cleanup" section
-
-❌ **Don't** run `all` for quick iteration - it takes 45+ minutes
-✅ **Do** pick one provider (Azure is fastest) for development, `all` for releases
-
-## Features
-
-- **Timestamped logging** - All output includes `[HH:MM:SS]` timestamps
-- **Graceful interrupt handling** - Ctrl+C triggers cleanup of deployed infrastructure
-- **Proper VM wait logic** - Uses cloud-native waits instead of arbitrary sleeps
-- **IP validation** - Verifies retrieved IPs are valid before attempting SSH
-
-## Expected Results
-
-A successful run shows **~25 tests passing**, followed by a summary:
-- 1 verify sanity check
-- 18 challenge solutions
-- 4 verification token tests
-- 2 export certificate tests
-
-**With `--with-reboot`:** Additional 6 service checks + 1 progress persistence check.
-
-Summary line: `RESULT: PASS (<providers>)` or `RESULT: FAIL (<providers>)`
-
-## Troubleshooting
-
-### Setup not completing
-- Check `/var/log/setup_complete` exists on VM
-- Review cloud-init logs: `/var/log/cloud-init-output.log`
-
-### Service not running
-- Check status: `systemctl status <service-name>`
-- Check logs: `journalctl -u <service-name>`
-
-### Port not accessible externally
-- Verify firewall rules in Terraform allow the port
-- Check security group/NSG in cloud console
-
-### SSH connection fails
-- Wait longer for VM setup (~3-5 minutes after IP available)
-- Verify security group allows port 22
-
-## Post-Test Cleanup
-
-Always verify resources were destroyed to avoid unexpected charges:
-
-**AWS:**
-```bash
-aws ec2 describe-instances --filters "Name=tag:Name,Values=CTF*" "Name=instance-state-name,Values=running,pending,stopping,stopped" --query 'Reservations[*].Instances[*].[InstanceId,State.Name]' --output table
-aws ec2 describe-vpcs --filters "Name=tag:Name,Values=CTF*" --query 'Vpcs[*].VpcId' --output table
-```
-
-**Azure:**
-```bash
-az group list --query "[?starts_with(name, 'ctf')].name" --output table
-```
-
-**GCP:**
-```bash
-gcloud compute instances list --filter="name~'ctf'" --format="table(name,zone,status)"
-```
-
-If resources remain, manually destroy:
-```bash
-cd <provider> && terraform destroy -auto-approve
-```
+- Do not create committed solution files.
+- Keep solution commands only in `.github/skills/ctf-testing/test_ctf_challenges.sh`.
+- Do not add flags or challenge solutions to learner-facing docs.
+- Do not make challenges easier while fixing tests.
 
 ## Scripts
 

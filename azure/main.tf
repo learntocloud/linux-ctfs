@@ -1,11 +1,11 @@
 # main.tf
 terraform {
   required_version = ">= 1.14.0"
-  
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 4.55.0"  # Minimum version that supports azurerm_virtual_machine_power action
+      version = ">= 4.55.0" # Minimum version that supports azurerm_virtual_machine_power action
     }
     null = {
       source  = "hashicorp/null"
@@ -22,13 +22,94 @@ variable "az_region" {
 
 variable "subscription_id" {
   description = "Your Azure Subscription ID"
-  type = string
+  type        = string
 }
 
 variable "use_local_setup" {
-  description = "Use local ctf_setup.sh instead of fetching from GitHub (for testing)"
+  description = "Upload and run the local setup package instead of using a pinned release asset (for contributor testing)"
   type        = bool
   default     = false
+}
+
+variable "setup_release_tag" {
+  description = "GitHub release tag that contains the setup package assets, or latest for the newest release"
+  type        = string
+  default     = "latest"
+}
+
+locals {
+  setup_asset_name   = "linux-ctfs-setup.tar.gz"
+  setup_release_base = var.setup_release_tag == "latest" ? "https://github.com/learntocloud/linux-ctfs/releases/latest/download" : "https://github.com/learntocloud/linux-ctfs/releases/download/${var.setup_release_tag}"
+  setup_release_url  = "${local.setup_release_base}/${local.setup_asset_name}"
+  setup_checksum_url = "${local.setup_release_url}.sha256"
+
+  local_bootstrap_script = <<-EOF
+    #!/bin/bash
+    set -e
+    useradd -m -s /bin/bash ctf_user 2>/dev/null || true
+    echo 'ctf_user:CTFpassword123!' | chpasswd
+    usermod -aG sudo ctf_user
+    echo 'ctf_user ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-ctf-user
+    chmod 440 /etc/sudoers.d/90-ctf-user
+    mkdir -p /etc/ssh/sshd_config.d
+    printf 'PasswordAuthentication yes\nKbdInteractiveAuthentication yes\n' > /etc/ssh/sshd_config.d/99-ctf-local-bootstrap.conf
+    systemctl restart ssh || systemctl restart sshd || true
+  EOF
+
+  release_setup_script = <<-EOF
+    #!/bin/bash
+    set -euo pipefail
+    export DEBIAN_FRONTEND=noninteractive
+    STATE_DIR="/var/lib/linux-ctfs"
+    FAILED_MARKER="$${STATE_DIR}/setup.failed"
+    DONE_MARKER="$${STATE_DIR}/setup.done"
+    INSTALL_DIR="/opt/linux-ctfs-setup"
+    WORK_DIR="/opt/linux-ctfs-download"
+    ASSET_NAME="${local.setup_asset_name}"
+    SETUP_URL="${local.setup_release_url}"
+    CHECKSUM_URL="${local.setup_checksum_url}"
+
+    mkdir -p "$${STATE_DIR}" "$${WORK_DIR}"
+    rm -f "$${FAILED_MARKER}"
+
+    fail_setup() {
+      echo "CTF setup failed. Check /var/log/cloud-init-output.log and /var/log/ctf_setup.log." >&2
+      touch "$${FAILED_MARKER}"
+    }
+    trap fail_setup ERR
+
+    download_with_retry() {
+      local url="$1"
+      local output="$2"
+      local attempt
+      for attempt in 1 2 3 4 5; do
+        if curl -fL --retry 3 --retry-delay 5 --connect-timeout 20 "$${url}" -o "$${output}"; then
+          return 0
+        fi
+        echo "Download failed for $${url}. Attempt $${attempt}/5."
+        sleep 10
+      done
+      return 1
+    }
+
+    apt-get update
+    apt-get install -y ca-certificates curl tar gzip coreutils
+
+    cd "$${WORK_DIR}"
+    download_with_retry "$${SETUP_URL}" "$${ASSET_NAME}"
+    download_with_retry "$${CHECKSUM_URL}" "$${ASSET_NAME}.sha256"
+    sha256sum -c "$${ASSET_NAME}.sha256"
+
+    rm -rf "$${INSTALL_DIR}"
+    mkdir -p "$${INSTALL_DIR}"
+    tar -xzf "$${ASSET_NAME}" -C "$${INSTALL_DIR}"
+    chmod +x "$${INSTALL_DIR}/ctf_setup.sh"
+    "$${INSTALL_DIR}/ctf_setup.sh"
+
+    touch "$${DONE_MARKER}"
+    rm -f "$${FAILED_MARKER}"
+    trap - ERR
+  EOF
 }
 
 provider "azurerm" {
@@ -64,7 +145,7 @@ resource "azurerm_public_ip" "ctf_public_ip" {
   location            = azurerm_resource_group.ctf_rg.location
   resource_group_name = azurerm_resource_group.ctf_rg.name
   allocation_method   = "Static"
-  sku                = "Standard"
+  sku                 = "Standard"
 }
 
 # Create a network security group
@@ -84,7 +165,7 @@ resource "azurerm_network_security_group" "ctf_nsg" {
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
-    security_rule {
+  security_rule {
     name                       = "HTTP"
     priority                   = 1002
     direction                  = "Inbound"
@@ -167,12 +248,7 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
     version   = "latest"
   }
 
-  # Use local file for testing, GitHub for production
-  custom_data = var.use_local_setup ? base64encode(replace(file("${path.module}/../ctf_setup.sh"), "\r\n", "\n")) : base64encode(<<-EOF
-    #!/bin/bash
-    curl -fsSL https://raw.githubusercontent.com/learntocloud/linux-ctfs/main/ctf_setup.sh | bash
-  EOF
-  )
+  custom_data = base64encode(var.use_local_setup ? local.local_bootstrap_script : local.release_setup_script)
 }
 
 action "azurerm_virtual_machine_power" "ctf_power_off" {
@@ -189,25 +265,44 @@ action "azurerm_virtual_machine_power" "ctf_power_on" {
   }
 }
 
-resource "null_resource" "wait_for_setup" {
+resource "null_resource" "local_setup" {
+  count      = var.use_local_setup ? 1 : 0
   depends_on = [azurerm_linux_virtual_machine.ctf_vm]
-  
+
+  connection {
+    host     = azurerm_linux_virtual_machine.ctf_vm.public_ip_address
+    user     = "ctf_user"
+    password = "CTFpassword123!"
+    timeout  = "10m"
+  }
+
   provisioner "remote-exec" {
-    connection {
-      host     = azurerm_linux_virtual_machine.ctf_vm.public_ip_address
-      user     = "ctf_user"
-      password = "CTFpassword123!"
-      timeout  = "10m"
-    }
-    
     inline = [
-      "while [ ! -f /var/log/setup_complete ]; do sleep 10; done"
+      "rm -rf /tmp/linux-ctfs-local-setup",
+      "mkdir -p /tmp/linux-ctfs-local-setup"
+    ]
+  }
+
+  provisioner "local-exec" {
+    command = "mkdir -p ${path.module}/.terraform && tar --exclude='__pycache__' --exclude='*.pyc' --exclude='.venv' -czf ${path.module}/.terraform/linux-ctfs-local-setup.tar.gz -C ${path.module}/.. ctf_setup.sh setup verify"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/.terraform/linux-ctfs-local-setup.tar.gz"
+    destination = "/tmp/linux-ctfs-local-setup.tar.gz"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "cloud-init status --wait",
+      "tar -xzf /tmp/linux-ctfs-local-setup.tar.gz -C /tmp/linux-ctfs-local-setup",
+      "sudo chmod +x /tmp/linux-ctfs-local-setup/ctf_setup.sh && sudo /tmp/linux-ctfs-local-setup/ctf_setup.sh"
     ]
   }
 }
 
 # Output the public IP address
 output "public_ip_address" {
-  value = azurerm_linux_virtual_machine.ctf_vm.public_ip_address
-  depends_on = [null_resource.wait_for_setup]
+  value      = azurerm_linux_virtual_machine.ctf_vm.public_ip_address
+  depends_on = [null_resource.local_setup]
 }

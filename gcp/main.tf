@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
+    }
+  }
+}
+
 # Variables
 variable "gcp_project" {
   description = "The GCP project ID"
@@ -107,6 +116,28 @@ locals {
     touch "$${DONE_MARKER}"
     rm -f "$${FAILED_MARKER}"
     trap - ERR
+  EOF
+
+  release_readiness_script = <<-EOF
+    set -eu
+    echo "Waiting for CTF setup to finish..."
+    for attempt in $(seq 1 180); do
+      if test -f /var/lib/linux-ctfs/setup.failed; then
+        echo "CTF setup failed. Check /var/log/ctf_setup.log and /var/log/cloud-init-output.log." >&2
+        exit 1
+      fi
+
+      if test -f /var/lib/linux-ctfs/setup.done || test -f /var/lib/cloud/instance/ctf-setup.done || test -f /var/log/setup_complete; then
+        echo "CTF setup is complete."
+        exit 0
+      fi
+
+      echo "CTF setup is still running. Attempt $attempt/180."
+      sleep 10
+    done
+
+    echo "Timed out waiting for CTF setup. Check /var/log/ctf_setup.log and /var/log/cloud-init-output.log." >&2
+    exit 1
   EOF
 }
 
@@ -227,8 +258,29 @@ resource "null_resource" "local_setup" {
   }
 }
 
+resource "null_resource" "release_setup_ready" {
+  count      = var.use_local_setup ? 0 : 1
+  depends_on = [google_compute_instance.ctf_instance]
+
+  triggers = {
+    instance_id = google_compute_instance.ctf_instance.id
+  }
+
+  connection {
+    type     = "ssh"
+    host     = google_compute_instance.ctf_instance.network_interface[0].access_config[0].nat_ip
+    user     = "ctf_user"
+    password = "CTFpassword123!"
+    timeout  = "30m"
+  }
+
+  provisioner "remote-exec" {
+    inline = [local.release_readiness_script]
+  }
+}
+
 # Output the public IP address
 output "public_ip_address" {
   value      = google_compute_instance.ctf_instance.network_interface[0].access_config[0].nat_ip
-  depends_on = [null_resource.local_setup]
+  depends_on = [null_resource.local_setup, null_resource.release_setup_ready]
 }

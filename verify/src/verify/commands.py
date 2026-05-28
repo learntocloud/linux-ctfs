@@ -68,15 +68,25 @@ CHALLENGE_HINTS = [
 ]
 
 
-def completed_count() -> int:
+EXAMPLE_CHALLENGE_NUMBER = 0
+MAX_CHALLENGE_NUMBER = len(CHALLENGE_NAMES) - 1
+REAL_CHALLENGE_COUNT = MAX_CHALLENGE_NUMBER
+TOTAL_PROGRESS_CHECKS = len(CHALLENGE_NAMES)
+
+
+def completed_progress_count() -> int:
+    return len(read_completed())
+
+
+def completed_challenge_count() -> int:
     completed = read_completed()
-    return max(len(completed - {0}), 0)
+    return max(len(completed - {EXAMPLE_CHALLENGE_NUMBER}), 0)
 
 
 def show_progress() -> None:
-    count = completed_count()
-    console.print(f"Flags Found: {count}/18")
-    if count == 18:
+    count = completed_progress_count()
+    console.print(f"Flags Found: {count}/{TOTAL_PROGRESS_CHECKS}")
+    if count == TOTAL_PROGRESS_CHECKS:
         console.print("Congratulations! You've completed all challenges!")
 
 
@@ -98,7 +108,7 @@ def elapsed_seconds() -> int | None:
 def freeze_end_time_on_export() -> None:
     if END_TIME_FILE.exists():
         return
-    if completed_count() >= 18:
+    if completed_challenge_count() >= REAL_CHALLENGE_COUNT:
         END_TIME_FILE.write_text(f"{int(time.time())}\n")
         END_TIME_FILE.chmod(0o666)
 
@@ -114,8 +124,8 @@ def format_elapsed(seconds: int, *, include_seconds: bool) -> str:
 
 def check_flag(state: CtfState, challenge_num: str, submitted_flag: str) -> int:
     init_timer()
-    if not challenge_num.isdigit() or not 0 <= int(challenge_num) <= 18:
-        console.print("✗ Invalid challenge number. Use 0-18.")
+    if not challenge_num.isdigit() or not 0 <= int(challenge_num) <= MAX_CHALLENGE_NUMBER:
+        console.print(f"✗ Invalid challenge number. Use 0-{MAX_CHALLENGE_NUMBER}.")
         return 1
 
     num = int(challenge_num)
@@ -158,8 +168,8 @@ def show_list() -> int:
 
 
 def show_hint(num_text: str | None) -> int:
-    if num_text is None or not num_text.isdigit() or int(num_text) > 18:
-        console.print("Usage: verify hint [0-18]")
+    if num_text is None or not num_text.isdigit() or int(num_text) > MAX_CHALLENGE_NUMBER:
+        console.print(f"Usage: verify hint [0-{MAX_CHALLENGE_NUMBER}]")
         return 1
     num = int(num_text)
     console.print("======================================")
@@ -171,10 +181,10 @@ def show_hint(num_text: str | None) -> int:
 
 
 def export_certificate(state: CtfState, github_username: str | None) -> int:
-    count = completed_count()
-    if count < 18:
-        console.print("Complete all 18 challenges to earn your certificate!")
-        console.print(f"Current progress: {count}/18")
+    count = completed_challenge_count()
+    if count < REAL_CHALLENGE_COUNT:
+        console.print(f"Complete all {REAL_CHALLENGE_COUNT} challenges to earn your certificate!")
+        console.print(f"Current progress: {count}/{REAL_CHALLENGE_COUNT}")
         return 1
 
     if not github_username:

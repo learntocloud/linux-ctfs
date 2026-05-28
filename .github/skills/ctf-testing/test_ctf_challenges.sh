@@ -147,7 +147,7 @@ if [[ -f "${REBOOT_MARKER}" ]]; then
         EXPECTED=$(cat "$PROGRESS_SNAPSHOT")
         ACTUAL=$(sort -u /var/ctf/completed_challenges 2>/dev/null | wc -l)
         if [ "$ACTUAL" -ge "$EXPECTED" ]; then
-            _pass "Progress persisted after reboot ($ACTUAL challenges)"
+            _pass "Progress persisted after reboot ($ACTUAL checks)"
         else
             _fail "Progress lost after reboot (expected ${EXPECTED}, got ${ACTUAL})"
         fi
@@ -190,6 +190,12 @@ else
     _fail "verify command broken - SETUP BUG"
     echo "Cannot continue without working verify command"
     exit 1
+fi
+
+if echo "${VERIFY_OUTPUT}" | grep -q "1/19"; then
+    _pass "verify progress counts the example check"
+else
+    _fail "verify progress did not show 1/19 after the example check"
 fi
 
 if [[ -f /var/ctf/ctf_start_time ]]; then
@@ -580,10 +586,10 @@ fi
 _section "VERIFICATION TOKEN TEST"
 
 PROGRESS=$(verify progress 2>&1)
-if echo "${PROGRESS}" | grep -q "18/18"; then
-    _pass "All 18 challenges completed"
+if echo "${PROGRESS}" | grep -q "19/19"; then
+    _pass "All 19 progress checks completed"
 else
-    _fail "Not all challenges completed: ${PROGRESS}"
+    _fail "Not all progress checks completed: ${PROGRESS}"
 fi
 
 EXPORT_OUT=$(verify export testuser 2>&1) || true

@@ -59,8 +59,9 @@ Save the token it generates — you'll need it to verify your progress at [learn
 
 - `verify time` shows **wall clock elapsed time** (not active keyboard time).
 - The timer starts when you first submit a challenge with `verify <number> <flag>`.
-- The timer freezes on your first successful `verify export` after reaching 18/18.
-- Run `verify 0 CTF{example}` early. The example challenge is part of verify progress tracking.
+- Progress tracks 19 total checks: the example verification plus the 18 real challenges.
+- After `verify 0 CTF{example}`, `verify progress` should show `1/19`.
+- The timer freezes on your first successful `verify export` after you've solved all 18 real challenges.
 
 ### Troubleshooting Your Token
 

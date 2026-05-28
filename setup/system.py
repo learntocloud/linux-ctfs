@@ -47,28 +47,20 @@ def configure_motd_support() -> None:
 |  Learn To Cloud - Linux Command Line CTF    |
 +==============================================+
 
-Welcome! Here are 18 Progressive Linux Challenges.
-Refer to the readme for information on each challenge.
+Welcome to the lab.
 
-Once you find a flag, use our verify tool to check your answer
-and review your progress.
+Start here:
+  verify 0 CTF{example}
 
-Usage:
-  verify [challenge number] [flag] - Submit flag for verification
-  verify 0 CTF{example} - Example flag (required)
-  verify progress     - Shows your progress
-  verify time         - Shows elapsed wall clock time
+Useful commands:
+  verify [challenge number] [flag]
+  verify progress
+  verify time
 
-  Run this first to initialize progress: verify 0 CTF{example}
-  Note: Timer starts on your first challenge submission.
-  It freezes on your first successful verify export after 18/18.
+Finished all 18 challenges?
+  verify export <your-github-username>
 
-When you complete all challenges, run: verify export <your-github-username>
-Save the token it generates. You'll need it to verify your
-progress at https://learntocloud.guide
-
-Good luck!
-Team L2C
+Save your export token for learntocloud.guide.
 
 +==============================================+
 """,

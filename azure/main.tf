@@ -73,7 +73,7 @@ locals {
     rm -f "$${FAILED_MARKER}"
 
     fail_setup() {
-      echo "CTF setup failed. Check /var/log/cloud-init-output.log and /var/log/ctf_setup.log." >&2
+      echo "CTF setup failed. Check /var/log/ctf_setup.log and Azure Custom Script Extension logs." >&2
       touch "$${FAILED_MARKER}"
     }
     trap fail_setup ERR
@@ -92,8 +92,28 @@ locals {
       return 1
     }
 
-    apt-get update
-    apt-get install -y ca-certificates curl tar gzip coreutils
+    wait_for_cloud_init() {
+      if command -v cloud-init >/dev/null 2>&1; then
+        cloud-init status --wait || true
+      fi
+    }
+
+    apt_get_update_with_retry() {
+      local attempt
+      for attempt in 1 2 3 4 5; do
+        if apt-get -o DPkg::Lock::Timeout=120 -o Acquire::Retries=3 update; then
+          return 0
+        fi
+        echo "apt-get update failed. Attempt $${attempt}/5."
+        rm -rf /var/lib/apt/lists/partial/*
+        sleep 10
+      done
+      return 1
+    }
+
+    wait_for_cloud_init
+    apt_get_update_with_retry
+    apt-get -o DPkg::Lock::Timeout=120 -o Acquire::Retries=3 install -y ca-certificates curl tar gzip coreutils
 
     cd "$${WORK_DIR}"
     download_with_retry "$${SETUP_URL}" "$${ASSET_NAME}"
@@ -111,26 +131,11 @@ locals {
     trap - ERR
   EOF
 
-  release_readiness_script = <<-EOF
-    set -eu
-    echo "Waiting for CTF setup to finish..."
-    for attempt in $(seq 1 180); do
-      if test -f /var/lib/linux-ctfs/setup.failed; then
-        echo "CTF setup failed. Check /var/log/ctf_setup.log and /var/log/cloud-init-output.log." >&2
-        exit 1
-      fi
-
-      if test -f /var/lib/linux-ctfs/setup.done || test -f /var/lib/cloud/instance/ctf-setup.done || test -f /var/log/setup_complete; then
-        echo "CTF setup is complete."
-        exit 0
-      fi
-
-      echo "CTF setup is still running. Attempt $attempt/180."
-      sleep 10
-    done
-
-    echo "Timed out waiting for CTF setup. Check /var/log/ctf_setup.log and /var/log/cloud-init-output.log." >&2
-    exit 1
+  azure_release_extension_script = <<-EOF
+    #!/bin/sh
+    exec /bin/bash <<'LINUX_CTFS_SETUP'
+    ${local.release_setup_script}
+    LINUX_CTFS_SETUP
   EOF
 }
 
@@ -270,7 +275,24 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
     version   = "latest"
   }
 
-  custom_data = base64encode(var.use_local_setup ? local.local_bootstrap_script : local.release_setup_script)
+  custom_data = var.use_local_setup ? base64encode(local.local_bootstrap_script) : null
+}
+
+resource "azurerm_virtual_machine_extension" "release_setup" {
+  count                = var.use_local_setup ? 0 : 1
+  name                 = "linux-ctfs-release-setup"
+  virtual_machine_id   = azurerm_linux_virtual_machine.ctf_vm.id
+  publisher            = "Microsoft.Azure.Extensions"
+  type                 = "CustomScript"
+  type_handler_version = "2.1"
+
+  protected_settings = jsonencode({
+    script = base64encode(local.azure_release_extension_script)
+  })
+
+  tags = {
+    setup_release_tag = var.setup_release_tag
+  }
 }
 
 action "azurerm_virtual_machine_power" "ctf_power_off" {
@@ -323,28 +345,8 @@ resource "null_resource" "local_setup" {
   }
 }
 
-resource "null_resource" "release_setup_ready" {
-  count      = var.use_local_setup ? 0 : 1
-  depends_on = [azurerm_linux_virtual_machine.ctf_vm]
-
-  triggers = {
-    instance_id = azurerm_linux_virtual_machine.ctf_vm.id
-  }
-
-  connection {
-    host     = azurerm_linux_virtual_machine.ctf_vm.public_ip_address
-    user     = "ctf_user"
-    password = "CTFpassword123!"
-    timeout  = "30m"
-  }
-
-  provisioner "remote-exec" {
-    inline = [local.release_readiness_script]
-  }
-}
-
 # Output the public IP address
 output "public_ip_address" {
   value      = azurerm_linux_virtual_machine.ctf_vm.public_ip_address
-  depends_on = [null_resource.local_setup, null_resource.release_setup_ready]
+  depends_on = [null_resource.local_setup, azurerm_virtual_machine_extension.release_setup]
 }

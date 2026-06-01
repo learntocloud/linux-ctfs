@@ -120,6 +120,12 @@ Most contributors only need to know this:
 - Contributor testing uses local files.
 - `deploy_and_test.sh` handles contributor mode for you.
 
+Setup readiness differs by provider:
+
+- Azure release mode uses VM Custom Script Extension, so Terraform waits for extension success or failure.
+- AWS and GCP release mode still use the shared SSH marker wait.
+- Contributor mode stays on `use_local_setup=true`, uploading local files over SSH for test runs.
+
 If you manually run Terraform to test local setup changes, pass:
 
 ```bash

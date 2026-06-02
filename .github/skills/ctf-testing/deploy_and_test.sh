@@ -398,7 +398,8 @@ _reboot_vm() {
     local provider="$1"
     local ip="$2"
 
-    _log INFO "Rebooting VM (${provider})..."
+    # This function returns the VM IP via stdout, so logs must go to stderr.
+    _log INFO "Rebooting VM (${provider})..." >&2
 
     case "${provider}" in
         aws)
@@ -416,10 +417,10 @@ _reboot_vm() {
                 return 1
             fi
 
-            echo "  Stopping instance ${instance_id}..."
+            echo "  Stopping instance ${instance_id}..." >&2
             aws ec2 stop-instances --instance-ids "${instance_id}" > /dev/null
             aws ec2 wait instance-stopped --instance-ids "${instance_id}"
-            echo "  Starting instance ${instance_id}..."
+            echo "  Starting instance ${instance_id}..." >&2
             aws ec2 start-instances --instance-ids "${instance_id}" > /dev/null
             aws ec2 wait instance-running --instance-ids "${instance_id}"
             # IP may change, get new one
@@ -427,7 +428,7 @@ _reboot_vm() {
             ip=$(_get_public_ip "${provider}")
             ;;
         azure)
-            echo "  Restarting Azure VM..."
+            echo "  Restarting Azure VM..." >&2
             az vm restart --resource-group ctf-resources --name ctf-vm
             # az vm restart waits by default, but add explicit wait for running state
             az vm wait \
@@ -437,7 +438,7 @@ _reboot_vm() {
                 --timeout 120 2>/dev/null || true
             ;;
         gcp)
-            echo "  Restarting GCP VM..."
+            echo "  Restarting GCP VM..." >&2
             local zone
             zone=$(cd "${REPO_ROOT}/${provider}" \
                 && terraform output -raw zone 2>/dev/null \
@@ -471,6 +472,19 @@ _reboot_vm() {
 # Arguments:
 #   $1 - Cloud provider name
 #   $2 - IP address of the VM
+_copy_test_script() {
+    local provider="$1"
+    local ip="$2"
+
+    _log INFO "Copying test script to VM..."
+    # shellcheck disable=SC2086
+    _sshpass_cmd scp ${SSH_OPTS} "${TEST_SCRIPT}" "${SSH_USER}@${ip}:/tmp/test_ctf_challenges.sh"
+}
+
+# Copy test script to VM and execute it
+# Arguments:
+#   $1 - Cloud provider name
+#   $2 - IP address of the VM
 # Returns:
 #   Exit code from the test script (0=pass, 1=fail, 100=reboot requested)
 _run_tests() {
@@ -482,9 +496,7 @@ _run_tests() {
         test_flags="${test_flags} --with-reboot"
     fi
 
-    _log INFO "Copying test script to VM..."
-    # shellcheck disable=SC2086
-    _sshpass_cmd scp ${SSH_OPTS} "${TEST_SCRIPT}" "${SSH_USER}@${ip}:/tmp/test_ctf_challenges.sh"
+    _copy_test_script "${provider}" "${ip}"
 
     _log INFO "Running tests on ${provider} VM (${ip})..."
     echo ""
@@ -508,11 +520,14 @@ _run_post_reboot_tests() {
     local provider="$1"
     local ip="$2"
 
+    _copy_test_script "${provider}" "${ip}"
+
     _log INFO "Running post-reboot verification on ${provider}..."
 
     local exit_code=0
     # shellcheck disable=SC2086
-    _sshpass_cmd ssh ${SSH_OPTS} "${SSH_USER}@${ip}" "/tmp/test_ctf_challenges.sh" \
+    _sshpass_cmd ssh ${SSH_OPTS} "${SSH_USER}@${ip}" \
+        "chmod +x /tmp/test_ctf_challenges.sh && /tmp/test_ctf_challenges.sh --post-reboot" \
         || exit_code=$?
 
     return "${exit_code}"
@@ -592,13 +607,15 @@ _test_provider() {
         _log WARN "Reboot requested - performing VM reboot..."
 
         local new_ip
-        new_ip=$(_reboot_vm "${provider}" "${ip}")
-
-        # Wait for SSH after reboot
-        _wait_for_ssh "${new_ip}"
-
-        # Run post-reboot tests
-        _run_post_reboot_tests "${provider}" "${new_ip}" || test_exit_code=$?
+        if ! new_ip=$(_reboot_vm "${provider}" "${ip}"); then
+            _log ERROR "VM reboot failed for ${provider}"
+            result=1
+        elif ! _wait_for_ssh "${new_ip}"; then
+            _log ERROR "SSH connection failed after reboot for ${provider}"
+            result=1
+        elif ! _run_post_reboot_tests "${provider}" "${new_ip}"; then
+            result=1
+        fi
     elif [[ ${test_exit_code} -ne 0 ]]; then
         result=1
     fi

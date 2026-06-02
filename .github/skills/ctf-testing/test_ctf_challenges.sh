@@ -9,11 +9,12 @@
 # can complete the CTF.
 #
 # Usage:
-#   ./test_ctf_challenges.sh [--with-reboot]
+#   ./test_ctf_challenges.sh [--with-reboot|--post-reboot]
 #   DEBUG=true ./test_ctf_challenges.sh  # Enable debug tracing
 #
 # Flags:
 #   --with-reboot     After tests pass, signal reboot to verify services persist
+#   --post-reboot     Run only the post-reboot verification phase
 #
 # Exit codes:
 #   0   - All tests passed
@@ -44,9 +45,10 @@ readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
 readonly NC='\033[0m'  # No Color
 
-# File paths for reboot test coordination
-readonly REBOOT_MARKER="/tmp/.ctf_reboot_test_marker"
-readonly PROGRESS_SNAPSHOT="/tmp/.ctf_progress_snapshot"
+# File paths for reboot test coordination. These must survive a VM reboot.
+readonly TEST_STATE_DIR="${HOME}/.linux-ctfs-test"
+readonly REBOOT_MARKER="${TEST_STATE_DIR}/.ctf_reboot_test_marker"
+readonly PROGRESS_SNAPSHOT="${TEST_STATE_DIR}/.ctf_progress_snapshot"
 
 # =============================================================================
 # GLOBAL STATE
@@ -58,10 +60,15 @@ FAILED=0
 
 # Parse arguments
 WITH_REBOOT=false
+POST_REBOOT=false
 for arg in "$@"; do
     case $arg in
         --with-reboot)
             WITH_REBOOT=true
+            shift
+            ;;
+        --post-reboot)
+            POST_REBOOT=true
             shift
             ;;
     esac
@@ -130,11 +137,18 @@ _verify_flag() {
 # ============================================================================
 # POST-REBOOT VERIFICATION
 # ============================================================================
-if [[ -f "${REBOOT_MARKER}" ]]; then
+if [[ "${POST_REBOOT}" == true ]]; then
     _section "POST-REBOOT VERIFICATION"
-    
+
+    if [[ ! -f "${REBOOT_MARKER}" ]]; then
+        _fail "Reboot marker not found - reboot verification was not prepared"
+        echo ""
+        echo "Passed: ${PASSED} | Failed: ${FAILED}"
+        exit 1
+    fi
+
     echo "Verifying services survived reboot..."
-    
+
     for service in ctf-secret-service ctf-monitor-directory ctf-ping-message ctf-secret-process nginx; do
         if systemctl is-active "${service}" &>/dev/null; then
             _pass "${service} is running after reboot"
@@ -142,7 +156,7 @@ if [[ -f "${REBOOT_MARKER}" ]]; then
             _fail "${service} failed to start after reboot - SETUP BUG"
         fi
     done
-    
+
     if [ -f "$PROGRESS_SNAPSHOT" ]; then
         EXPECTED=$(cat "$PROGRESS_SNAPSHOT")
         ACTUAL=$(sort -u /var/ctf/completed_challenges 2>/dev/null | wc -l)
@@ -152,9 +166,10 @@ if [[ -f "${REBOOT_MARKER}" ]]; then
             _fail "Progress lost after reboot (expected ${EXPECTED}, got ${ACTUAL})"
         fi
     fi
-    
+
     rm -f "${REBOOT_MARKER}" "${PROGRESS_SNAPSHOT}"
-    
+    rmdir "${TEST_STATE_DIR}" 2>/dev/null || true
+
     echo ""
     echo "Passed: ${PASSED} | Failed: ${FAILED}"
     [[ ${FAILED} -eq 0 ]] && exit 0 || exit 1
@@ -644,6 +659,7 @@ echo "Flags captured: ${#FLAGS[@]}"
 echo ""
 
 if [ "$WITH_REBOOT" = true ] && [ $FAILED -eq 0 ]; then
+    mkdir -p "${TEST_STATE_DIR}"
     sort -u /var/ctf/completed_challenges 2>/dev/null | wc -l > "$PROGRESS_SNAPSHOT"
     touch "$REBOOT_MARKER"
     echo "Reboot marker created. Re-run after reboot to verify services."

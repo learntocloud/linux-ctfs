@@ -1,0 +1,3 @@
+# Force LF line endings for shell scripts
+*.sh text eol=lf
+ctf_setup.sh text eol=lf

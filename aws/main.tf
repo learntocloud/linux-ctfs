@@ -19,6 +19,12 @@ variable "aws_region" {
   default     = "us-east-1" # Default region if not specified
 }
 
+variable "aws_instance_type" {
+  description = "The AWS instance type to deploy the CTF lab"
+  type        = string
+  default     = "t3.micro"
+}
+
 variable "use_local_setup" {
   description = "Upload and run the local setup package instead of using a pinned release asset (for contributor testing)"
   type        = bool
@@ -252,7 +258,7 @@ data "aws_ami" "ubuntu" {
 
 resource "aws_instance" "ctf_instance" {
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
+  instance_type = var.aws_instance_type
 
   vpc_security_group_ids = [aws_security_group.ctf_sg.id]
   subnet_id              = aws_subnet.ctf_subnet.id

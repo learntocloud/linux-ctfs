@@ -20,6 +20,12 @@ variable "az_region" {
   default     = "East US"
 }
 
+variable "azure_vm_size" {
+  description = "The Azure VM size to deploy the CTF lab"
+  type        = string
+  default     = "Standard_B1s"
+}
+
 variable "subscription_id" {
   description = "Your Azure Subscription ID"
   type        = string
@@ -249,7 +255,7 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
   name                = "ctf-vm"
   resource_group_name = azurerm_resource_group.ctf_rg.name
   location            = azurerm_resource_group.ctf_rg.location
-  size                = "Standard_B1s"
+  size                = var.azure_vm_size
   admin_username      = "ctf_user"
   network_interface_ids = [
     azurerm_network_interface.ctf_nic.id,

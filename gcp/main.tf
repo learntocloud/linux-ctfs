@@ -25,6 +25,12 @@ variable "gcp_zone" {
   default     = "us-central1-a"
 }
 
+variable "gcp_machine_type" {
+  description = "The GCP machine type to deploy the CTF lab"
+  type        = string
+  default     = "e2-micro"
+}
+
 variable "use_local_setup" {
   description = "Upload and run the local setup package instead of using a pinned release asset (for contributor testing)"
   type        = bool
@@ -185,7 +191,7 @@ resource "google_compute_firewall" "ctf_firewall_http" {
 # Create a compute instance
 resource "google_compute_instance" "ctf_instance" {
   name         = "ctf-instance"
-  machine_type = "e2-micro"
+  machine_type = var.gcp_machine_type
   zone         = var.gcp_zone
 
   tags = ["ctf-instance"]

@@ -1,0 +1,2 @@
+# Shell Scripts LF enforcement
+*.sh text eol=lf

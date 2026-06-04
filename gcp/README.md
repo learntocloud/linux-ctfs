@@ -22,6 +22,8 @@
     gcloud auth application-default login
     ```
 
+    For a copy-paste command flow, see [docs/GCP_COMMANDS.md](../docs/GCP_COMMANDS.md).
+
 3. Initialize and apply Terraform:
 
     ```sh
@@ -35,6 +37,8 @@
     Replace the values with your project ID and preferred region/zone (defaults to us-central1/us-central1-a).
 
     Type `yes` when prompted.
+
+    If you run into errors when deploying, see [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) for common issues and fixes.
 
 4. Note the `public_ip_address` output—you'll use this to connect.
 

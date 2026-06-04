@@ -429,7 +429,7 @@ _reboot_vm() {
             ;;
         azure)
             echo "  Restarting Azure VM..." >&2
-            az vm restart --resource-group ctf-resources --name ctf-vm
+            az vm restart --resource-group ctf-resources --name ctf-vm >&2
             ;;
         gcp)
             echo "  Restarting GCP VM..." >&2
@@ -470,7 +470,7 @@ _copy_test_script() {
     local provider="$1"
     local ip="$2"
 
-    _log INFO "Copying test script to VM..."
+    _log INFO "Copying test script to ${provider} VM..."
     # shellcheck disable=SC2086
     _sshpass_cmd scp ${SSH_OPTS} "${TEST_SCRIPT}" "${SSH_USER}@${ip}:/tmp/test_ctf_challenges.sh"
 }

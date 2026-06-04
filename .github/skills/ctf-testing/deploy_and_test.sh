@@ -15,7 +15,7 @@
 #                        reboot and progress persists
 #
 # Prerequisites:
-#   - terraform (>= 1.0)
+#   - terraform (>= 1.0; Azure requires >= 1.14.0)
 #   - jq (for AWS terraform config)
 #   - sshpass (macOS: brew install hudochenkov/sshpass/sshpass)
 #   - aws CLI (for AWS, must be logged in)
@@ -430,12 +430,6 @@ _reboot_vm() {
         azure)
             echo "  Restarting Azure VM..." >&2
             az vm restart --resource-group ctf-resources --name ctf-vm
-            # az vm restart waits by default, but add explicit wait for running state
-            az vm wait \
-                --resource-group ctf-resources \
-                --name ctf-vm \
-                --created \
-                --timeout 120 2>/dev/null || true
             ;;
         gcp)
             echo "  Restarting GCP VM..." >&2
@@ -468,7 +462,7 @@ _reboot_vm() {
 # TEST EXECUTION
 # =============================================================================
 
-# Copy test script to VM and execute it
+# Copy test script to VM
 # Arguments:
 #   $1 - Cloud provider name
 #   $2 - IP address of the VM

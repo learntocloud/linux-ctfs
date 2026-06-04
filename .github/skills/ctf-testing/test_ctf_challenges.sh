@@ -662,7 +662,7 @@ if [ "$WITH_REBOOT" = true ] && [ $FAILED -eq 0 ]; then
     mkdir -p "${TEST_STATE_DIR}"
     sort -u /var/ctf/completed_challenges 2>/dev/null | wc -l > "$PROGRESS_SNAPSHOT"
     touch "$REBOOT_MARKER"
-    echo "Reboot marker created. Re-run after reboot to verify services."
+    echo "Reboot marker created. After reboot, re-run with --post-reboot to verify services."
     exit 100
 fi
 

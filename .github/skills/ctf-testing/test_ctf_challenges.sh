@@ -61,6 +61,10 @@ FAILED=0
 # Parse arguments
 WITH_REBOOT=false
 POST_REBOOT=false
+usage() {
+    echo "Usage: $0 [--with-reboot|--post-reboot]"
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --with-reboot)
@@ -71,12 +75,18 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Unknown argument: $1"
-            echo "Usage: $0 [--with-reboot|--post-reboot]"
+            usage
             exit 1
             ;;
     esac
     shift
 done
+
+if [[ "${WITH_REBOOT}" == true && "${POST_REBOOT}" == true ]]; then
+    echo "--with-reboot and --post-reboot cannot be used together."
+    usage
+    exit 1
+fi
 
 # =============================================================================
 # HELPER FUNCTIONS

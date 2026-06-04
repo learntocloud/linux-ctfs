@@ -14,22 +14,44 @@
     cd linux-ctfs/aws
     ```
 
-2. (Optional) Modify the AWS region by creating a `terraform.tfvars` file:
+2. Check which AWS regions are enabled for your account:
+
+    ```sh
+    aws ec2 describe-regions \
+      --region us-east-1 \
+      --all-regions \
+      --query "Regions[?OptInStatus=='opt-in-not-required' || OptInStatus=='opted-in'].{Name:RegionName,Status:OptInStatus}" \
+      --output table
+    ```
+
+    For a copy-paste command flow, see [docs/AWS_COMMANDS.md](../docs/AWS_COMMANDS.md).
+
+3. Export one of the enabled regions before running Terraform:
+
+    ```sh
+    export AWS_REGION=us-east-1
+    ```
+
+4. (Optional) Set the AWS region in a `terraform.tfvars` file using one of the enabled regions:
 
     ```sh
     aws_region = "us-east-1"
     ```
 
-3. Initialize and apply Terraform:
+    If you prefer not to use a `terraform.tfvars` file, you can pass the exported value directly to Terraform in the next step.
+
+5. Initialize and apply Terraform:
 
     ```sh
     terraform init
-    terraform apply
+    terraform apply -var="aws_region=$AWS_REGION"
     ```
 
     Type `yes` when prompted.
 
-4. Note the `public_ip_address` output—you'll use this to connect.
+    If you run into errors when deploying, see [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) for common issues and fixes.
+
+6. Note the `public_ip_address` output—you'll use this to connect.
 
 ## Accessing the Lab
 

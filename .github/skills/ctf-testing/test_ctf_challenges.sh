@@ -61,17 +61,21 @@ FAILED=0
 # Parse arguments
 WITH_REBOOT=false
 POST_REBOOT=false
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    case "$1" in
         --with-reboot)
             WITH_REBOOT=true
-            shift
             ;;
         --post-reboot)
             POST_REBOOT=true
-            shift
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            echo "Usage: $0 [--with-reboot|--post-reboot]"
+            exit 1
             ;;
     esac
+    shift
 done
 
 # =============================================================================

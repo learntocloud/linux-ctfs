@@ -429,7 +429,7 @@ _reboot_vm() {
             ;;
         azure)
             echo "  Restarting Azure VM..." >&2
-            az vm restart --resource-group ctf-resources --name ctf-vm >&2
+            az vm restart --resource-group ctf-resources --name ctf-vm >&2 || return 1
             ;;
         gcp)
             echo "  Restarting GCP VM..." >&2

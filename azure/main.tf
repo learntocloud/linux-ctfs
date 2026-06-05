@@ -132,10 +132,10 @@ locals {
   EOF
 
   azure_release_extension_script = <<-EOF
-    #!/bin/sh
-    exec /bin/bash <<'LINUX_CTFS_SETUP'
-    ${local.release_setup_script}
-    LINUX_CTFS_SETUP
+#!/bin/sh
+exec /bin/bash <<'LINUX_CTFS_SETUP'
+${local.release_setup_script}
+LINUX_CTFS_SETUP
   EOF
 }
 

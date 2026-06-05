@@ -44,6 +44,11 @@
 
     ```sh
     terraform init
+
+    # If you set aws_region in terraform.tfvars
+    terraform apply
+
+    # Or, if you want to pass the exported region directly
     terraform apply -var="aws_region=$AWS_REGION"
     ```
 

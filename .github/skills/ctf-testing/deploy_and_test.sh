@@ -437,7 +437,7 @@ _reboot_vm() {
             zone=$(cd "${REPO_ROOT}/${provider}" \
                 && terraform output -raw zone 2>/dev/null \
                 || echo "us-central1-a")
-            gcloud compute instances reset ctf-instance --zone="${zone}" --quiet
+            gcloud compute instances reset ctf-instance --zone="${zone}" --quiet >&2 || return 1
             # Wait for VM to be running
             local attempts=0
             while [[ ${attempts} -lt 30 ]]; do

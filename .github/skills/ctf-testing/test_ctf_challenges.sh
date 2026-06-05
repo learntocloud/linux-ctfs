@@ -173,7 +173,7 @@ if [[ "${POST_REBOOT}" == true ]]; then
 
     if [ -f "$PROGRESS_SNAPSHOT" ]; then
         EXPECTED=$(cat "$PROGRESS_SNAPSHOT")
-        ACTUAL=$(sort -u /var/ctf/completed_challenges 2>/dev/null | wc -l)
+        ACTUAL=$( { sort -u /var/ctf/completed_challenges 2>/dev/null || true; } | wc -l )
         if [ "$ACTUAL" -ge "$EXPECTED" ]; then
             _pass "Progress persisted after reboot ($ACTUAL checks)"
         else

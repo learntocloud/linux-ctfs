@@ -24,6 +24,8 @@
     az login
     ```
 
+    For a copy-paste command flow, see [docs/AZURE_COMMANDS.md](../docs/AZURE_COMMANDS.md).
+
 3. Initialize and apply Terraform:
 
     ```sh
@@ -36,6 +38,8 @@
     Replace the values with your subscription ID and preferred region (defaults to East US).
 
     Type `yes` when prompted.
+
+    If you run into errors when deploying, see [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) for common issues and fixes.
 
 4. Note the `public_ip_address` output—you'll use this to connect.
 

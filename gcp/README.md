@@ -17,12 +17,10 @@
 
 2. Log in to Google Cloud:
 
-    ```sh
-    gcloud auth login
-    gcloud auth application-default login
-    ```
-
-    For a copy-paste command flow, see [docs/GCP_COMMANDS.md](../docs/GCP_COMMANDS.md).
+```sh
+gcloud auth login
+gcloud auth application-default login
+```
 
 3. Initialize and apply Terraform:
 

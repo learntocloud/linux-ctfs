@@ -16,15 +16,13 @@
 
 2. Check which AWS regions are enabled for your account:
 
-    ```sh
-    aws ec2 describe-regions \
-      --region us-east-1 \
-      --all-regions \
-      --query "Regions[?OptInStatus=='opt-in-not-required' || OptInStatus=='opted-in'].{Name:RegionName,Status:OptInStatus}" \
-      --output table
-    ```
-
-    For a copy-paste command flow, see [docs/AWS_COMMANDS.md](../docs/AWS_COMMANDS.md).
+```sh
+aws ec2 describe-regions \
+  --region us-east-1 \
+  --all-regions \
+  --query "Regions[?OptInStatus=='opt-in-not-required' || OptInStatus=='opted-in'].{Name:RegionName,Status:OptInStatus}" \
+  --output table
+```
 
 3. Export one of the enabled regions before running Terraform:
 

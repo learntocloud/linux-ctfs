@@ -20,11 +20,9 @@
 
 2. Log in to Azure:
 
-    ```sh
-    az login
-    ```
-
-    For a copy-paste command flow, see [docs/AZURE_COMMANDS.md](../docs/AZURE_COMMANDS.md).
+```sh
+az login
+```
 
 3. Initialize and apply Terraform:
 

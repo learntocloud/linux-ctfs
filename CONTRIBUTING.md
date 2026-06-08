@@ -71,7 +71,7 @@ All PRs that change setup, challenges, verify behavior, or Terraform should be t
 
 Install:
 
-1. `terraform` 1.0 or newer
+1. `terraform` 1.0 or newer; Azure requires Terraform 1.14.0 or newer
 2. `jq`
 3. `sshpass`
 4. The cloud CLI for the provider you want to test
@@ -119,6 +119,12 @@ Most contributors only need to know this:
 - Normal learner deployments use release mode.
 - Contributor testing uses local files.
 - `deploy_and_test.sh` handles contributor mode for you.
+
+Setup readiness differs by provider:
+
+- Azure release mode uses VM Custom Script Extension (Terraform 1.14.0 or newer), so Terraform waits for extension success or failure.
+- AWS and GCP release mode still use the shared SSH marker wait.
+- Contributor mode stays on `use_local_setup=true`, uploading local files over SSH for test runs.
 
 If you manually run Terraform to test local setup changes, pass:
 

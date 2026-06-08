@@ -95,8 +95,16 @@ Type `yes` when prompted.
 ## Troubleshooting
 
 1. Ensure your Azure CLI is logged in with valid credentials
-2. Check that you're using Terraform v1.9.0 or later
+2. Check that you're using Terraform v1.14.0 or later
 3. Verify you have permissions to create VMs, VNets, and Network Security Groups
+
+If release setup fails during `terraform apply`, Azure reports the failure through the VM Custom Script Extension. Useful VM-side logs are:
+
+```text
+/var/log/ctf_setup.log
+/var/log/waagent.log
+/var/log/azure/custom-script/handler.log
+```
 
 If problems persist, please open an issue:
 

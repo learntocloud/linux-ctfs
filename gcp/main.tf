@@ -198,7 +198,7 @@ resource "google_compute_instance" "ctf_instance" {
 
   boot_disk {
     initialize_params {
-      image = "ubuntu-os-cloud/ubuntu-2404-lts"
+      image = "ubuntu-os-cloud/ubuntu-2404-lts-amd64"
       size  = 20
       type  = "pd-standard"
     }

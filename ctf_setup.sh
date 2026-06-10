@@ -5,6 +5,8 @@
 #
 set -euo pipefail
 
+perl -pi -e 's/\r\n/\n/g' "$0"
+
 exec > >(tee /var/log/ctf_setup.log) 2>&1
 
 DONE_MARKER="/var/lib/cloud/instance/ctf-setup.done"

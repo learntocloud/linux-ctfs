@@ -34,7 +34,6 @@ jobs:
             if (isTerraform) labels.push('bug', 'terraform');
             if (isVerify) labels.push('bug');
             if (isChallenge) labels.push('question');
-            if (isFeature) labels.push('enhancement');
             if (isBug && !isSSH && !isTerraform && !isVerify) labels.push('bug');
 
             // Add labels if any were found
@@ -93,11 +92,17 @@ jobs:
               comment += `Run \`verify list\` to see all challenge statuses and identify which might be missing.\n`;
             } else if (isChallenge) {
               comment += `## 💡 Challenge Help\n\n`;
-              comment += `Before we help further, have you tried:\n\n`;
-              comment += `1. Running \`verify hint <challenge_number>\` for a built-in hint\n`;
-              comment += `2. Re-reading the challenge objective in the MOTD (shown on SSH login)\n`;
-              comment += `3. Checking the [README challenges section](https://github.com/learntocloud/linux-ctfs#challenges)\n\n`;
-              comment += `We want to help you learn without giving away the answer! Let us know what you've tried and where you're stuck.\n`;
+              comment += `For challenge-specific questions and help, please post in our [Community Discussions](https://github.com/learntocloud/learn-to-cloud-app/discussions). `;
+              comment += `The community and maintainers can help you there without spoiling answers for others.\n\n`;
+              comment += `**Quick tips before posting:**\n`;
+              comment += `- Run \`verify hint <challenge_number>\` for a built-in hint\n`;
+              comment += `- Re-read the challenge objective in the MOTD (shown on SSH login)\n\n`;
+              comment += `Closing this issue — please reopen if this is actually a bug rather than a question.\n`;
+            } else if (isFeature) {
+              comment += `Thanks for the suggestion! 🙏\n\n`;
+              comment += `For feature requests and ideas, please post in our [Community Discussions](https://github.com/learntocloud/learn-to-cloud-app/discussions). `;
+              comment += `That way the community can upvote and discuss the idea.\n\n`;
+              comment += `Closing this issue — a maintainer will reopen if we decide to track it here.\n`;
             } else {
               comment += `Please check our [FAQ page](https://github.com/learntocloud/linux-ctfs/wiki/FAQs) to see if your question is already answered.\n\n`;
               comment += `If not, we'll take a look and get back to you soon!\n`;

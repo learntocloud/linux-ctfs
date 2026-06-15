@@ -13,8 +13,7 @@ assignees: madebygps, rishabkumar7
 - [ ] GCP
 
 **Connection method:**
-- [ ] Password authentication (using `CTFpassword123!`)
-- [ ] SSH key authentication
+Password authentication (using `CTFpassword123!`)
 
 **SSH command used:**
 ```

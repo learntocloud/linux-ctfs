@@ -27,7 +27,7 @@ jobs:
           fi
 
       - name: Check out release code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: ${{ steps.release.outputs.tag }}
 
@@ -41,6 +41,9 @@ jobs:
             --group=0 \
             --numeric-owner \
             --mtime="UTC 1970-01-01" \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.venv' \
             -cf - ctf_setup.sh setup verify | gzip -n > "$asset"
           sha256sum "$asset" > "$asset.sha256"
 

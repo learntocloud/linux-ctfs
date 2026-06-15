@@ -16,70 +16,92 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const issue = context.payload.issue;
-            const issueBody = issue.body?.toLowerCase() || '';
+            const title = issue.title?.toLowerCase() || '';
+            const body = issue.body?.toLowerCase() || '';
+            const combined = `${title} ${body}`;
             const labels = [];
-            
-            // Define label mappings
-            const labelMappings = {
-              'bug': 'bug',
-              'feature': 'enhancement',
-              'documentation': 'documentation',
-              'question': 'question',
-              'help wanted': 'help wanted'
-            };
-            
-            // Check issue body for keywords and add corresponding labels
-            for (const [keyword, label] of Object.entries(labelMappings)) {
-              if (issueBody.includes(keyword)) {
-                labels.push(label);
-              }
-            }
-            
+
+            // Detect issue category from title prefix and content
+            const isSSH = title.includes('[ssh]') || combined.includes('permission denied') || combined.includes('publickey') || combined.includes('ssh') && (combined.includes('denied') || combined.includes('connect') || combined.includes('password'));
+            const isTerraform = title.includes('[terraform]') || combined.includes('terraform') && (combined.includes('error') || combined.includes('failed') || combined.includes('init') || combined.includes('apply'));
+            const isVerify = title.includes('[verify]') || combined.includes('verify') && (combined.includes('not found') || combined.includes('command not found') || combined.includes('progress') || combined.includes('export') || combined.includes('token'));
+            const isChallenge = title.includes('[challenge]') || combined.includes('challenge') && (combined.includes('stuck') || combined.includes('hint') || combined.includes('how to'));
+            const isFeature = title.includes('[feature]') || combined.includes('feature request') || combined.includes('enhancement') || combined.includes('suggestion');
+            const isBug = title.includes('[bug]') || combined.includes('bug');
+
+            // Apply labels based on detected category
+            if (isSSH) labels.push('bug', 'DevOps');
+            if (isTerraform) labels.push('bug', 'terraform');
+            if (isVerify) labels.push('bug');
+            if (isChallenge) labels.push('question');
+            if (isBug && !isSSH && !isTerraform && !isVerify) labels.push('bug');
+
             // Add labels if any were found
             if (labels.length > 0) {
+              const unique = [...new Set(labels)];
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                labels: labels
+                labels: unique
               });
-            }
-            
-            // Assign issue
-            try {
-              await github.rest.issues.addAssignees({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                assignees: ['rishabkumar7', 'madebygps'] 
-              });
-              console.log('Successfully assigned issue');
-            } catch (error) {
-              console.error('Error assigning issue:', error);
-              throw error;
             }
 
-            // Check for bug-related keywords and add FAQ comment
-            if (issueBody.includes('bug') || issueBody.includes('issue')) {
-              const faqComment = `
-              Thanks for reporting this issue! 👋
-              
-              Before we proceed, please check our [FAQ page](https://github.com/learntocloud/linux-ctfs/wiki/FAQs).
-              
-              If your issue isn't addressed in the FAQ, please provide:
-              - Steps to reproduce
-              - Expected behavior
-              - Actual behavior
-              - Any relevant error messages
-              - Screenshots, if applicable
-              
-              This will help us investigate and resolve your issue more quickly.
-              `;
-              
-              await github.rest.issues.createComment({
+            // Assign maintainers to actionable issues (not those redirected to Discussions)
+            if (!isChallenge && !isFeature) {
+              try {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  assignees: ['rishabkumar7', 'madebygps']
+                });
+              } catch (error) {
+                console.error('Error assigning issue:', error);
+              }
+            }
+
+            // Build a targeted response that points to the canonical FAQ section
+            const FAQ = 'https://github.com/learntocloud/linux-ctfs/wiki/FAQs';
+            let comment = `Thanks for opening this issue! 👋\n\n`;
+
+            if (isSSH) {
+              comment += `This looks like an **SSH/connection** issue. Most are solved by the steps in the FAQ: connect as \`ctf_user\` with password \`CTFpassword123!\`, use the public IP from \`terraform output\`, and wait 2-3 minutes after \`terraform apply\` for setup to finish.\n\n`;
+              comment += `👉 **[FAQ: Connecting via SSH](${FAQ}#connecting-via-ssh)**\n\n`;
+              comment += `If those steps don't fix it, please share your exact SSH command and the full error message.\n`;
+            } else if (isTerraform) {
+              comment += `This looks like a **Terraform deployment** issue. Common causes (SKU/region not supported, quotas, provider version, setup timeout) and fixes are in the FAQ.\n\n`;
+              comment += `👉 **[FAQ: Terraform deployment](${FAQ}#terraform-deployment)**\n\n`;
+              comment += `If that doesn't resolve it, please paste the full error output.\n`;
+            } else if (isVerify) {
+              comment += `This looks like a **verify / certificate** issue. The FAQ covers the most common ones, including progress stuck at 17/18 (run \`verify 0 CTF{example}\` first), \`command not found\`, flags not accepted, and token export.\n\n`;
+              comment += `👉 **[FAQ: Using the verify command](${FAQ}#using-the-verify-command)** · **[Progress and flags](${FAQ}#progress-and-flags)** · **[Token export](${FAQ}#certificate-and-token-export)**\n\n`;
+              comment += `If you're still stuck, run \`verify list\` and share the output.\n`;
+            } else if (isChallenge) {
+              comment += `For challenge-specific questions and help, please post in our [Community Discussions](https://github.com/learntocloud/learn-to-cloud-app/discussions) so the community and maintainers can help without spoiling answers for others.\n\n`;
+              comment += `Quick tips: run \`verify hint <challenge_number>\` for a built-in hint, and re-read the objective in the MOTD shown on SSH login.\n\n`;
+              comment += `Closing this issue — please reopen if this is actually a bug rather than a question.\n`;
+            } else if (isFeature) {
+              comment += `Thanks for the suggestion! 🙏 For feature requests and ideas, please post in our [Community Discussions](https://github.com/learntocloud/learn-to-cloud-app/discussions) so the community can upvote and discuss.\n\n`;
+              comment += `Closing this issue — a maintainer will reopen if we decide to track it here.\n`;
+            } else {
+              comment += `Please check our **[FAQ page](${FAQ})** to see if your question is already answered. If not, we'll take a look and get back to you soon!\n`;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: comment
+            });
+
+            // Challenge questions and feature requests belong in Discussions
+            if (isChallenge || isFeature) {
+              await github.rest.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: faqComment
+                state: 'closed',
+                state_reason: 'not_planned'
               });
             }

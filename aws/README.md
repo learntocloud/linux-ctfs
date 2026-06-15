@@ -118,7 +118,7 @@ Type `yes` when prompted.
 
 1. Ensure your AWS CLI is configured with valid credentials
 2. Check that you're using Terraform v1.9.0 or later
-3. Verify you have permissions to create EC2, VPC, and Security Group resources
+3. Verify you have permissions to create EC2, VPC, Security Group, IAM role/profile, and SSM Run Command resources
 
 If problems persist, please open an issue:
 
@@ -130,6 +130,19 @@ Include:
 - `aws sts get-caller-identity` output (no secrets)
 - The exact `terraform apply` error output (redact any secrets)
 - Whether SSH fails or the issue happens after login, such as when running `verify progress`
+
+### Release Setup Readiness
+
+AWS release mode uses Systems Manager to wait for setup readiness. Terraform creates an EC2 instance profile with `AmazonSSMManagedInstanceCore`, lets the VM run setup through `user_data`, then sends an SSM Run Command to confirm the setup marker files.
+
+If `terraform apply` fails while waiting for readiness, check:
+
+- The EC2 instance has the generated SSM instance profile attached.
+- The instance is listed as a Systems Manager managed node.
+- Outbound HTTPS is allowed so SSM Agent can reach Systems Manager endpoints.
+- SSM Agent is running on the VM.
+- The AWS CLI can call `ssm:DescribeInstanceInformation`, `ssm:SendCommand`, and `ssm:GetCommandInvocation`.
+- VM logs: `/var/log/cloud-init-output.log` and `/var/log/ctf_setup.log`.
 
 ## Security Note
 

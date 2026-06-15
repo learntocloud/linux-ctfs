@@ -5,6 +5,7 @@ This guide shows examples of errors you might see when deploying the linux-ctfs 
 - [AWS](#aws)
 - [AWS: Region / endpoint / Auth errors](#aws-region--endpoint--auth-errors)
 - [AWS: Quota / vCPU limit errors](#aws-quota--vcpu-limit-errors)
+- [AWS: SSM setup readiness errors](#aws-ssm-setup-readiness-errors)
 - [AWS: Service Control Policy (SCP) / Explicit deny errors](#aws-service-control-policy-scp--explicit-deny-errors)
 - [Azure](#azure)
 - [GCP](#gcp)
@@ -82,6 +83,34 @@ terraform apply -var="aws_instance_type=t3.micro"
 ```
 
 If you need a larger size, you can request a quota increase in the AWS console for the region you want to use.
+
+### AWS: SSM setup readiness errors
+
+AWS release mode uses Systems Manager to wait for setup readiness. If Terraform fails while waiting on `null_resource.release_setup_ready`, check whether the instance became an SSM managed node and whether the SSM Run Command completed.
+
+Useful checks:
+
+```sh
+aws ssm describe-instance-information \
+  --region us-east-1 \
+  --filters Key=InstanceIds,Values=<instance_id>
+```
+
+```sh
+aws ssm list-command-invocations \
+  --region us-east-1 \
+  --instance-id <instance_id> \
+  --details
+```
+
+Common causes:
+
+- The Terraform caller cannot create IAM roles, IAM instance profiles, or send/read SSM commands.
+- The generated SSM instance profile is not attached to the EC2 instance.
+- SSM Agent is not running yet on the VM.
+- Account-level SSM maintenance commands are still running during first boot.
+- The instance cannot reach Systems Manager endpoints over outbound HTTPS.
+- Setup failed before writing `/var/lib/linux-ctfs/setup.done`; check `/var/log/cloud-init-output.log` and `/var/log/ctf_setup.log`.
 
 ### AWS: Service Control Policy (SCP) / Explicit deny errors
 

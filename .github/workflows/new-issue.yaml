@@ -47,65 +47,45 @@ jobs:
               });
             }
 
-            // Assign issue
-            try {
-              await github.rest.issues.addAssignees({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                assignees: ['rishabkumar7', 'madebygps']
-              });
-            } catch (error) {
-              console.error('Error assigning issue:', error);
+            // Assign maintainers to actionable issues (not those redirected to Discussions)
+            if (!isChallenge && !isFeature) {
+              try {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  assignees: ['rishabkumar7', 'madebygps']
+                });
+              } catch (error) {
+                console.error('Error assigning issue:', error);
+              }
             }
 
-            // Build a targeted response based on the issue category
+            // Build a targeted response that points to the canonical FAQ section
+            const FAQ = 'https://github.com/learntocloud/linux-ctfs/wiki/FAQs';
             let comment = `Thanks for opening this issue! 👋\n\n`;
 
             if (isSSH) {
-              comment += `## 🔑 SSH Connection Troubleshooting\n\n`;
-              comment += `This looks like an SSH/connection issue. Here are the most common fixes:\n\n`;
-              comment += `1. **Wait for setup to finish** — After \`terraform apply\`, wait 2-3 minutes for the VM setup script to complete before connecting.\n`;
-              comment += `2. **Use the correct username** — Connect as \`ctf_user\` (not \`ubuntu\`, \`ec2-user\`, or \`root\`).\n`;
-              comment += `3. **Use the correct password** — The password is \`CTFpassword123!\` (case-sensitive, includes the \`!\`).\n`;
-              comment += `4. **Check your IP** — Use the public IP from \`terraform output\`.\n`;
-              comment += `5. **Firewall/VPN** — If you're behind a corporate firewall or VPN, port 22 may be blocked.\n\n`;
-              comment += `**SSH command format:**\n\`\`\`bash\nssh ctf_user@<PUBLIC_IP>\n\`\`\`\n\n`;
-              comment += `If none of these help, please confirm you've checked each item above and share your exact error message.\n`;
+              comment += `This looks like an **SSH/connection** issue. Most are solved by the steps in the FAQ: connect as \`ctf_user\` with password \`CTFpassword123!\`, use the public IP from \`terraform output\`, and wait 2-3 minutes after \`terraform apply\` for setup to finish.\n\n`;
+              comment += `👉 **[FAQ: Connecting via SSH](${FAQ}#connecting-via-ssh)**\n\n`;
+              comment += `If those steps don't fix it, please share your exact SSH command and the full error message.\n`;
             } else if (isTerraform) {
-              comment += `## 🏗️ Terraform Troubleshooting\n\n`;
-              comment += `This looks like a Terraform deployment issue. Common fixes:\n\n`;
-              comment += `| Error | Fix |\n|-------|-----|\n`;
-              comment += `| SKU/instance type not available | Try a different region or VM size. Edit the \`region\` variable in your \`.tfvars\` file. |\n`;
-              comment += `| Provider version incompatible | Run \`terraform init -upgrade\` |\n`;
-              comment += `| Quota exceeded | Check your cloud provider's quota/limits dashboard |\n`;
-              comment += `| null_resource timeout | The VM setup can take up to 5 minutes. If it times out, SSH in manually — setup may still be running. |\n\n`;
-              comment += `**Helpful commands:**\n\`\`\`bash\nterraform init -upgrade\nterraform plan\nterraform apply\n\`\`\`\n\n`;
-              comment += `Please share the full error output if the above doesn't help.\n`;
+              comment += `This looks like a **Terraform deployment** issue. Common causes (SKU/region not supported, quotas, provider version, setup timeout) and fixes are in the FAQ.\n\n`;
+              comment += `👉 **[FAQ: Terraform deployment](${FAQ}#terraform-deployment)**\n\n`;
+              comment += `If that doesn't resolve it, please paste the full error output.\n`;
             } else if (isVerify) {
-              comment += `## ✅ Verify Tool Troubleshooting\n\n`;
-              comment += `Here are common solutions for verify issues:\n\n`;
-              comment += `- **"command not found"** — The setup script may not have finished. Wait a minute and try again, or reconnect via SSH.\n`;
-              comment += `- **Progress stuck/wrong count** — Make sure you ran \`verify 0 CTF{example}\` first. This counts as challenge 0 and is required.\n`;
-              comment += `- **Flag not accepted** — Ensure the flag format is exactly \`CTF{...}\` with no extra spaces before or after. Copy-paste if possible.\n`;
-              comment += `- **Token not accepted on learntocloud.guide** — Try generating a new token with \`verify export <your_github_username>\`. Make sure you copy the entire token string.\n\n`;
-              comment += `Run \`verify list\` to see all challenge statuses and identify which might be missing.\n`;
+              comment += `This looks like a **verify / certificate** issue. The FAQ covers the most common ones, including progress stuck at 17/18 (run \`verify 0 CTF{example}\` first), \`command not found\`, flags not accepted, and token export.\n\n`;
+              comment += `👉 **[FAQ: Using the verify command](${FAQ}#using-the-verify-command)** · **[Progress and flags](${FAQ}#progress-and-flags)** · **[Token export](${FAQ}#certificate-and-token-export)**\n\n`;
+              comment += `If you're still stuck, run \`verify list\` and share the output.\n`;
             } else if (isChallenge) {
-              comment += `## 💡 Challenge Help\n\n`;
-              comment += `For challenge-specific questions and help, please post in our [Community Discussions](https://github.com/learntocloud/learn-to-cloud-app/discussions). `;
-              comment += `The community and maintainers can help you there without spoiling answers for others.\n\n`;
-              comment += `**Quick tips before posting:**\n`;
-              comment += `- Run \`verify hint <challenge_number>\` for a built-in hint\n`;
-              comment += `- Re-read the challenge objective in the MOTD (shown on SSH login)\n\n`;
+              comment += `For challenge-specific questions and help, please post in our [Community Discussions](https://github.com/learntocloud/learn-to-cloud-app/discussions) so the community and maintainers can help without spoiling answers for others.\n\n`;
+              comment += `Quick tips: run \`verify hint <challenge_number>\` for a built-in hint, and re-read the objective in the MOTD shown on SSH login.\n\n`;
               comment += `Closing this issue — please reopen if this is actually a bug rather than a question.\n`;
             } else if (isFeature) {
-              comment += `Thanks for the suggestion! 🙏\n\n`;
-              comment += `For feature requests and ideas, please post in our [Community Discussions](https://github.com/learntocloud/learn-to-cloud-app/discussions). `;
-              comment += `That way the community can upvote and discuss the idea.\n\n`;
+              comment += `Thanks for the suggestion! 🙏 For feature requests and ideas, please post in our [Community Discussions](https://github.com/learntocloud/learn-to-cloud-app/discussions) so the community can upvote and discuss.\n\n`;
               comment += `Closing this issue — a maintainer will reopen if we decide to track it here.\n`;
             } else {
-              comment += `Please check our [FAQ page](https://github.com/learntocloud/linux-ctfs/wiki/FAQs) to see if your question is already answered.\n\n`;
-              comment += `If not, we'll take a look and get back to you soon!\n`;
+              comment += `Please check our **[FAQ page](${FAQ})** to see if your question is already answered. If not, we'll take a look and get back to you soon!\n`;
             }
 
             await github.rest.issues.createComment({
@@ -114,3 +94,14 @@ jobs:
               issue_number: issue.number,
               body: comment
             });
+
+            // Challenge questions and feature requests belong in Discussions
+            if (isChallenge || isFeature) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'not_planned'
+              });
+            }

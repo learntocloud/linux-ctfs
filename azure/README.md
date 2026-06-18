@@ -41,57 +41,15 @@ az login
 
 ### VM Size / Capacity Errors
 
-If you encounter an error like:
+If `terraform apply` fails with `SkuNotAvailable` or quota/capacity errors, the fastest fix is usually switching region and/or VM size.
 
-```text
-SkuNotAvailable: The requested VM size ... is currently not available in location "your location"
-```
+Defaults for this lab:
+- Region: `East US` (`az_region`)
+- VM size: `Standard_B1s` (`azure_vm_size`)
 
-This is usually due to regional capacity restrictions, subscription limits, or VM quota in the selected region. The default VM size is `Standard_B1s`, and the default region is `East US`.
-
-Check whether `Standard_B1s` is available in a region:
-
-```sh
-az vm list-skus \
-  --location eastus \
-  --resource-type virtualMachines \
-  --size Standard_B1s \
-  --all \
-  --query "[?name=='Standard_B1s'].{name:name, restrictions:restrictions}" \
-  -o json
-```
-
-If `restrictions` is `[]`, Azure reports that SKU as available for your subscription in that region. If restrictions are returned, try another region or VM size.
-
-Check VM quota in a region:
-
-```sh
-az vm list-usage --location eastus -o table
-```
-
-To check several common regions:
-
-```sh
-for region in eastus southcentralus westus; do
-  echo "== $region =="
-  az vm list-skus \
-    --location "$region" \
-    --resource-type virtualMachines \
-    --size Standard_B1s \
-    --all \
-    --query "[?name=='Standard_B1s'].{name:name, restrictions:restrictions}" \
-    -o json
-  az vm list-usage --location "$region" -o table
-done
-```
-
-If your selected region is restricted, retry with a known available region:
-
-```sh
-terraform apply \
-  -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID" \
-  -var az_region="eastus"
-```
+Use the full Azure troubleshooting steps here:
+- [Azure: SkuNotAvailable / Capacity errors](../TROUBLESHOOTING.md#azure-skunotavailable--capacity-errors)
+- [Azure: Quota limit errors](../TROUBLESHOOTING.md#azure-quota-limit-errors)
 
 4. Note the `public_ip_address` output—you'll use this to connect.
 

@@ -16,6 +16,14 @@ This guide shows examples of errors you might see when deploying the linux-ctfs 
 
 The Terraform commands in this AWS section assume you are running them from the `aws/` directory.
 
+On Windows, run the AWS deployment from WSL. The release-mode Systems Manager readiness check requires `/bin/sh` and is not supported from native PowerShell or Command Prompt. Install Terraform and the AWS CLI inside WSL, then confirm that WSL can access your AWS credentials:
+
+```sh
+aws sts get-caller-identity
+```
+
+If AWS CLI works in Windows but not in WSL, configure credentials inside WSL with `aws configure`.
+
 Before your first AWS deploy, list the regions that are enabled for your account:
 
 ```sh
@@ -105,6 +113,7 @@ aws ssm list-command-invocations \
 
 Common causes:
 
+- Terraform is running from native Windows PowerShell or Command Prompt instead of WSL.
 - The Terraform caller cannot create IAM roles, IAM instance profiles, or send/read SSM commands.
 - The generated SSM instance profile is not attached to the EC2 instance.
 - SSM Agent is not running yet on the VM.

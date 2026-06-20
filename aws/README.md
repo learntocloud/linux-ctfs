@@ -5,6 +5,19 @@
 1. [Terraform](https://www.terraform.io/downloads.html) (v1.9.0 or later)
 2. [AWS CLI](https://aws.amazon.com/cli/) configured with your credentials
 
+### Windows
+
+Run the AWS Terraform deployment from [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/windows/wsl/install). AWS release-mode readiness uses a local `/bin/sh` script to wait for Systems Manager Run Command, so native Windows PowerShell and Command Prompt are not currently supported.
+
+Install Terraform and the AWS CLI inside your WSL distribution, then configure AWS credentials there before following the steps below:
+
+```sh
+aws configure
+aws sts get-caller-identity
+```
+
+Credentials configured only in Windows PowerShell are not automatically available inside WSL.
+
 ## Getting Started
 
 1. Clone this repository:
@@ -141,7 +154,7 @@ If `terraform apply` fails while waiting for readiness, check:
 - The instance is listed as a Systems Manager managed node.
 - Outbound HTTPS is allowed so SSM Agent can reach Systems Manager endpoints.
 - SSM Agent is running on the VM.
-- The AWS CLI can call `ssm:DescribeInstanceInformation`, `ssm:SendCommand`, and `ssm:GetCommandInvocation`.
+- The AWS CLI can call `ssm:DescribeInstanceInformation`, `ssm:ListCommandInvocations`, `ssm:SendCommand`, and `ssm:GetCommandInvocation`.
 - VM logs: `/var/log/cloud-init-output.log` and `/var/log/ctf_setup.log`.
 
 ## Security Note

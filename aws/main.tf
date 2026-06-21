@@ -272,7 +272,7 @@ data "aws_iam_policy_document" "ctf_ssm_assume_role" {
 resource "aws_iam_role" "ctf_ssm" {
   count = var.use_local_setup ? 0 : 1
 
-  name               = "linux-ctfs-ssm-${var.aws_region}"
+  name_prefix        = "linux-ctfs-ssm-${var.aws_region}-"
   assume_role_policy = data.aws_iam_policy_document.ctf_ssm_assume_role[0].json
 
   tags = {
@@ -290,8 +290,8 @@ resource "aws_iam_role_policy_attachment" "ctf_ssm_managed_instance_core" {
 resource "aws_iam_instance_profile" "ctf_ssm" {
   count = var.use_local_setup ? 0 : 1
 
-  name = "linux-ctfs-ssm-${var.aws_region}"
-  role = aws_iam_role.ctf_ssm[0].name
+  name_prefix = "linux-ctfs-ssm-${var.aws_region}-"
+  role        = aws_iam_role.ctf_ssm[0].name
 
   tags = {
     Name = "CTF Lab SSM Instance Profile"

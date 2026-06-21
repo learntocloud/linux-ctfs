@@ -372,13 +372,19 @@ resource "null_resource" "release_setup_ready" {
       region='${var.aws_region}'
       command_file='${path.module}/.terraform/linux-ctfs-ssm-readiness-command.json'
 
+      echo "Checking local AWS CLI credentials..."
+      aws sts get-caller-identity --region "$region" >/dev/null
+
       echo "Waiting for ${aws_instance.ctf_instance.id} to register with Systems Manager..."
       for attempt in $(seq 1 60); do
-        ping_status=$(aws ssm describe-instance-information \
-          --region "$region" \
-          --filters "Key=InstanceIds,Values=$instance_id" \
-          --query 'InstanceInformationList[0].PingStatus' \
-          --output text 2>/dev/null || true)
+        if ! ping_status=$(aws ssm describe-instance-information \
+            --region "$region" \
+            --filters "Key=InstanceIds,Values=$instance_id" \
+            --query 'InstanceInformationList[0].PingStatus' \
+            --output text); then
+          echo "Failed to query Systems Manager managed-node registration." >&2
+          exit 1
+        fi
 
         if [ "$ping_status" = "Online" ]; then
           echo "Systems Manager managed node is online."
@@ -397,11 +403,14 @@ resource "null_resource" "release_setup_ready" {
       echo "Waiting for startup Systems Manager commands to settle..."
       quiet_checks=0
       for attempt in $(seq 1 60); do
-        active_commands=$(aws ssm list-command-invocations \
-          --region "$region" \
-          --instance-id "$instance_id" \
-          --query "length(CommandInvocations[?Status=='Pending' || Status=='InProgress' || Status=='Delayed'])" \
-          --output text 2>/dev/null || echo 0)
+        if ! active_commands=$(aws ssm list-command-invocations \
+            --region "$region" \
+            --instance-id "$instance_id" \
+            --query "length(CommandInvocations[?Status=='Pending' || Status=='InProgress' || Status=='Delayed'])" \
+            --output text); then
+          echo "Failed to query Systems Manager command activity." >&2
+          exit 1
+        fi
 
         if [ "$active_commands" = "0" ]; then
           quiet_checks=$((quiet_checks + 1))
@@ -443,12 +452,25 @@ JSON
 
       echo "Waiting for SSM command $command_id to report setup readiness..."
       for attempt in $(seq 1 180); do
-        status=$(aws ssm get-command-invocation \
-          --region "$region" \
-          --command-id "$command_id" \
-          --instance-id "$instance_id" \
-          --query 'Status' \
-          --output text 2>/dev/null || true)
+        if ! invocation_result=$(aws ssm get-command-invocation \
+            --region "$region" \
+            --command-id "$command_id" \
+            --instance-id "$instance_id" \
+            --query 'Status' \
+            --output text 2>&1); then
+          case "$invocation_result" in
+            *InvocationDoesNotExist*)
+              status="Pending"
+              ;;
+            *)
+              echo "$invocation_result" >&2
+              echo "Failed to query SSM command invocation status." >&2
+              exit 1
+              ;;
+          esac
+        else
+          status="$invocation_result"
+        fi
 
         case "$status" in
           Success)

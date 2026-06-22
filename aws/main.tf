@@ -256,6 +256,48 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"] # Canonical
 }
 
+data "aws_iam_policy_document" "ctf_ssm_assume_role" {
+  count = var.use_local_setup ? 0 : 1
+
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ctf_ssm" {
+  count = var.use_local_setup ? 0 : 1
+
+  name_prefix        = "linux-ctfs-ssm-${var.aws_region}-"
+  assume_role_policy = data.aws_iam_policy_document.ctf_ssm_assume_role[0].json
+
+  tags = {
+    Name = "CTF Lab SSM Role"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "ctf_ssm_managed_instance_core" {
+  count = var.use_local_setup ? 0 : 1
+
+  role       = aws_iam_role.ctf_ssm[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ctf_ssm" {
+  count = var.use_local_setup ? 0 : 1
+
+  name_prefix = "linux-ctfs-ssm-${var.aws_region}-"
+  role        = aws_iam_role.ctf_ssm[0].name
+
+  tags = {
+    Name = "CTF Lab SSM Instance Profile"
+  }
+}
+
 resource "aws_instance" "ctf_instance" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.aws_instance_type
@@ -264,9 +306,12 @@ resource "aws_instance" "ctf_instance" {
   subnet_id              = aws_subnet.ctf_subnet.id
 
   associate_public_ip_address = true
+  iam_instance_profile        = var.use_local_setup ? null : aws_iam_instance_profile.ctf_ssm[0].name
 
   user_data                   = var.use_local_setup ? local.local_bootstrap_script : local.release_setup_script
   user_data_replace_on_change = true
+
+  depends_on = [aws_iam_role_policy_attachment.ctf_ssm_managed_instance_core]
 
   tags = {
     Name = "CTF Lab Instance"
@@ -315,20 +360,147 @@ resource "null_resource" "release_setup_ready" {
   depends_on = [aws_instance.ctf_instance]
 
   triggers = {
-    instance_id = aws_instance.ctf_instance.id
+    instance_id              = aws_instance.ctf_instance.id
+    release_readiness_script = sha256(local.release_readiness_script)
   }
 
-  connection {
-    type     = "ssh"
-    host     = aws_instance.ctf_instance.public_ip
-    user     = "ctf_user"
-    password = "CTFpassword123!"
-    timeout  = "30m"
-  }
+  provisioner "local-exec" {
+    interpreter = ["/bin/sh", "-c"]
+    command = <<-EOF
+      set -eu
+      instance_id='${aws_instance.ctf_instance.id}'
+      region='${var.aws_region}'
+      command_file='${path.module}/.terraform/linux-ctfs-ssm-readiness-command.json'
 
-  provisioner "remote-exec" {
-    inline = [local.release_readiness_script]
-  }
+      echo "Checking local AWS CLI credentials..."
+      aws sts get-caller-identity --region "$region" >/dev/null
+
+      echo "Waiting for ${aws_instance.ctf_instance.id} to register with Systems Manager..."
+      for attempt in $(seq 1 60); do
+        if ! ping_status=$(aws ssm describe-instance-information \
+            --region "$region" \
+            --filters "Key=InstanceIds,Values=$instance_id" \
+            --query 'InstanceInformationList[0].PingStatus' \
+            --output text); then
+          echo "Failed to query Systems Manager managed-node registration." >&2
+          exit 1
+        fi
+
+        if [ "$ping_status" = "Online" ]; then
+          echo "Systems Manager managed node is online."
+          break
+        fi
+
+        if [ "$attempt" -eq 60 ]; then
+          echo "Timed out waiting for Systems Manager managed node registration." >&2
+          exit 1
+        fi
+
+        echo "Systems Manager managed node is not ready yet. Attempt $attempt/60."
+        sleep 10
+      done
+
+      echo "Waiting for startup Systems Manager commands to settle..."
+      quiet_checks=0
+      for attempt in $(seq 1 60); do
+        if ! active_commands=$(aws ssm list-command-invocations \
+            --region "$region" \
+            --instance-id "$instance_id" \
+            --query "length(CommandInvocations[?Status=='Pending' || Status=='InProgress' || Status=='Delayed'])" \
+            --output text); then
+          echo "Failed to query Systems Manager command activity." >&2
+          exit 1
+        fi
+
+        if [ "$active_commands" = "0" ]; then
+          quiet_checks=$((quiet_checks + 1))
+          if [ "$quiet_checks" -ge 3 ]; then
+            echo "Systems Manager command queue is clear."
+            break
+          fi
+        else
+          quiet_checks=0
+          echo "Systems Manager has $active_commands active command(s). Attempt $attempt/60."
+        fi
+
+        if [ "$attempt" -eq 60 ]; then
+          echo "Timed out waiting for startup Systems Manager commands to settle." >&2
+          exit 1
+        fi
+
+        sleep 10
+      done
+
+      mkdir -p '${path.module}/.terraform'
+      cat > "$command_file" <<'JSON'
+${jsonencode({
+    DocumentName   = "AWS-RunShellScript"
+    InstanceIds    = [aws_instance.ctf_instance.id]
+    Comment        = "Wait for Linux CTF setup readiness"
+    TimeoutSeconds = 1800
+    Parameters = {
+      commands = [local.release_readiness_script]
+    }
+})}
+JSON
+
+      command_id=$(aws ssm send-command \
+        --region "$region" \
+        --cli-input-json "file://$command_file" \
+        --query 'Command.CommandId' \
+        --output text)
+
+      echo "Waiting for SSM command $command_id to report setup readiness..."
+      for attempt in $(seq 1 180); do
+        if ! invocation_result=$(aws ssm get-command-invocation \
+            --region "$region" \
+            --command-id "$command_id" \
+            --instance-id "$instance_id" \
+            --query 'Status' \
+            --output text 2>&1); then
+          case "$invocation_result" in
+            *InvocationDoesNotExist*)
+              status="Pending"
+              ;;
+            *)
+              echo "$invocation_result" >&2
+              echo "Failed to query SSM command invocation status." >&2
+              exit 1
+              ;;
+          esac
+        else
+          status="$invocation_result"
+        fi
+
+        case "$status" in
+          Success)
+            aws ssm get-command-invocation \
+              --region "$region" \
+              --command-id "$command_id" \
+              --instance-id "$instance_id" \
+              --query '{Status:Status,ResponseCode:ResponseCode,StandardOutputContent:StandardOutputContent,StandardErrorContent:StandardErrorContent}' \
+              --output json
+            exit 0
+            ;;
+          Failed|Cancelled|TimedOut|Cancelling)
+            aws ssm get-command-invocation \
+              --region "$region" \
+              --command-id "$command_id" \
+              --instance-id "$instance_id" \
+              --query '{Status:Status,ResponseCode:ResponseCode,StandardOutputContent:StandardOutputContent,StandardErrorContent:StandardErrorContent}' \
+              --output json >&2
+            exit 1
+            ;;
+        esac
+
+        echo "SSM command status is $status. Attempt $attempt/180."
+        sleep 10
+      done
+
+      echo "Timed out waiting for SSM command $command_id to complete." >&2
+      exit 1
+    EOF
+}
 }
 
 # Output the public IP of the instance

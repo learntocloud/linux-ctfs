@@ -5,6 +5,19 @@
 1. [Terraform](https://www.terraform.io/downloads.html) (v1.9.0 or later)
 2. [AWS CLI](https://aws.amazon.com/cli/) configured with your credentials
 
+### Windows
+
+Run the AWS Terraform deployment from [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/windows/wsl/install). AWS release-mode readiness uses a local `/bin/sh` script to wait for Systems Manager Run Command, so native Windows PowerShell and Command Prompt are not currently supported.
+
+Install Terraform and the AWS CLI inside your WSL distribution, then configure AWS credentials there before following the steps below:
+
+```sh
+aws configure
+aws sts get-caller-identity
+```
+
+Credentials configured only in Windows PowerShell are not automatically available inside WSL.
+
 ## Getting Started
 
 1. Clone this repository:
@@ -118,7 +131,7 @@ Type `yes` when prompted.
 
 1. Ensure your AWS CLI is configured with valid credentials
 2. Check that you're using Terraform v1.9.0 or later
-3. Verify you have permissions to create EC2, VPC, and Security Group resources
+3. Verify you have permissions to create EC2, VPC, Security Group, IAM role/profile, and SSM Run Command resources
 
 If problems persist, please open an issue:
 
@@ -130,6 +143,19 @@ Include:
 - `aws sts get-caller-identity` output (no secrets)
 - The exact `terraform apply` error output (redact any secrets)
 - Whether SSH fails or the issue happens after login, such as when running `verify progress`
+
+### Release Setup Readiness
+
+AWS release mode uses Systems Manager to wait for setup readiness. Terraform creates an EC2 instance profile with `AmazonSSMManagedInstanceCore`, lets the VM run setup through `user_data`, then sends an SSM Run Command to confirm the setup marker files.
+
+If `terraform apply` fails while waiting for readiness, check:
+
+- The EC2 instance has the generated SSM instance profile attached.
+- The instance is listed as a Systems Manager managed node.
+- Outbound HTTPS is allowed so SSM Agent can reach Systems Manager endpoints.
+- SSM Agent is running on the VM.
+- The AWS CLI can call `ssm:DescribeInstanceInformation`, `ssm:ListCommandInvocations`, `ssm:SendCommand`, and `ssm:GetCommandInvocation`.
+- VM logs: `/var/log/cloud-init-output.log` and `/var/log/ctf_setup.log`.
 
 ## Security Note
 

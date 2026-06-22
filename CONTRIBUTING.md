@@ -123,7 +123,8 @@ Most contributors only need to know this:
 Setup readiness differs by provider:
 
 - Azure release mode uses VM Custom Script Extension (Terraform 1.14.0 or newer), so Terraform waits for extension success or failure.
-- AWS and GCP release mode still use the shared SSH marker wait.
+- AWS release mode uses Systems Manager Run Command to run the shared marker readiness check. Windows users must run this deployment path from WSL because the local readiness helper requires `/bin/sh`.
+- GCP release mode still uses the shared SSH marker wait.
 - Contributor mode stays on `use_local_setup=true`, uploading local files over SSH for test runs.
 
 If you manually run Terraform to test local setup changes, pass:

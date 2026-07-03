@@ -82,7 +82,7 @@ Some terminals truncate long lines when copying. If your token isn't being accep
    ```bash
    nano ~/token.txt
    ```
-   `nano` will word-wrap properly. Does it match what you see in terminal? If it's longer in `nano`, your terminal was truncating it — use the full value from `nano`.
+   `nano` will word-wrap properly. Does it match what you see in terminal? If it's longer in `nano`, your terminal was truncating it, so use the full value from `nano`.
 
 4. **Still not working?** Open a [GitHub issue](https://github.com/learntocloud/linux-ctfs/issues) with the output of `wc -c ~/token.txt`.
 

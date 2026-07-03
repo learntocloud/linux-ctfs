@@ -299,7 +299,7 @@ def export_certificate(state: CtfState, github_username: str | None) -> int:
     console.print("  3. Paste the token below")
     console.print("")
     console.print("--- BEGIN L2C CTF TOKEN ---")
-    console.print(token)
+    console.print(token, soft_wrap=True)
     console.print("--- END L2C CTF TOKEN ---")
     console.print("")
     return 0

@@ -7,7 +7,7 @@
 3. An Azure account with an active subscription
 
 > [!NOTE]  
-> If you have an Azure Student account, you may encounter errors. See [this workaround](https://github.com/g-now-zero/l2c-guides/blob/main/posts/ctf-azure-spot-instances-guide.md).
+> If you have an Azure Student account, you may encounter errors. See the [Azure Student Plan Workaround](#azure-student-plan-workaround) below. If that doesn't resolve it, see [this additional workaround](https://github.com/g-now-zero/l2c-guides/blob/main/posts/ctf-azure-spot-instances-guide.md).
 
 ## Getting Started
 
@@ -50,6 +50,28 @@ Defaults for this lab:
 Use the full Azure troubleshooting steps here:
 - [Azure: SkuNotAvailable / Capacity errors](../TROUBLESHOOTING.md#azure-skunotavailable--capacity-errors)
 - [Azure: Quota limit errors](../TROUBLESHOOTING.md#azure-quota-limit-errors)
+
+
+#### Azure Student Plan Workaround
+ 
+If you're on an Azure Student subscription, these errors are often caused by a policy restricting which regions you're allowed to deploy into, rather than an actual capacity issue.
+ 
+1. In the [Azure Portal](https://portal.azure.com), search for **Policy** and open it.
+2. On the left, select **Assignments**.
+3. Select **Allowed resource deployment regions** to see the regions your subscription is allowed to deploy into:
+    ![Allowed regions policy assignment](images/azure_allowed_regions.png)
+4. `Standard_B1s` is an older SKU that's gradually being replaced by `Standard_B2ts_v2`. Before changing the region and VM size in the `.tf` file, check whether the new SKU is actually available (and not restricted) in your target region:
+```sh
+az vm list-skus -l spaincentral -s Standard_B2ts_v2 -o table
+```
+
+```text
+ResourceType     Locations     Name              Zones    Restrictions
+---------------  ------------  ----------------  -------  --------------------------------------------------------------------------
+virtualMachines  SpainCentral  Standard_B2ts_v2  1,2,3    NotAvailableForSubscription, type: Zone, locations: SpainCentral, zones: 3
+```
+ 
+In this example, `Standard_B2ts_v2` is only unavailable in Zone 3 of Spain Central, every other zone is fine, so it's safe to switch the region and VM size to this combination.
 
 4. Note the `public_ip_address` output—you'll use this to connect.
 

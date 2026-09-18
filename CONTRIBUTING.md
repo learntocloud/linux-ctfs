@@ -112,6 +112,26 @@ If you use an AI coding assistant with skills, use prompts like:
 
 See `.github/skills/ctf-testing/SKILL.md` for the agent workflow.
 
+## Maintenance Reviews
+
+For periodic maintenance or a pre-release review, use the
+[review-lab-maintenance skill](.github/skills/review-lab-maintenance/SKILL.md).
+Example prompts:
+
+- `Review lab maintenance across all providers`
+- `Review AWS lab maintenance`
+- `Review release delivery and dependency maintenance`
+
+This is a read-only, evidence-backed review of compatibility, dependencies,
+image lifecycle, release delivery, challenge and verification behavior, and
+documentation drift. It reports recommendations without changing files or cloud
+resources, running lab scripts, or disclosing challenge solutions.
+
+Maintenance reviews complement rather than replace `ctf-testing`. Static review
+cannot prove live behavior, and contributor-mode tests do not validate published
+release assets or the learner release deployment path. Live testing requires a
+separate request.
+
 ## Deployment Modes
 
 Most contributors only need to know this:

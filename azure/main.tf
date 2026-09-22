@@ -5,7 +5,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 4.55.0" # Minimum version that supports azurerm_virtual_machine_power action
+      version = "~> 5.6"
     }
     null = {
       source  = "hashicorp/null"
@@ -147,7 +147,8 @@ LINUX_CTFS_SETUP
 
 provider "azurerm" {
   features {}
-  subscription_id = var.subscription_id
+  subscription_id                 = var.subscription_id
+  resource_provider_registrations = "core"
 }
 
 # Create a resource group

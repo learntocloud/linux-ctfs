@@ -1,110 +1,115 @@
 ---
 name: review-lab-maintenance
-description: Review Linux CTF maintenance across AWS, Azure, and GCP. Use when asked to assess Terraform and provider compatibility, cloud CLI changes, Python and uv dependencies, image lifecycle, release delivery, or lab documentation drift. Produce an evidence-backed maintainer report without modifying files or cloud resources.
+description: Check the Linux CTF for version and deprecation drift across AWS, Azure, and GCP. Use when asked whether Terraform, providers, cloud CLI commands, base VM images, or Python/uv pins need upgrading. Produce a short evidence-backed drift report without modifying files or cloud resources.
 ---
 
 # Review Lab Maintenance
 
-Review the lab for changes maintainers should investigate, not for ways to solve
-the learner challenges. Default to all three clouds unless the user narrows scope.
-Use this review for periodic maintenance or before releases; use `ctf-testing`
-for separately authorized deployment and live challenge validation.
+Answer one question: **does anything pinned in this repository need to be
+upgraded or changed?** Cover Terraform and providers, cloud CLI commands, base
+VM images, and Python/uv. Default to all three clouds unless the user narrows
+scope.
+
+This is a drift check, not an audit. Challenge correctness, verification logic,
+release packaging, and documentation accuracy are out of scope — use
+`ctf-testing` for live validation of those.
 
 ## Guardrails
 
-- Report only. Do not edit files, upgrade or install dependencies, deploy or
-  destroy infrastructure, change cloud resources, or create issues or PRs.
-- Do not run setup, bootstrap, challenge test, or deployment scripts, or invoke
-  the learner `verify` command. Inspect them as source; live verification
-  requires a separately authorized task.
-- Do not run Terraform init, plan, apply, or destroy, or authenticate to cloud
-  accounts as part of this review. Keep local checks non-mutating.
-- Preserve intentional challenge mechanics, permissions, and misconfigurations.
-  Establish each challenge's intended behavior from the learner guide and
-  implementation before flagging it as a problem. An unclear boundary is a
-  question to investigate, not an instruction to fix it or make it easier.
-- Do not reproduce flags, solution commands, or extra hints in reports or
-  learner-facing documentation. Keep solution commands only in
+- Report only. Do not edit files, upgrade dependencies, run Terraform
+  (`init`/`plan`/`apply`/`destroy`), authenticate to any cloud, or run setup,
+  bootstrap, or test scripts. Read them as source.
+- Do not recommend an upgrade merely because a newer version exists. Every
+  recommendation needs a concrete reason: a breaking change in the allowed
+  range, a removed or deprecated CLI command, an end-of-support date, or a
+  fixed bug that affects this lab.
+- Do not reproduce flags or solution commands from `setup/` or
   `.github/skills/ctf-testing/test_ctf_challenges.sh`.
-- Do not inspect or disclose credentials, private keys, Terraform state, or
-  generated completion tokens. Use public documentation queries without
-  repository secrets or private code.
-- Do not recommend an upgrade merely because a newer version exists. Explain
-  the concrete compatibility, support, reliability, or learner-experience benefit.
 
-## Review Process
+## Step 1 — Read the current pins
 
-1. Read the root `README.md`, `CONTRIBUTING.md`, and the selected providers'
-   `README.md` files. Identify prerequisites, challenge requirements, the
-   documented learner journey, and cleanup guidance. Use repository-relative
-   paths, never machine-specific paths.
-2. Inventory the selected providers' `main.tf` files, `ctf_setup.sh`, `setup/`,
-   `verify/`, and `.github/workflows/`. Read the existing `ctf-testing` skill and
-   inspect its scripts as source without executing them.
-   Record declared version constraints and dependency sources, including Python,
-   uv installation, Python build/runtime dependencies, OS packages, and images.
-   Distinguish declared versions, unpinned dependencies, and versions that cannot
-   be determined; do not assume an installed local tool represents a learner's
-   environment.
-3. Review the areas below against the actual implementation. Follow shared
-   helpers and callers so a finding is not based on an isolated line.
-4. Trace both deployment modes separately:
-   - Learner release mode: release packaging and asset names, release selection,
-     download and checksum handling, extraction, bootstrap, and readiness checks.
-   - Contributor mode: local package creation, upload, bootstrap, readiness, and
-     the behavior exercised by `ctf-testing`.
-   Passing contributor-mode tests does not establish that published release
-   assets or the learner release deployment path work. Inspect
-   `.github/workflows/release-setup.yml` and provider consumers together.
-5. Verify time-sensitive claims against current official documentation, release
-   notes, migration guides, or lifecycle notices. Check applicability to the
-   repository's version constraints, cloud, and configuration. Cite source URLs,
-   relevant release or retirement dates, and the date checked. If sources are
-   unavailable or inconclusive, disclose the gap instead of asserting a change.
-6. Return the report in the conversation. Do not create a report file unless
-   requested. Separate static evidence from behavior requiring live verification.
+Read every surface below from the repository and record the literal pin you
+find. This table is a map of where pins live, not a record of their values;
+read the current value each time. Line numbers drift, so search for the field
+rather than jumping to a line.
 
-## Review Areas
+A surface that turns out to be unpinned, or a provider used but never declared
+in `required_providers`, is itself worth reporting.
 
-| Area | Inspect |
-|------|---------|
-| Terraform | Terraform/provider constraints, deprecated resources and arguments, breaking changes applicable to allowed versions, resource wiring, and deployment/teardown assumptions. |
-| Cloud CLIs | Commands and flags used by scripts and guides, authentication prerequisites, output parsing, pagination, exit handling, and documented CLI changes that affect these uses. |
-| Dependencies | Local tools, VM image and OS support, package repositories, bootstrap packages and downloads, Python/uv compatibility, Python dependency constraints, architecture assumptions, and reproducibility. |
-| Release delivery | Agreement between packaged contents and bootstrap expectations, release selection, checksums, failure propagation, readiness markers, and differences between release and contributor modes. |
-| Challenge behavior | Whether `setup/` prepares the documented challenges, tests cover actual acceptance criteria without weakening them, and challenge services and required filesystem state survive reboot. |
-| Verification | Whether `verify/`, learner documentation, and test expectations agree on challenge counts, progress, timer start/freeze behavior, persistence, username handling, and certificate/token format. Do not print tokens or flag values. |
-| Documentation | Whether prerequisites, commands, paths, expected results, troubleshooting markers, and cleanup guidance agree with implementation. Compare clouds for unintended drift without requiring identical provider-specific designs. |
-| Maintenance coverage | Whether CI and contributor checks cover changed languages and packaging, what the existing tests establish, and which release, reboot, or cleanup behaviors still require live verification. |
+| Surface | What to read |
+|---------|--------------|
+| Terraform core | `required_version` in the `terraform` block of each provider's `main.tf` |
+| Providers | every entry in `required_providers` across `aws/`, `azure/`, and `gcp/main.tf`, plus any provider referenced by a resource but not declared |
+| Azure VM extension | `type_handler_version` on the `azurerm_virtual_machine_extension` resource |
+| Base image (AWS) | the `name` filter on the `aws_ami` data source |
+| Base image (Azure) | `source_image_reference` publisher, offer, sku, and version |
+| Base image (GCP) | the boot disk `image` in `gcp/main.tf` |
+| Python | `requires-python` in `setup/pyproject.toml` and `verify/pyproject.toml` |
+| Python runtime install | the version passed to `uv python install` and `--python` in `ctf_setup.sh` |
+| uv | how `ctf_setup.sh` installs uv, and whether that installer is pinned |
+| Python deps | the `dependencies` list in `verify/pyproject.toml` |
+| CI actions | `uses:` refs in `.github/workflows/*.yml`, and whether they are SHA-pinned |
 
-Trace setup through Terraform, bootstrap, Python provisioning, verification,
-tests, and cleanup. Include provider-specific readiness mechanisms and shared
-helpers rather than treating Terraform alone as the setup workflow. A successful
-static check does not prove deployment, connectivity, challenge completion,
-certificate generation, reboot persistence, or cleanup works.
+Also collect every `aws`, `az`, and `gcloud` invocation from the provider
+`README.md` files, `TROUBLESHOOTING.md`, and any shell scripts. These are the
+commands a learner actually runs.
+
+## Step 2 — Look up current versions
+
+Use deterministic sources, not recollection. Record the date checked.
+
+```bash
+# Terraform core
+gh api repos/hashicorp/terraform/releases/latest --jq .tag_name
+
+# Providers (substitute each provider source found in Step 1)
+curl -s https://registry.terraform.io/v1/providers/hashicorp/aws | jq -r .version
+
+# Python deps (substitute each dependency found in Step 1)
+curl -s https://pypi.org/pypi/rich/json | jq -r .info.version
+```
+
+For anything without an API, use the official changelog or lifecycle page:
+provider `CHANGELOG.md` on GitHub, the Ubuntu release cycle page for whichever
+LTS the images pin, and the AWS CLI, Azure CLI, and gcloud release notes for
+removed or deprecated commands and flags.
+
+## Step 3 — Decide whether the gap matters
+
+For each surface where the pin trails current, check whether the delta actually
+affects this lab:
+
+- **Terraform and providers:** does the allowed range already admit the new
+  version? A `~>` or `>=` constraint that silently picks up a major release with
+  breaking changes is more urgent than a trailing lower bound. Check the
+  provider changelog for breaking changes, removed arguments, and deprecations
+  touching the resources this repo declares.
+- **Cloud CLIs:** has a command, subcommand, flag, or output field used in the
+  READMEs been removed, renamed, or deprecated? An unchanged command is a
+  non-finding.
+- **Base images:** is the pinned Ubuntu LTS still in standard support, and do
+  the image names and filters still resolve? Note upcoming end-of-support dates.
+- **Python and uv:** is the pinned Python still supported, and do the dependency
+  lower bounds still install cleanly on it?
+
+Anything you cannot determine is a coverage gap, not a finding.
 
 ## Report Format
 
-Start with the review date, scope, and a short overall assessment. Then provide
-only actionable findings, ordered by learner impact and urgency:
+Open with the date checked and a one-line verdict. **If nothing needs changing,
+say so and stop** — do not pad the table.
 
-| Priority | Evidence status | Cloud or shared component | Finding and learner impact | Repository evidence | Official source | Suggested action |
-|----------|-----------------|---------------------------|----------------------------|---------------------|-----------------|------------------|
+Then one row per surface that needs action:
 
-- **Priority:** High for likely blockers or imminent support deadlines; Medium
-  for credible reliability or maintenance risks; Low for minor documentation or
-  maintainability issues. Explain the priority rather than relying on the label.
-- **Evidence status:** Confirmed problem, upcoming lifecycle risk, or needs live
-  verification. Use confirmed only when the available evidence establishes it.
-- **Evidence:** Cite repository `path:line` references and applicable official
-  URLs with dates. For purely internal inconsistencies, mark the official source
-  as not applicable. Separate observed facts from inferred impact, and cite
-  sensitive challenge logic by location without reproducing solutions.
-- **Suggested action:** Give a bounded next step and how a maintainer could
-  verify it. Do not silently turn the recommendation into an implementation.
+| Priority | Surface | Current pin | Current release | Why it matters | Evidence | Suggested action |
+|----------|---------|-------------|-----------------|----------------|----------|------------------|
 
-Finish with coverage gaps: areas not reviewed, unavailable sources or tools, and
-specific checks requiring an authorized live lab. Distinguish contributor-mode
-checks available through `ctf-testing` from release-mode checks needing published
-assets. If there are no actionable findings, say so; do not invent recommendations
-to fill the table.
+- **Priority:** High for a breaking change already admitted by the constraint, a
+  removed CLI command, or a support deadline inside 6 months. Medium for a
+  trailing pin with a concrete benefit. Low for cosmetic or maintainability
+  drift.
+- **Evidence:** repository `path:line` plus the official URL and its date.
+- **Suggested action:** the bounded edit, and how to verify it — typically a
+  `terraform plan` or a `ctf-testing` run, which this skill does not perform.
+
+Close with anything you could not check and why.

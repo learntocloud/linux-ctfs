@@ -28,26 +28,27 @@ release packaging, and documentation accuracy are out of scope — use
 
 ## Step 1 — Read the current pins
 
-Read every surface below and record the literal pin. Re-check the paths rather
-than trusting this table; line numbers drift.
+Read every surface below from the repository and record the literal pin you
+find. This table is a map of where pins live, not a record of their values;
+read the current value each time. Line numbers drift, so search for the field
+rather than jumping to a line.
 
-| Surface | Where | Pin as last reviewed |
-|---------|-------|----------------------|
-| Terraform core | `azure/main.tf` `required_version` | `>= 1.14.0` |
-| Terraform core | `aws/main.tf`, `gcp/main.tf` | no `required_version` block |
-| azurerm provider | `azure/main.tf` `required_providers` | `>= 4.55.0` |
-| aws provider | `aws/main.tf` `required_providers` | `~> 6.0` |
-| google provider | `gcp/main.tf` `required_providers` | not declared (implicit latest) |
-| null provider | all three `main.tf` | `~> 3.0` |
-| Azure VM extension | `azure/main.tf` `type_handler_version` | `2.1` |
-| Base image (AWS) | `aws/main.tf` `aws_ami` name filter | `ubuntu-noble-24.04-amd64-server-*` |
-| Base image (Azure) | `azure/main.tf` `source_image_reference` | Canonical / `ubuntu-24_04-lts` / `server` |
-| Base image (GCP) | `gcp/main.tf` `boot_disk` image | `ubuntu-os-cloud/ubuntu-2404-lts-amd64` |
-| Python | `setup/pyproject.toml`, `verify/pyproject.toml` | `requires-python >= 3.13` |
-| Python runtime install | `ctf_setup.sh` `uv python install` | `3.13` |
-| uv | `ctf_setup.sh` installer | `https://astral.sh/uv/install.sh` (unpinned) |
-| Python deps | `verify/pyproject.toml` | `pyfiglet >= 1.0.2`, `rich >= 13.9.0` |
-| CI actions | `.github/workflows/*.yml` | SHA-pinned with version comments |
+A surface that turns out to be unpinned, or a provider used but never declared
+in `required_providers`, is itself worth reporting.
+
+| Surface | What to read |
+|---------|--------------|
+| Terraform core | `required_version` in the `terraform` block of each provider's `main.tf` |
+| Providers | every entry in `required_providers` across `aws/`, `azure/`, and `gcp/main.tf`, plus any provider referenced by a resource but not declared |
+| Azure VM extension | `type_handler_version` on the `azurerm_virtual_machine_extension` resource |
+| Base image (AWS) | the `name` filter on the `aws_ami` data source |
+| Base image (Azure) | `source_image_reference` publisher, offer, sku, and version |
+| Base image (GCP) | the boot disk `image` in `gcp/main.tf` |
+| Python | `requires-python` in `setup/pyproject.toml` and `verify/pyproject.toml` |
+| Python runtime install | the version passed to `uv python install` and `--python` in `ctf_setup.sh` |
+| uv | how `ctf_setup.sh` installs uv, and whether that installer is pinned |
+| Python deps | the `dependencies` list in `verify/pyproject.toml` |
+| CI actions | `uses:` refs in `.github/workflows/*.yml`, and whether they are SHA-pinned |
 
 Also collect every `aws`, `az`, and `gcloud` invocation from the provider
 `README.md` files, `TROUBLESHOOTING.md`, and any shell scripts. These are the
@@ -61,17 +62,17 @@ Use deterministic sources, not recollection. Record the date checked.
 # Terraform core
 gh api repos/hashicorp/terraform/releases/latest --jq .tag_name
 
-# Providers (substitute azurerm / aws / google / null)
+# Providers (substitute each provider source found in Step 1)
 curl -s https://registry.terraform.io/v1/providers/hashicorp/aws | jq -r .version
 
-# Python deps
+# Python deps (substitute each dependency found in Step 1)
 curl -s https://pypi.org/pypi/rich/json | jq -r .info.version
 ```
 
 For anything without an API, use the official changelog or lifecycle page:
-provider `CHANGELOG.md` on GitHub, the Ubuntu release cycle page for 24.04 LTS
-support dates, and the AWS CLI, Azure CLI, and gcloud release notes for removed
-or deprecated commands and flags.
+provider `CHANGELOG.md` on GitHub, the Ubuntu release cycle page for whichever
+LTS the images pin, and the AWS CLI, Azure CLI, and gcloud release notes for
+removed or deprecated commands and flags.
 
 ## Step 3 — Decide whether the gap matters
 
@@ -86,8 +87,8 @@ affects this lab:
 - **Cloud CLIs:** has a command, subcommand, flag, or output field used in the
   READMEs been removed, renamed, or deprecated? An unchanged command is a
   non-finding.
-- **Base images:** is 24.04 LTS still in standard support, and do the image
-  names and filters still resolve? Note upcoming end-of-support dates.
+- **Base images:** is the pinned Ubuntu LTS still in standard support, and do
+  the image names and filters still resolve? Note upcoming end-of-support dates.
 - **Python and uv:** is the pinned Python still supported, and do the dependency
   lower bounds still install cleanly on it?
 

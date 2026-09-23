@@ -8,6 +8,7 @@ This is an **educational Capture The Flag (CTF)** project designed to teach Linu
 
 ```
 ├── ctf_setup.sh              # VM setup script (creates all challenges)
+├── AGENTS.md                 # Agent guidance: don't hand learners the answers
 ├── README.md                 # Challenge descriptions for learners
 ├── aws/                      # AWS Terraform deployment
 ├── azure/                    # Azure Terraform deployment

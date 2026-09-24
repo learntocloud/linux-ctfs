@@ -56,7 +56,7 @@ CHALLENGE_HINTS = [
     "The flag is encoded. Look for encoded files and use 'base64 -d' to decode.",
     "SSH configurations often hide secrets. Explore ~/.ssh directory thoroughly.",
     "Modern Ubuntu DNS is usually managed by systemd-resolved. Inspect /etc/resolv.conf, resolvectl status, and /etc/systemd/resolved.conf.d/.",
-    "Monitor file creation with tools like inotifywait, or try creating a file in ctf_challenges.",
+    "Run scp from your own computer, not the VM. The destination must be the ctf_challenges directory (e.g. user@ip:~/ctf_challenges/), and the file must be new - overwriting doesn't count.",
     "Web servers serve content from specific directories. Check what ports nginx is listening on.",
     "Network traffic can carry hidden messages. Look at ping patterns with tcpdump.",
     "Cron jobs run on schedules. Check /etc/cron.d/, /etc/crontab, and user crontabs with 'crontab -l'.",

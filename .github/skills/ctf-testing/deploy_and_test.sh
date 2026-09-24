@@ -475,6 +475,29 @@ _copy_test_script() {
     _sshpass_cmd scp ${SSH_OPTS} "${TEST_SCRIPT}" "${SSH_USER}@${ip}:/tmp/test_ctf_challenges.sh"
 }
 
+# Trigger challenge 10 the way learners do: scp a new file from this machine
+# into ~/ctf_challenges. test_ctf_challenges.sh then checks the flag was set.
+# Arguments:
+#   $1 - IP address of the VM
+_upload_challenge_10_file() {
+    local ip="$1"
+    local upload_file
+
+    _log INFO "Uploading challenge 10 test file via scp..."
+    # Monitor waits for the setup marker plus a delay before inotifywait starts
+    # shellcheck disable=SC2086
+    _sshpass_cmd ssh ${SSH_OPTS} "${SSH_USER}@${ip}" \
+        'for _ in $(seq 1 30); do pgrep -x inotifywait >/dev/null && break; sleep 2; done
+         : > /tmp/.ctf_upload_triggered; rm -f ~/ctf_challenges/scp_upload_test' || true
+
+    upload_file=$(mktemp)
+    echo "challenge 10 scp upload test" > "${upload_file}"
+    # shellcheck disable=SC2086
+    _sshpass_cmd scp ${SSH_OPTS} "${upload_file}" "${SSH_USER}@${ip}:~/ctf_challenges/scp_upload_test" \
+        || _log WARN "scp upload for challenge 10 failed"
+    rm -f "${upload_file}"
+}
+
 # Copy test script to VM and execute it
 # Arguments:
 #   $1 - Cloud provider name
@@ -491,6 +514,7 @@ _run_tests() {
     fi
 
     _copy_test_script "${provider}" "${ip}"
+    _upload_challenge_10_file "${ip}"
 
     _log INFO "Running tests on ${provider} VM (${ip})..."
     echo ""

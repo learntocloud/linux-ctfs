@@ -16,8 +16,19 @@ done
 sleep 10
 touch /tmp/.ctf_upload_triggered 2>/dev/null || true
 chmod 666 /tmp/.ctf_upload_triggered 2>/dev/null || true
-inotifywait -m -e create --format '%f' "$DIRECTORY" | while read FILE
+LAST_TRIGGER=0
+inotifywait -m -e create --format '%f' "$DIRECTORY" | while read -r FILE
 do
+    # Ignore editor temp files (vim swap/backup/write-test files)
+    case "$FILE" in
+        .*.sw? | *~ | 4913) continue ;;
+    esac
+    # Show one banner per upload burst (e.g. scp of several files)
+    NOW=$(date +%s)
+    if [ $((NOW - LAST_TRIGGER)) -lt 5 ]; then
+        continue
+    fi
+    LAST_TRIGGER=$NOW
     {
         printf '\\n========== CHALLENGE 10: REMOTE UPLOAD =========='
         printf '\\nA new file was uploaded to %s.' "$DIRECTORY"

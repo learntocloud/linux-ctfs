@@ -408,37 +408,27 @@ else
     FLAGS[9]=""
 fi
 
-# Challenge 10: File Monitoring
-# Hint: "Try creating a file in ctf_challenges"
-echo "Challenge 10: File Monitoring"
+# Challenge 10: Remote Upload
+# Hint: "Run scp from your own computer into ~/ctf_challenges/"
+# deploy_and_test.sh uploads a file with scp from the local machine before this
+# script runs, so the flag should already be in the trigger file.
+echo "Challenge 10: Remote Upload"
 if ! systemctl is-active ctf-monitor-directory.service &>/dev/null; then
     _fail "Challenge 10: Monitor service not running - SETUP BUG"
     FLAGS[10]=""
 else
-    # Wait for inotifywait process to actually be running (service starts but has internal delay)
-    echo "  Waiting for inotifywait to be ready..."
-    for _ in {1..15}; do
-        pgrep -f "inotifywait.*ctf_challenges" &>/dev/null && break
-        sleep 2
-    done
-    
-    true > /tmp/.ctf_upload_triggered 2>/dev/null || true
-    TRIGGER="/home/ctf_user/ctf_challenges/test_$$"
-    touch "${TRIGGER}"
-    sleep 3
-    
     FLAG_10=""
     for _ in {1..10}; do
         FLAG_10=$(grep -ao 'CTF{[^}]*}' /tmp/.ctf_upload_triggered 2>/dev/null | head -1) || true
         [[ -n "${FLAG_10}" ]] && break
         sleep 2
     done
-    rm -f "${TRIGGER}"
+    rm -f /home/ctf_user/ctf_challenges/scp_upload_test
     
     if [[ -n "${FLAG_10}" ]]; then
         _verify_flag 10 "${FLAG_10}" "Solved challenge 10" "Challenge 10: Found flag but verify rejected it - SETUP BUG"
     else
-        _fail "Challenge 10: File monitoring did not trigger - SETUP BUG"
+        _fail "Challenge 10: scp upload did not trigger the flag - SETUP BUG"
         FLAGS[10]=""
     fi
 fi

@@ -32,7 +32,7 @@ CHALLENGE_NAMES = [
     "Permission Analysis",
     "Service Discovery",
     "Encoding Challenge",
-    "SSH Secrets",
+    "SSH Key Authentication",
     "DNS Inspection",
     "Remote Upload Detection",
     "Web Configuration",
@@ -51,20 +51,20 @@ CHALLENGE_HINTS = [
     "Use the 'find' command to search for files. Try: find ~ -name '*.txt' 2>/dev/null",
     "Large log files can hide secrets. Check /var/log and use 'tail' to see the end of files.",
     "Investigate other users on the system. Check /etc/passwd or use 'getent passwd'.",
-    "Look for files with unusual permissions. Try: find / -perm 777 2>/dev/null",
+    "Look for files with unusual permissions. Try: find / -type f -perm 777 2>/dev/null",
     "What services are running? Use 'netstat -tulpn' or 'ss -tulpn' to find listening ports.",
     "The flag is encoded. Look for encoded files and use 'base64 -d' to decode.",
-    "SSH configurations often hide secrets. Explore ~/.ssh directory thoroughly.",
-    "Modern Ubuntu DNS is usually managed by systemd-resolved. Inspect /etc/resolv.conf, resolvectl status, and /etc/systemd/resolved.conf.d/.",
-    "Run scp from your own computer, not the VM. The destination must be the ctf_challenges directory (e.g. user@ip:~/ctf_challenges/), and the file must be new - overwriting doesn't count.",
-    "Web servers serve content from specific directories. Check what ports nginx is listening on.",
+    "On your own computer, create a key pair with 'ssh-keygen', install the public key on the VM with 'ssh-copy-id', then log in with the key. Watch the login banner.",
+    "Ubuntu DNS is managed by systemd-resolved. 'resolvectl status' shows which server handles which domain. Once you know the domain, query its TXT record with 'dig' or 'resolvectl query'.",
+    "Run scp from your own computer, not the VM - files created on the VM itself don't count. The destination must be the ctf_challenges directory (e.g. user@ip:~/ctf_challenges/), and the file must be new. Missed the message? Log in again.",
+    "Check what port nginx is listening on with 'ss -tlnp', then find its site config in /etc/nginx/. Move it to the standard HTTP port and reload nginx.",
     "Network traffic can carry hidden messages. Look at ping patterns with tcpdump.",
-    "Cron jobs run on schedules. Check /etc/cron.d/, /etc/crontab, and user crontabs with 'crontab -l'.",
+    "Cron jobs run on schedules. Check /etc/cron.d/, /etc/crontab, and 'crontab -l'. Read the script a job runs and work out when its output exists.",
     "Process info lives in /proc. Each process has a directory with its environment in /proc/PID/environ.",
     "Archives can be nested. Use 'tar -xzf' or 'gunzip' to extract layers. Check file types with 'file' command.",
-    "Symlinks can chain together. Use 'readlink -f' to find the final target, or 'ls -la' to see link targets.",
-    "Bash stores command history in ~/.bash_history. Other users may have history files too.",
-    "A disk image file exists on the system. Try mounting it with 'sudo mount -o loop <image> <mountpoint>' to explore its contents.",
+    "Symlinks can chain together. Use 'readlink -f' to find the final target, or 'ls -la' to see each hop. The path can matter more than the contents.",
+    "Bash stores command history in ~/.bash_history. Other users' history files are private, but you have sudo. Look for secrets typed on the command line.",
+    "A disk image file exists on the system. Mount it with 'sudo mount -o loop <image> <mountpoint>' and explore it - including hidden files.",
 ]
 
 
@@ -220,7 +220,7 @@ def export_certificate(state: CtfState, github_username: str | None) -> int:
     console.print("  Challenges Completed:")
     console.print("   * Hidden File Discovery      * Service Discovery")
     console.print("   * Basic File Search          * Encoding Challenge")
-    console.print("   * Log Analysis               * SSH Secrets")
+    console.print("   * Log Analysis               * SSH Key Authentication")
     console.print("   * User Investigation         * DNS Inspection")
     console.print("   * Permission Analysis        * Remote Upload Detection")
     console.print("   * Web Configuration          * Network Traffic Analysis")
@@ -249,7 +249,7 @@ def export_certificate(state: CtfState, github_username: str | None) -> int:
   Challenges Completed:
    * Hidden File Discovery      * Service Discovery
    * Basic File Search          * Encoding Challenge
-   * Log Analysis               * SSH Secrets
+   * Log Analysis               * SSH Key Authentication
    * User Investigation         * DNS Inspection
    * Permission Analysis        * Remote Upload Detection
    * Web Configuration          * Network Traffic Analysis

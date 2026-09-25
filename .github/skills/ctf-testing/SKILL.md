@@ -67,8 +67,8 @@ Use this skill when the user asks things like:
    - If cleanup still fails, report the remaining resources clearly.
 5. **Report the result plainly.**
    - Include provider, mode, pass/fail result, cleanup status, and blocker if any.
-   - A successful basic run shows about 27 tests passing.
-   - A successful full run includes a second pass after reboot with 5 service checks and 1 progress persistence check.
+   - A successful basic run shows about 41 tests passing, including shortcut regression checks.
+   - A successful full run includes a second pass after reboot with 8 service checks and 1 progress persistence check.
    - Summary line: `RESULT: PASS (<providers>)` or `RESULT: FAIL (<providers>)`.
 
 ## Failure Handling

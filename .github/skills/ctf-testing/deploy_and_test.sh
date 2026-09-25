@@ -488,7 +488,7 @@ _upload_challenge_10_file() {
     # shellcheck disable=SC2086
     _sshpass_cmd ssh ${SSH_OPTS} "${SSH_USER}@${ip}" \
         'for _ in $(seq 1 30); do pgrep -x inotifywait >/dev/null && break; sleep 2; done
-         : > /tmp/.ctf_upload_triggered; rm -f ~/ctf_challenges/scp_upload_test' || true
+         rm -f ~/ctf_challenges/scp_upload_test' || true
 
     upload_file=$(mktemp)
     echo "challenge 10 scp upload test" > "${upload_file}"
@@ -496,6 +496,29 @@ _upload_challenge_10_file() {
     _sshpass_cmd scp ${SSH_OPTS} "${upload_file}" "${SSH_USER}@${ip}:~/ctf_challenges/scp_upload_test" \
         || _log WARN "scp upload for challenge 10 failed"
     rm -f "${upload_file}"
+}
+
+# Set up SSH key authentication from the local machine and log in with the key
+# (challenge 8). The key login is what the VM rewards.
+# Arguments:
+#   $1 - IP address of the VM
+_setup_challenge_8_key_login() {
+    local ip="$1"
+    local key_dir
+
+    _log INFO "Setting up SSH key authentication for challenge 8..."
+    key_dir=$(mktemp -d)
+    ssh-keygen -q -t ed25519 -N '' -f "${key_dir}/id_ed25519"
+    # Same steps as ssh-copy-id, without needing a local ~/.ssh directory
+    # shellcheck disable=SC2086
+    _sshpass_cmd ssh ${SSH_OPTS} "${SSH_USER}@${ip}" \
+        'umask 077; mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys' < "${key_dir}/id_ed25519.pub" \
+        || _log WARN "installing the public key for challenge 8 failed"
+    # shellcheck disable=SC2086
+    ssh ${SSH_OPTS} -i "${key_dir}/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes -o PasswordAuthentication=no \
+        "${SSH_USER}@${ip}" true \
+        || _log WARN "key-based login for challenge 8 failed"
+    rm -rf "${key_dir}"
 }
 
 # Copy test script to VM and execute it
@@ -514,6 +537,7 @@ _run_tests() {
     fi
 
     _copy_test_script "${provider}" "${ip}"
+    _setup_challenge_8_key_login "${ip}"
     _upload_challenge_10_file "${ip}"
 
     _log INFO "Running tests on ${provider} VM (${ip})..."

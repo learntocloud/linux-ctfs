@@ -163,7 +163,7 @@ if [[ "${POST_REBOOT}" == true ]]; then
 
     echo "Verifying services survived reboot..."
 
-    for service in ctf-secret-service ctf-monitor-directory ctf-ping-message ctf-secret-process nginx; do
+    for service in ctf-secret-service ctf-monitor-directory ctf-ping-message ctf-secret-process ctf-dns ctf-ssh-key-watch auditd nginx; do
         if systemctl is-active "${service}" &>/dev/null; then
             _pass "${service} is running after reboot"
         else
@@ -231,6 +231,50 @@ if [[ -f /var/ctf/ctf_start_time ]]; then
     _pass "Timer starts after first numeric verify command"
 else
     _fail "Timer did not start after first numeric verify command"
+fi
+
+# ============================================================================
+# SHORTCUT REGRESSION CHECKS
+# ============================================================================
+# Each check guards against a way to grab a flag without the intended skill.
+_section "SHORTCUT REGRESSION CHECKS"
+
+_no_flag() {
+    local description="${1}"
+    local content="${2}"
+    if echo "${content}" | grep -q 'CTF{'; then
+        _fail "Shortcut open: ${description}"
+    else
+        _pass "Shortcut closed: ${description}"
+    fi
+}
+
+_no_flag "ch8 flag not planted in ~/.ssh" "$(grep -rah 'CTF{' /home/ctf_user/.ssh 2>/dev/null || true)"
+_no_flag "ch9 flag not in resolved config" "$(cat /etc/systemd/resolved.conf.d/* 2>/dev/null || true)"
+touch /home/ctf_user/ctf_challenges/local_touch_test
+LOCAL_IGNORED=false
+for _ in {1..10}; do
+    grep -q 'ignored local_touch_test' /var/log/monitor_directory.log 2>/dev/null && { LOCAL_IGNORED=true; break; }
+    sleep 1
+done
+rm -f /home/ctf_user/ctf_challenges/local_touch_test
+if [[ "${LOCAL_IGNORED}" == true ]]; then
+    _pass "Shortcut closed: ch10 local file creation is ignored"
+else
+    _fail "Shortcut open: ch10 local file creation was not rejected"
+fi
+_no_flag "ch11 flag not served on port 8083" "$(curl -s --connect-timeout 3 localhost:8083 2>/dev/null || true)"
+_no_flag "ch11 flag page not readable by ctf_user" "$(cat /var/www/ctf/index.html 2>/dev/null || true)"
+_no_flag "ch12 flag not in ping script or logs" "$(cat /usr/local/bin/ping_message.sh /var/log/ping_message.log 2>/dev/null; grep -o 'PATTERN: 0x[0-9a-f]*' /var/log/ping_message.log 2>/dev/null | cut -c12- | xxd -r -p 2>/dev/null || true)"
+_no_flag "ch13 flag not in cron files" "$(cat /etc/cron.d/* /usr/local/bin/ctf_status_report.sh 2>/dev/null || true)"
+_no_flag "ch14 flag not exposed by systemctl" "$(systemctl cat ctf-secret-process.service 2>/dev/null; systemctl show ctf-secret-process.service 2>/dev/null || true)"
+_no_flag "ch16 cat follow_me does not print the flag" "$(cat /home/ctf_user/ctf_challenges/follow_me 2>/dev/null || true)"
+_no_flag "ch17 history unreadable without sudo" "$(cat /home/old_admin/.bash_history 2>/dev/null || true)"
+_no_flag "ch18 disk image unreadable without sudo" "$(grep -ao 'CTF{[^}]*}' /opt/ctf_disk.img 2>/dev/null || true)"
+if getent hosts ubuntu.com >/dev/null 2>&1; then
+    _pass "Normal DNS resolution still works with the ch9 resolver"
+else
+    _fail "Normal DNS resolution broken by the ch9 resolver - SETUP BUG"
 fi
 
 # ============================================================================
@@ -341,8 +385,8 @@ echo "Challenge 6: Service Discovery"
 FLAG_6=""
 for port in $(ss -tulpn 2>/dev/null \
         | awk '/LISTEN/ {split($5,a,":"); print a[length(a)]}' \
-        | grep -vE '^(22|80|443|8083)$' \
-        | head -3); do
+        | grep -vE '^(22|53|54|80|443|8083)$' \
+        | sort -u); do
     FLAG_6=$(curl -s --connect-timeout 3 "localhost:${port}" 2>/dev/null \
         | grep -ao 'CTF{[^}]*}' \
         | head -1) || true
@@ -376,42 +420,44 @@ else
     FLAGS[7]=""
 fi
 
-# Challenge 8: SSH Secrets
-# Hint: "SSH configurations often hide secrets. Explore ~/.ssh thoroughly"
-echo "Challenge 8: SSH Secrets"
-FLAG_8=""
-while IFS= read -r -d '' f; do
-    FLAG_8=$(grep -ao 'CTF{[^}]*}' "${f}" 2>/dev/null | head -1) || true
-    [[ -n "${FLAG_8}" ]] && break
-done < <(find /home/ctf_user/.ssh -type f -print0 2>/dev/null)
+# Challenge 8: SSH Key Authentication
+# Hint: "Create a key pair, ssh-copy-id it, log in with the key, watch the banner"
+# deploy_and_test.sh performs the key setup and key login from the local machine
+# before this script runs; the login banner should now show the flag.
+echo "Challenge 8: SSH Key Authentication"
+FLAG_8=$(bash -lc true 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
 if [[ -n "${FLAG_8}" ]]; then
-    _verify_flag 8 "${FLAG_8}"
+    _verify_flag 8 "${FLAG_8}" "Solved challenge 8" "Challenge 8: Found flag but verify rejected it - SETUP BUG"
 else
-    _fail "Challenge 8: Could not find flag in .ssh directory"
+    _fail "Challenge 8: key login did not reveal the flag in the login banner - SETUP BUG"
     FLAGS[8]=""
 fi
 
 # Challenge 9: DNS Inspection
-# Hint: "Inspect systemd-resolved configuration safely"
+# Hint: "resolvectl status shows which server handles which domain; query its TXT record"
 echo "Challenge 9: DNS Inspection"
-DNS_DROP_IN="/etc/systemd/resolved.conf.d/ctf-dns.conf"
-if [[ -r "${DNS_DROP_IN}" ]]; then
-    FLAG_9=$(grep -ao 'CTF{[^}]*}' "${DNS_DROP_IN}" 2>/dev/null | head -1) || true
+DNS_DOMAIN=$(resolvectl status 2>/dev/null \
+    | grep -oE '~[a-z0-9.-]+' \
+    | grep -v '^~\.$' \
+    | tr -d '~' \
+    | head -1) || true
+if [[ -n "${DNS_DOMAIN}" ]]; then
+    FLAG_9=$(dig +short TXT "${DNS_DOMAIN}" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
     if [[ -n "${FLAG_9}" ]]; then
         _verify_flag 9 "${FLAG_9}" "Solved challenge 9" "Challenge 9: Found flag but verify rejected it - SETUP BUG"
     else
-        _fail "Challenge 9: DNS drop-in has no CTF flag - SETUP BUG"
+        _fail "Challenge 9: TXT lookup for ${DNS_DOMAIN} returned no flag - SETUP BUG"
         FLAGS[9]=""
     fi
 else
-    _fail "Challenge 9: DNS drop-in not readable - SETUP BUG"
+    _fail "Challenge 9: No routing domain found in resolvectl status - SETUP BUG"
     FLAGS[9]=""
 fi
 
 # Challenge 10: Remote Upload
 # Hint: "Run scp from your own computer into ~/ctf_challenges/"
 # deploy_and_test.sh uploads a file with scp from the local machine before this
-# script runs, so the flag should already be in the trigger file.
+# script runs, so the login banner should now show the flag.
 echo "Challenge 10: Remote Upload"
 if ! systemctl is-active ctf-monitor-directory.service &>/dev/null; then
     _fail "Challenge 10: Monitor service not running - SETUP BUG"
@@ -419,12 +465,12 @@ if ! systemctl is-active ctf-monitor-directory.service &>/dev/null; then
 else
     FLAG_10=""
     for _ in {1..10}; do
-        FLAG_10=$(grep -ao 'CTF{[^}]*}' /tmp/.ctf_upload_triggered 2>/dev/null | head -1) || true
+        FLAG_10=$(bash -lc true 2>/dev/null | grep 'Challenge 10' | grep -ao 'CTF{[^}]*}' | head -1) || true
         [[ -n "${FLAG_10}" ]] && break
         sleep 2
     done
     rm -f /home/ctf_user/ctf_challenges/scp_upload_test
-    
+
     if [[ -n "${FLAG_10}" ]]; then
         _verify_flag 10 "${FLAG_10}" "Solved challenge 10" "Challenge 10: Found flag but verify rejected it - SETUP BUG"
     else
@@ -434,24 +480,25 @@ else
 fi
 
 # Challenge 11: Web Configuration
-# Hint: "Check what ports nginx is listening on"
+# Hint: "Check nginx's port with ss, move it to the standard port, reload"
 echo "Challenge 11: Web Configuration"
-NGINX_PORT=$(grep -r 'listen' /etc/nginx/ 2>/dev/null \
-    | grep -oP 'listen\s+\K[0-9]+' \
-    | grep -v '^80$' \
-    | head -1) || true
-if [[ -n "${NGINX_PORT}" ]]; then
-    FLAG_11=$(curl -s "localhost:${NGINX_PORT}" 2>/dev/null \
+NGINX_SITE=$(grep -RlE 'listen\s+[0-9]+' /etc/nginx/sites-enabled/ 2>/dev/null | head -1) || true
+if [[ -n "${NGINX_SITE}" ]]; then
+    NGINX_SITE=$(readlink -f "${NGINX_SITE}")
+    echo 'CTFpassword123!' | sudo -S sed -i -E 's/listen(\s+)(\[::\]:)?8083/listen\1\280/' "${NGINX_SITE}" 2>/dev/null
+    echo 'CTFpassword123!' | sudo -S systemctl reload nginx 2>/dev/null || true
+    sleep 2
+    FLAG_11=$(curl -s "localhost:80" 2>/dev/null \
         | grep -ao 'CTF{[^}]*}' \
         | head -1) || true
     if [[ -n "${FLAG_11}" ]]; then
         _verify_flag 11 "${FLAG_11}"
     else
-        _fail "Challenge 11: Could not get flag from nginx"
+        _fail "Challenge 11: nginx on port 80 did not serve the flag"
         FLAGS[11]=""
     fi
 else
-    _fail "Challenge 11: Could not find nginx non-standard port"
+    _fail "Challenge 11: Could not find nginx site config"
     FLAGS[11]=""
 fi
 
@@ -479,18 +526,25 @@ else
 fi
 
 # Challenge 13: Cron Job Hunter
-# Hint: "Check /etc/cron.d/, /etc/crontab, and user crontabs"
+# Hint: "Check /etc/cron.d/; read the script a job runs and work out when its output exists"
 echo "Challenge 13: Cron Job Hunter"
 FLAG_13=""
-for dir in /etc/cron.d /etc/cron.daily /etc/cron.hourly; do
-    [[ -d "${dir}" ]] || continue
-    FLAG_13=$(grep -rh 'CTF{' "${dir}" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
-    [[ -n "${FLAG_13}" ]] && break
-done
+CRON_SCRIPT=$(grep -hvE '^\s*(#|$)' /etc/cron.d/* 2>/dev/null \
+    | awk 'NF >= 7 {print $7}' \
+    | grep '^/usr/local/' \
+    | head -1) || true
+if [[ -n "${CRON_SCRIPT}" && -r "${CRON_SCRIPT}" ]]; then
+    REPORT=$(grep -oP '^REPORT=\K\S+' "${CRON_SCRIPT}" | head -1) || true
+    for _ in {1..40}; do
+        FLAG_13=$(grep -ao 'CTF{[^}]*}' "${REPORT}" 2>/dev/null | head -1) || true
+        [[ -n "${FLAG_13}" ]] && break
+        sleep 2
+    done
+fi
 if [[ -n "${FLAG_13}" ]]; then
     _verify_flag 13 "${FLAG_13}"
 else
-    _fail "Challenge 13: Could not find flag in cron directories"
+    _fail "Challenge 13: Could not catch the cron job's output"
     FLAGS[13]=""
 fi
 
@@ -540,13 +594,11 @@ else
 fi
 
 # Challenge 16: Symbolic Sleuth
-# Hint: "Use 'readlink -f' to find the final target"
+# Hint: "Use 'readlink -f' to find the final target; the path can matter"
 echo "Challenge 16: Symbolic Sleuth"
 FLAG_16=""
 while IFS= read -r -d '' link; do
-    TARGET=$(readlink -f "${link}" 2>/dev/null) || true
-    [[ -r "${TARGET}" ]] || continue
-    FLAG_16=$(grep -ao 'CTF{[^}]*}' "${TARGET}" 2>/dev/null | head -1) || true
+    FLAG_16=$(readlink -f "${link}" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
     [[ -n "${FLAG_16}" ]] && break
 done < <(find /home/ctf_user/ctf_challenges -type l -print0 2>/dev/null)
 if [[ -n "${FLAG_16}" ]]; then
@@ -557,14 +609,16 @@ else
 fi
 
 # Challenge 17: History Mystery
-# Hint: "Bash stores history in ~/.bash_history. Other users may have history too"
+# Hint: "Other users' history files are private, but you have sudo"
 echo "Challenge 17: History Mystery"
 FLAG_17=""
 for home in /home/*; do
     user=$(basename "${home}")
     [[ "${user}" == "ctf_user" ]] && continue
-    [[ -r "${home}/.bash_history" ]] || continue
-    FLAG_17=$(grep -ao 'CTF{[^}]*}' "${home}/.bash_history" 2>/dev/null | head -1) || true
+    [[ -e "${home}/.bash_history" ]] || continue
+    FLAG_17=$(echo 'CTFpassword123!' | sudo -S cat "${home}/.bash_history" 2>/dev/null \
+        | grep -ao 'CTF{[^}]*}' \
+        | head -1) || true
     [[ -n "${FLAG_17}" ]] && break
 done
 if [[ -n "${FLAG_17}" ]]; then
@@ -597,6 +651,16 @@ if [[ -n "${DISK_IMG}" ]]; then
 else
     _fail "Challenge 18: No disk image found"
     FLAGS[18]=""
+fi
+
+SUFFIXES=$(for n in "${!FLAGS[@]}"; do
+    [[ "${n}" == "0" || -z "${FLAGS[${n}]}" ]] && continue
+    echo "${FLAGS[${n}]}" | grep -oE '_[0-9a-f]+\}$'
+done | sort)
+if [[ -n "${SUFFIXES}" && "$(echo "${SUFFIXES}" | wc -l)" == "$(echo "${SUFFIXES}" | sort -u | wc -l)" ]]; then
+    _pass "Every flag has its own random suffix"
+else
+    _fail "Flags share suffixes - one flag predicts the others"
 fi
 
 # ============================================================================

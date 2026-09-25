@@ -16,19 +16,19 @@ Test your Linux command line skills with 18 progressive Capture The Flag challen
 | 3 | The Largest Log | Find and read an unusually large file in `/var/log` | ⭐⭐ | File sizes, log navigation |
 | 4 | The User Detective | Another user has a flag in their login configuration | ⭐⭐ | User management, UIDs |
 | 5 | The Permissive File | Find a suspicious file with wide-open permissions under `/opt` | ⭐⭐ | Permissions |
-| 6 | The Hidden Service | Something is listening on port 8080. Connect to it | ⭐⭐ | Networking, ports |
+| 6 | The Hidden Service | Something is listening on a network port. Find it and connect to it | ⭐⭐ | Networking, ports |
 | 7 | The Encoded Secret | Find and decode an encoded flag in `ctf_challenges` | ⭐⭐ | Base64, encoding |
-| 8 | SSH Key Authentication | Configure SSH key authentication and find a hidden flag | ⭐⭐ | SSH configuration |
-| 9 | DNS Inspection | Inspect the system DNS configuration without changing live resolver files | ⭐⭐ | DNS, `systemd-resolved` |
-| 10 | Remote Upload | From your own computer, upload a new file into `~/ctf_challenges` on the VM to trigger the flag | ⭐⭐ | File transfer, SCP |
-| 11 | Web Configuration | The web server is running on a non-standard port. Find and fix it | ⭐⭐ | Nginx, services |
+| 8 | SSH Key Authentication | From your own computer, set up SSH key authentication and log in with your key to reveal the flag | ⭐⭐ | SSH keys, `ssh-keygen` |
+| 9 | DNS Inspection | The system sends one internal domain to a private DNS server. Find the domain and query its records | ⭐⭐ | DNS, `resolvectl`, `dig` |
+| 10 | Remote Upload | From your own computer, upload a new file into `~/ctf_challenges` on the VM to trigger the flag. Files created on the VM don't count | ⭐⭐ | File transfer, SCP |
+| 11 | Web Configuration | The web server is running on a non-standard port. Move it back to the standard HTTP port to see the flag | ⭐⭐ | Nginx, services |
 | 12 | Network Traffic Analysis | Someone is sending secret messages via ping packets | ⭐⭐⭐ | Packet inspection, tcpdump |
-| 13 | Cron Job Hunter | A scheduled task contains a hidden flag. Find and read it | ⭐⭐ | Cron, scheduling |
+| 13 | Cron Job Hunter | A scheduled task briefly publishes a secret. Find the job, work out what it does, and catch it | ⭐⭐ | Cron, scheduling |
 | 14 | Process Environment | A running process has a secret in its environment. Extract it | ⭐⭐⭐ | `/proc`, environment vars |
 | 15 | Archive Archaeologist | A flag is buried inside nested archives. Dig it out | ⭐⭐ | tar, gzip, archives |
 | 16 | Symbolic Sleuth | Follow the trail of symbolic links to find the flag | ⭐⭐ | Symlinks, `readlink` |
-| 17 | History Mystery | Someone typed a flag in their command history. Find it | ⭐⭐ | Bash history |
-| 18 | Disk Detective | A flag is hidden in filesystem metadata. Investigate mounted filesystems | ⭐⭐⭐ | Disk images, mounting |
+| 17 | History Mystery | A former admin typed a password on the command line. Find it in their shell history | ⭐⭐ | Bash history, `sudo` |
+| 18 | Disk Detective | A flag is hidden inside a disk image. Mount it and investigate | ⭐⭐⭐ | Disk images, mounting |
 
 **Difficulty:** ⭐ Beginner | ⭐⭐ Intermediate | ⭐⭐⭐ Advanced
 

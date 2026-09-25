@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import socket
 from pathlib import Path
 
@@ -29,6 +30,9 @@ def install_packages() -> None:
         "inotify-tools",
         "netcat-openbsd",
         "tcpdump",
+        "auditd",
+        "dnsmasq-base",
+        "dnsutils",
     ]
     apt_get("update")
     apt_get("install", "-y", *packages)
@@ -104,12 +108,44 @@ fi
     append_line_once("/home/ctf_user/.profile", "/usr/local/bin/check_setup")
 
 
+def configure_rewards() -> None:
+    """Flags earned by actions taken from outside the VM (challenges 8 and 10)."""
+    rewards = Path("/var/lib/ctf-rewards")
+    rewards.mkdir(parents=True, exist_ok=True)
+    shutil.chown(rewards, user="ctf_user", group="ctf_user")
+    rewards.chmod(0o700)
+    write_file(
+        "/etc/profile.d/ctf-rewards.sh",
+        """if [ "$(id -un)" = "ctf_user" ]; then
+    _ctf_rewards=/var/lib/ctf-rewards
+    # A key-based login is rewarded asynchronously, so give it a moment to land.
+    if [ -n "${SSH_USER_AUTH:-}" ] && grep -q '^publickey ' "$SSH_USER_AUTH" 2>/dev/null; then
+        _ctf_i=0
+        while [ ! -f "$_ctf_rewards/flag_8" ] && [ "$_ctf_i" -lt 10 ]; do
+            sleep 0.3
+            _ctf_i=$((_ctf_i + 1))
+        done
+    fi
+    if [ -f "$_ctf_rewards/flag_8" ]; then
+        echo "Challenge 8: SSH key login detected. Your flag: $(cat "$_ctf_rewards/flag_8")"
+    fi
+    if [ -f "$_ctf_rewards/flag_10" ]; then
+        echo "Challenge 10: remote upload detected. Your flag: $(cat "$_ctf_rewards/flag_10")"
+    fi
+    unset _ctf_rewards _ctf_i
+fi
+""",
+        mode=0o644,
+    )
+
+
 def configure_ssh() -> None:
     write_file(
         "/etc/ssh/sshd_config.d/99-ctf-password-auth.conf",
         """PasswordAuthentication yes
 KbdInteractiveAuthentication yes
 ChallengeResponseAuthentication yes
+ExposeAuthInfo yes
 """,
         mode=0o644,
     )
@@ -140,6 +176,7 @@ def configure_system() -> None:
     install_packages()
     configure_users()
     configure_shell_profile()
+    configure_rewards()
     configure_ssh()
     configure_motd_support()
     configure_hostname()

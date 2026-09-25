@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-from helpers import enable_service, write_executable, write_service
+from helpers import enable_service, write_executable, write_file, write_service
 
 
 def setup(flags: dict[int, str]) -> None:
-    flag_hex = flags[12].encode().hex()
+    write_file("/etc/ctf/flag_12", flags[12], mode=0o600)
+    # The pattern is built at runtime from a root-only file and ping's output is
+    # discarded, so the flag only exists on the wire.
     write_executable(
         "/usr/local/bin/ping_message.sh",
-        f"""#!/bin/bash
+        """#!/bin/bash
+PATTERN=$(od -An -tx1 /etc/ctf/flag_12 | tr -d ' \\n')
 while true; do
-    ping -p {flag_hex} -c 1 127.0.0.1
+    ping -q -p "$PATTERN" -c 1 127.0.0.1 >/dev/null 2>&1
     sleep 1
 done
 """,
@@ -25,8 +28,8 @@ Type=simple
 ExecStart=/usr/local/bin/ping_message.sh
 Restart=always
 RestartSec=1
-StandardOutput=append:/var/log/ping_message.log
-StandardError=append:/var/log/ping_message.log
+StandardOutput=null
+StandardError=null
 
 [Install]
 WantedBy=multi-user.target

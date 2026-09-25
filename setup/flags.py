@@ -30,17 +30,16 @@ FLAG_BASES: dict[int, str] = {
 
 
 def generate_flags() -> dict[int, str]:
-    instance_suffix = secrets.token_hex(4)
-    short_suffix = instance_suffix[:4]
-
+    # Every flag gets its own suffix so one solved flag can't be used to predict the rest.
     flags: dict[int, str] = {}
     for challenge_num, flag_base in FLAG_BASES.items():
         if challenge_num == 0:
             flags[challenge_num] = "CTF{example}"
         elif challenge_num == 12:
-            flags[challenge_num] = f"CTF{{{flag_base}_{short_suffix}}}"
+            # ping -p accepts at most 16 pattern bytes, so this flag stays short.
+            flags[challenge_num] = f"CTF{{{flag_base}_{secrets.token_hex(2)}}}"
         else:
-            flags[challenge_num] = f"CTF{{{flag_base}_{instance_suffix}}}"
+            flags[challenge_num] = f"CTF{{{flag_base}_{secrets.token_hex(4)}}}"
     return flags
 
 

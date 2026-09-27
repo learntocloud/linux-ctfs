@@ -13,7 +13,6 @@ from rich.console import Console
 
 from .state import (
     END_TIME_FILE,
-    PROGRESS_FILE,
     START_TIME_FILE,
     CtfState,
     read_completed,
@@ -294,7 +293,7 @@ def export_certificate(state: CtfState, github_username: str | None) -> int:
     console.print("⚠️  Save this token! You'll need it to verify your progress")
     console.print("   at https://learntocloud.guide")
     console.print("")
-    console.print(f"  1. Go to https://learntocloud.guide")
+    console.print("  1. Go to https://learntocloud.guide")
     console.print(f"  2. Sign in with GitHub (as: {github_username})")
     console.print("  3. Paste the token below")
     console.print("")

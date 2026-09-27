@@ -171,6 +171,19 @@ if [[ "${POST_REBOOT}" == true ]]; then
         fi
     done
 
+    # systemd silently drops jobs (resolved, network, even ssh) to break
+    # ordering cycles, so a cycle is a setup bug even if the loop above passed.
+    if journalctl -b --no-pager 2>/dev/null | grep -q "ordering cycle"; then
+        _fail "systemd ordering cycle at boot - SETUP BUG"
+    else
+        _pass "No systemd ordering cycles at boot"
+    fi
+    if systemctl is-active systemd-resolved &>/dev/null; then
+        _pass "systemd-resolved is running after reboot"
+    else
+        _fail "systemd-resolved failed to start after reboot - SETUP BUG"
+    fi
+
     if [ -f "$PROGRESS_SNAPSHOT" ]; then
         EXPECTED=$(cat "$PROGRESS_SNAPSHOT")
         ACTUAL=$( { sort -u /var/ctf/completed_challenges 2>/dev/null || true; } | wc -l )

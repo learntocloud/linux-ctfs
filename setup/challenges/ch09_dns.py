@@ -30,7 +30,6 @@ txt-record={ZONE},"{flags[9]}"
         """[Unit]
 Description=CTF Internal DNS Challenge
 After=network.target
-Before=systemd-resolved.service
 
 [Service]
 Type=simple

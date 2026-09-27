@@ -5,6 +5,9 @@ from pathlib import Path
 from helpers import recursive_chown, restart_service, write_file
 
 
+PACKAGES = ["nginx"]
+
+
 def setup(flags: dict[int, str]) -> None:
     # Port 8083 serves a decoy; the flag page is only served once nginx is
     # moved back to port 80. The flag page is readable only by www-data.

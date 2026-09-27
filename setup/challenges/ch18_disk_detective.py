@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from helpers import recursive_chown, run, write_file
+from helpers import CHALLENGE_DIR, recursive_chown, run, write_file
 
 
 def setup(flags: dict[int, str]) -> None:
@@ -17,4 +17,4 @@ def setup(flags: dict[int, str]) -> None:
         run(["umount", "/mnt/ctf_disk"])
     # Root-only so the image has to be mounted (with sudo) instead of grepped.
     image.chmod(0o600)
-    recursive_chown("/home/ctf_user/ctf_challenges", "ctf_user", "ctf_user")
+    recursive_chown(CHALLENGE_DIR, "ctf_user", "ctf_user")

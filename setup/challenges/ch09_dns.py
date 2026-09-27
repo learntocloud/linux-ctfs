@@ -3,6 +3,7 @@ from __future__ import annotations
 from helpers import enable_service, restart_service, write_file, write_service
 
 
+PACKAGES = ["dnsmasq-base"]
 DNS_ADDRESS = "127.0.0.2"
 ZONE = "ctf.internal"
 

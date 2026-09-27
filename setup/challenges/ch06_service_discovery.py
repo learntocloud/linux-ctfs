@@ -3,6 +3,9 @@ from __future__ import annotations
 from helpers import enable_service, write_executable, write_file, write_service
 
 
+PACKAGES = ["netcat-openbsd"]
+
+
 def setup(flags: dict[int, str]) -> None:
     write_file("/etc/ctf/flag_6", f"{flags[6]}\n", mode=0o600)
     write_executable(

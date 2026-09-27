@@ -1,14 +1,22 @@
 from __future__ import annotations
 
-import shutil
 import socket
 from pathlib import Path
 
-from helpers import append_line_once, ensure_user, restart_service, run, set_password, write_file
+from external_rewards import configure_external_rewards
+from helpers import (
+    CHALLENGE_DIR,
+    DONE_MARKER,
+    append_line_once,
+    ensure_user,
+    restart_service,
+    run,
+    set_password,
+    write_file,
+)
 
 
 CTF_PASSWORD = "CTFpassword123!"
-DONE_MARKER = "/var/lib/cloud/instance/ctf-setup.done"
 APT_OPTIONS = [
     "-o",
     "DPkg::Lock::Timeout=120",
@@ -21,19 +29,19 @@ def apt_get(*arguments: str) -> None:
     run(["apt-get", *APT_OPTIONS, *arguments])
 
 
-def install_packages() -> None:
-    packages = [
-        "net-tools",
-        "nmap",
-        "tree",
-        "nginx",
-        "inotify-tools",
-        "netcat-openbsd",
-        "tcpdump",
-        "auditd",
-        "dnsmasq-base",
-        "dnsutils",
-    ]
+# Tools learners are expected to use. Packages a challenge needs to run its
+# own setup belong in that challenge module's PACKAGES list.
+LEARNER_PACKAGES = [
+    "net-tools",
+    "nmap",
+    "tree",
+    "tcpdump",
+    "dnsutils",
+]
+
+
+def install_packages(challenge_packages: list[str]) -> None:
+    packages = sorted({*LEARNER_PACKAGES, *challenge_packages})
     apt_get("update")
     apt_get("install", "-y", *packages)
 
@@ -85,7 +93,7 @@ Save your export token for learntocloud.guide.
 def configure_users() -> None:
     ensure_user("ctf_user", sudo=True)
     set_password("ctf_user", CTF_PASSWORD)
-    Path("/home/ctf_user/ctf_challenges").mkdir(parents=True, exist_ok=True)
+    CHALLENGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def configure_shell_profile() -> None:
@@ -108,44 +116,12 @@ fi
     append_line_once("/home/ctf_user/.profile", "/usr/local/bin/check_setup")
 
 
-def configure_rewards() -> None:
-    """Flags earned by actions taken from outside the VM (challenges 8 and 10)."""
-    rewards = Path("/var/lib/ctf-rewards")
-    rewards.mkdir(parents=True, exist_ok=True)
-    shutil.chown(rewards, user="ctf_user", group="ctf_user")
-    rewards.chmod(0o700)
-    write_file(
-        "/etc/profile.d/ctf-rewards.sh",
-        """if [ "$(id -un)" = "ctf_user" ]; then
-    _ctf_rewards=/var/lib/ctf-rewards
-    # A key-based login is rewarded asynchronously, so give it a moment to land.
-    if [ -n "${SSH_USER_AUTH:-}" ] && grep -q '^publickey ' "$SSH_USER_AUTH" 2>/dev/null; then
-        _ctf_i=0
-        while [ ! -f "$_ctf_rewards/flag_8" ] && [ "$_ctf_i" -lt 10 ]; do
-            sleep 0.3
-            _ctf_i=$((_ctf_i + 1))
-        done
-    fi
-    if [ -f "$_ctf_rewards/flag_8" ]; then
-        echo "Challenge 8: SSH key login detected. Your flag: $(cat "$_ctf_rewards/flag_8")"
-    fi
-    if [ -f "$_ctf_rewards/flag_10" ]; then
-        echo "Challenge 10: remote upload detected. Your flag: $(cat "$_ctf_rewards/flag_10")"
-    fi
-    unset _ctf_rewards _ctf_i
-fi
-""",
-        mode=0o644,
-    )
-
-
 def configure_ssh() -> None:
     write_file(
         "/etc/ssh/sshd_config.d/99-ctf-password-auth.conf",
         """PasswordAuthentication yes
 KbdInteractiveAuthentication yes
 ChallengeResponseAuthentication yes
-ExposeAuthInfo yes
 """,
         mode=0o644,
     )
@@ -172,11 +148,12 @@ def configure_hostname() -> None:
             file.write(f"127.0.0.1 {hostname}\n")
 
 
-def configure_system() -> None:
-    install_packages()
+def configure_system(challenge_packages: list[str]) -> None:
+    install_packages(challenge_packages)
     configure_users()
     configure_shell_profile()
-    configure_rewards()
+    # Before configure_ssh(), whose sshd restart applies the rewards drop-in.
+    configure_external_rewards()
     configure_ssh()
     configure_motd_support()
     configure_hostname()

@@ -9,6 +9,11 @@ from pathlib import Path
 from typing import Iterable
 
 
+CHALLENGE_DIR = Path("/home/ctf_user/ctf_challenges")
+# Written by ctf_setup.sh once setup finishes; keep the path in sync with it.
+DONE_MARKER = "/var/lib/cloud/instance/ctf-setup.done"
+
+
 def run(command: Iterable[str], *, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         list(command),

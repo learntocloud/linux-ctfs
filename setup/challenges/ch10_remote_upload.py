@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from helpers import enable_service, run, write_executable, write_file, write_service
+from external_rewards import grant_command
+from helpers import CHALLENGE_DIR, DONE_MARKER, enable_service, run, write_executable, write_file, write_service
 
 
-DIRECTORY = "/home/ctf_user/ctf_challenges"
+PACKAGES = ["auditd", "inotify-tools"]
+DIRECTORY = CHALLENGE_DIR
 
 
 def setup(flags: dict[int, str]) -> None:
@@ -24,7 +26,7 @@ def setup(flags: dict[int, str]) -> None:
         "/usr/local/bin/monitor_directory.sh",
         f"""#!/bin/bash
 DIRECTORY="{DIRECTORY}"
-while [ ! -f /var/lib/cloud/instance/ctf-setup.done ]; do
+while [ ! -f {DONE_MARKER} ]; do
     sleep 5
 done
 
@@ -56,7 +58,7 @@ do
         continue
     fi
     LAST_TRIGGER=$NOW
-    install -o ctf_user -g ctf_user -m 600 /etc/ctf/flag_10 /var/lib/ctf-rewards/flag_10
+    {grant_command(10)}
     {{
         printf '\\n========== CHALLENGE 10: REMOTE UPLOAD =========='
         printf '\\nA new file was uploaded to %s.' "$DIRECTORY"

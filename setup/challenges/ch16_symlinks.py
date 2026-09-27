@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from helpers import write_file
+from helpers import CHALLENGE_DIR, write_file
 
 
 SECRETS = Path("/var/lib/ctf/secrets")
@@ -20,7 +20,7 @@ def setup(flags: dict[int, str]) -> None:
     links = [
         (final_target, SECRETS / "deep" / "link3"),
         (SECRETS / "deep" / "link3", SECRETS / "link2"),
-        (SECRETS / "link2", Path("/home/ctf_user/ctf_challenges/follow_me")),
+        (SECRETS / "link2", CHALLENGE_DIR / "follow_me"),
     ]
     for target, link in links:
         link.unlink(missing_ok=True)

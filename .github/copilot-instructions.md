@@ -20,7 +20,10 @@ This is an **educational Capture The Flag (CTF)** project designed to teach Linu
 
 ### Adding a New Challenge
 
-1. Edit `ctf_setup.sh` to add the challenge setup logic
+1. Add a `setup/challenges/chNN_<name>.py` module with a `setup(flags)` function and register it in `CHALLENGES` in `setup/challenges/__init__.py`
+   - List any apt packages the challenge's own setup needs in a module-level `PACKAGES = [...]`; `setup/system.py` only installs learner tools
+   - Use `CHALLENGE_DIR` and `DONE_MARKER` from `setup/helpers.py` instead of hardcoding paths
+   - Challenges solved from outside the VM deliver flags at login via `setup/external_rewards.py`
 2. Update `README.md` with the challenge description
 3. Add test commands to `.github/skills/ctf-testing/test_ctf_challenges.sh`
 

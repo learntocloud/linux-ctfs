@@ -125,7 +125,7 @@ locals {
         exit 1
       fi
 
-      if test -f /var/lib/linux-ctfs/setup.done || test -f /var/lib/cloud/instance/ctf-setup.done || test -f /var/log/setup_complete; then
+      if test -f /var/lib/linux-ctfs/setup.done || test -f /var/lib/cloud/instance/ctf-setup.done; then
         echo "CTF setup is complete."
         exit 0
       fi

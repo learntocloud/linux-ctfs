@@ -10,7 +10,6 @@ perl -pi -e 's/\r\n/\n/g' "$0"
 exec > >(tee /var/log/ctf_setup.log) 2>&1
 
 DONE_MARKER="/var/lib/cloud/instance/ctf-setup.done"
-LEGACY_DONE_MARKER="/var/log/setup_complete"
 PROJECT_STATE_DIR="/var/lib/linux-ctfs"
 PROJECT_DONE_MARKER="$PROJECT_STATE_DIR/setup.done"
 PROJECT_FAILED_MARKER="$PROJECT_STATE_DIR/setup.failed"
@@ -20,7 +19,6 @@ if [ -f "$DONE_MARKER" ]; then
     echo "CTF setup already completed. Skipping."
     mkdir -p "$PROJECT_STATE_DIR"
     touch "$PROJECT_DONE_MARKER"
-    touch "$LEGACY_DONE_MARKER"
     exit 0
 fi
 
@@ -60,6 +58,5 @@ chmod -R a+rX "$UV_ROOT"
 uv cache clean
 
 touch "$DONE_MARKER"
-touch "$LEGACY_DONE_MARKER"
 touch "$PROJECT_DONE_MARKER"
 echo "CTF environment setup complete!"

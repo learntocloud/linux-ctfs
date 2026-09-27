@@ -367,7 +367,7 @@ _wait_for_setup() {
     while [[ ${attempt} -le ${MAX_SSH_ATTEMPTS} ]]; do
         # shellcheck disable=SC2086
         if _sshpass_cmd ssh ${SSH_OPTS} "${SSH_USER}@${ip}" \
-            "test -f /var/lib/linux-ctfs/setup.done || test -f /var/lib/cloud/instance/ctf-setup.done || test -f /var/log/setup_complete" &>/dev/null; then
+            "test -f /var/lib/linux-ctfs/setup.done || test -f /var/lib/cloud/instance/ctf-setup.done" &>/dev/null; then
             _log OK "CTF setup is complete"
             return 0
         fi

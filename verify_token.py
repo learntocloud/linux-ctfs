@@ -3,10 +3,10 @@
 CTF Token Verification Script
 
 This script is for contributors/maintainers to test token verification locally.
-It demonstrates what a future verification app would do to verify CTF completion tokens.
+It mirrors the check learntocloud.guide runs when a learner submits a token.
 
-NOTE: The verification app is not yet implemented. Users should save their tokens
-for future verification.
+Tokens are honor-system certificates, not proof of completion. MASTER_SECRET is
+public, so anyone can mint a token that passes this check. See README.md.
 """
 
 import base64
@@ -15,7 +15,7 @@ import hmac
 import hashlib
 from datetime import datetime
 
-# Master secret (same as in ctf_setup.sh)
+# Intentionally public; must match setup/flags.py. Not a security boundary.
 MASTER_SECRET = "L2C_CTF_MASTER_2024"
 
 

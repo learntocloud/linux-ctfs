@@ -291,7 +291,7 @@ def export_certificate(state: CtfState, github_username: str | None) -> int:
     console.print("              🎫 COMPLETION TOKEN                             ", style="bold cyan")
     console.print("============================================================", style="bold cyan")
     console.print("")
-    console.print("⚠️  Save this token! You'll need it to verify your progress")
+    console.print("⚠️  Save this token! You'll need it to record your progress")
     console.print("   at https://learntocloud.guide")
     console.print("")
     console.print(f"  1. Go to https://learntocloud.guide")

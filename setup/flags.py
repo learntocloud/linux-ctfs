@@ -6,48 +6,31 @@ import secrets
 
 MASTER_SECRET = "L2C_CTF_MASTER_2024"
 
-FLAG_BASES: dict[int, str] = {
-    0: "example",
-    1: "hidden_files",
-    2: "file_search",
-    3: "log_analysis",
-    4: "user_enum",
-    5: "perm_sleuth",
-    6: "net_detective",
-    7: "decode_master",
-    8: "ssh_secrets",
-    9: "dns_name",
-    10: "net_copy",
-    11: "web_config",
-    12: "icmp",
-    13: "cron_master",
-    14: "proc_env",
-    15: "archive_dig",
-    16: "link_follow",
-    17: "history_sleuth",
-    18: "disk_sleuth",
-}
+CHALLENGE_COUNT = 18
+EXAMPLE_FLAG = "CTF{example}"
+
+# Base58: letters and digits without look-alikes 0, O, I, l.
+FLAG_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+# 11 chars keeps CTF{...} at 16 bytes, the max pattern size for ping -p (challenge 12).
+FLAG_LENGTH = 11
+
+
+def generate_flag() -> str:
+    body = "".join(secrets.choice(FLAG_ALPHABET) for _ in range(FLAG_LENGTH))
+    return f"CTF{{{body}}}"
 
 
 def generate_flags() -> dict[int, str]:
-    instance_suffix = secrets.token_hex(4)
-    short_suffix = instance_suffix[:4]
-
-    flags: dict[int, str] = {}
-    for challenge_num, flag_base in FLAG_BASES.items():
-        if challenge_num == 0:
-            flags[challenge_num] = "CTF{example}"
-        elif challenge_num == 12:
-            flags[challenge_num] = f"CTF{{{flag_base}_{short_suffix}}}"
-        else:
-            flags[challenge_num] = f"CTF{{{flag_base}_{instance_suffix}}}"
+    flags = {0: EXAMPLE_FLAG}
+    for challenge_num in range(1, CHALLENGE_COUNT + 1):
+        flags[challenge_num] = generate_flag()
     return flags
 
 
 def hash_flags(flags: dict[int, str]) -> list[str]:
     return [
         hashlib.sha256(flags[challenge_num].encode()).hexdigest()
-        for challenge_num in range(19)
+        for challenge_num in range(CHALLENGE_COUNT + 1)
     ]
 
 

@@ -4,6 +4,9 @@ import hashlib
 import secrets
 
 
+# Intentionally public: learners control the VM, so no on-VM key can stay secret.
+# Completion tokens are honor-system certificates, not proof (see README.md).
+# Changing this breaks token verification on learntocloud.guide.
 MASTER_SECRET = "L2C_CTF_MASTER_2024"
 
 CHALLENGE_COUNT = 18

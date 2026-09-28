@@ -44,6 +44,12 @@ Running into problems? See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
 **Difficulty:** ⭐ Beginner | ⭐⭐ Intermediate | ⭐⭐⭐ Advanced
 
+## About Your Completion Certificate
+
+The certificate and token from `verify export` work on the honor system. They record that you finished the lab, but they can't prove it. You control the VM and have root on it, and the token's signing key is in this public repository, so anyone determined to fake a token can.
+
+That's a deliberate choice. The lab exists to build your skills, and a token you didn't earn gets you nothing. Anyone reviewing your work should treat the certificate as your own statement, not as proof.
+
 ## Contributing
 
 Want to help improve the CTF? See our [Contributing Guide](CONTRIBUTING.md).

@@ -150,7 +150,7 @@ verify export <your-github-username>
 
 Use the same GitHub account that owns your fork of this repository—verification checks for the fork.
 
-Save the token it prints—you'll need it to verify your progress at [learntocloud.guide/phase1](https://learntocloud.guide/phase1). The full token is around **300+ characters**. If it isn't accepted, see [Completion token not accepted](../TROUBLESHOOTING.md#completion-token-not-accepted).
+Save the token it prints—you'll need it to record your progress at [learntocloud.guide/phase1](https://learntocloud.guide/phase1). The full token is around **300+ characters**. If it isn't accepted, see [Completion token not accepted](../TROUBLESHOOTING.md#completion-token-not-accepted).
 
 Save your token before cleaning up—destroying the lab deletes the VM and everything on it.
 

@@ -1,7 +1,10 @@
 # TROUBLESHOOTING
 
-This guide shows examples of errors you might see when deploying the linux-ctfs lab, and how to fix them using simple commands.
+This guide shows examples of errors you might see when deploying or using the linux-ctfs lab, and how to fix them using simple commands.
 
+- [Lab not ready after SSH login](#lab-not-ready-after-ssh-login)
+- [Completion token not accepted](#completion-token-not-accepted)
+- [Getting Help / Reporting Issues](#getting-help--reporting-issues)
 - [AWS](#aws)
 - [AWS: Region / endpoint / Auth errors](#aws-region--endpoint--auth-errors)
 - [AWS: Quota / vCPU limit errors](#aws-quota--vcpu-limit-errors)
@@ -11,6 +14,60 @@ This guide shows examples of errors you might see when deploying the linux-ctfs 
 - [Azure: SkuNotAvailable / Capacity errors](#azure-skunotavailable--capacity-errors)
 - [Azure: Quota limit errors](#azure-quota-limit-errors)
 - [GCP](#gcp)
+
+## Lab not ready after SSH login
+
+If you can SSH in but `verify` isn't found or challenges seem to be missing, setup may still be running or may have failed. Wait a minute, log in again, and if it still isn't ready, check the setup status on the VM:
+
+- `/var/lib/linux-ctfs/setup.done` exists when setup finished successfully.
+- `/var/lib/linux-ctfs/setup.failed` exists if setup failed.
+- `/var/lib/cloud/instance/ctf-setup.done` is the cloud-init completion marker.
+- `/var/log/ctf_setup.log` has the setup log.
+
+If setup failed, run `terraform destroy` and then `terraform apply` to redeploy. If it fails again, [open an issue](#getting-help--reporting-issues) and include the end of `/var/log/ctf_setup.log`.
+
+## Completion token not accepted
+
+Some terminals truncate long lines when copying. If your token isn't being accepted, it may be incomplete. The full token should be around **300+ characters**.
+
+1. **Check the length:**
+   ```bash
+   verify export <your-github-username> 2>/dev/null | sed -n '/BEGIN/,/END/{/BEGIN\|END/d;p}' | wc -c
+   ```
+   If the result is less than 300, your terminal is truncating the token.
+
+2. **Save it to a file:**
+   ```bash
+   verify export <your-github-username> 2>/dev/null | sed -n '/BEGIN/,/END/{/BEGIN\|END/d;p}' > ~/token.txt
+   ```
+
+3. **Open in nano and compare:**
+   ```bash
+   nano ~/token.txt
+   ```
+   `nano` will word-wrap properly. Does it match what you see in terminal? If it's longer in `nano`, your terminal was truncating it, so use the full value from `nano`.
+
+4. **Check your username:** The username you exported with must match your GitHub username exactly—no `@` symbol, no extra spaces.
+
+5. **Still not working?** Open a [GitHub issue](https://github.com/learntocloud/linux-ctfs/issues) with the output of `wc -c ~/token.txt`.
+
+## Getting Help / Reporting Issues
+
+If you're having trouble deploying or accessing the lab (Terraform errors, cloud permissions, SSH issues, the `verify` command not working), please **open a GitHub issue**:
+
+https://github.com/learntocloud/linux-ctfs/issues
+
+To help us troubleshoot quickly, include:
+
+- Cloud provider (AWS/Azure/GCP) and region/zone
+- Your OS and terminal (Windows/macOS/Linux, WSL, etc.)
+- `terraform version`
+- CLI status/output confirming you're authenticated (`aws sts get-caller-identity`, `az account show`, or `gcloud auth list --filter=status:ACTIVE`)
+- The command you ran and the **exact error output** (redact any secrets)
+- Whether the failure is during `terraform apply`, SSH connection, or inside the VM (e.g., `verify progress`)
+- If SSH works but the lab is not ready, the setup status files listed in [Lab not ready after SSH login](#lab-not-ready-after-ssh-login)
+
+Please only open issues about the lab infrastructure, not for help completing challenges—use `verify hint <challenge_number>` instead.
 
 ## AWS
 

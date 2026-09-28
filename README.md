@@ -1,9 +1,21 @@
 # Phase 1: Linux Command Line CTF Challenge
 
-Test your Linux command line skills with 18 progressive Capture The Flag challenges. All flags follow the format `CTF{...}` with 11 random letters and digits inside, for example `CTF{7kQx2mZpR9a}`. Flags are unique to each lab instance.
+Test your Linux command line skills with 18 progressive Capture The Flag challenges.
 
 > [!IMPORTANT]  
 > Please complete [Phase 1 Guide](https://learntocloud.guide/phase/1) before attempting these challenges. Do not share solutions publicly - focus on sharing your learning journey instead.
+
+## Get Started
+
+Start by [forking this repository](https://github.com/learntocloud/linux-ctfs/fork) to your GitHub account—completion verification checks that you have a fork. Then pick a cloud provider and follow its guide. Each guide covers deploying the lab, connecting, capturing flags, using the `verify` command, exporting your completion token, and cleaning up.
+
+| Provider | Cost for ~4 hours | Guide |
+|----------|-------------------|-------|
+| AWS | ~$0.01 (Free Tier eligible) | [AWS Guide](./aws/README.md) |
+| Azure | ~$0.05 | [Azure Guide](./azure/README.md) |
+| GCP | ~$0.03 | [GCP Guide](./gcp/README.md) |
+
+Running into problems? See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
 ## Challenges
 
@@ -32,89 +44,12 @@ Test your Linux command line skills with 18 progressive Capture The Flag challen
 
 **Difficulty:** ⭐ Beginner | ⭐⭐ Intermediate | ⭐⭐⭐ Advanced
 
-## Get Started
-
-Deploy your CTF lab using your preferred cloud provider:
-
-| Provider | Cost for ~4 hours | Setup Guide |
-|----------|-------------------|-------------|
-| AWS | ~$0.01 (Free Tier eligible) | [AWS Setup](./aws/README.md) |
-| Azure | ~$0.05 | [Azure Setup](./azure/README.md) |
-| GCP | ~$0.03 | [GCP Setup](./gcp/README.md) |
-
-## Completing the CTF
-
-Once you've solved all 18 challenges, export your completion certificate:
-
-```bash
-verify export <your-github-username>
-```
-
-> [!IMPORTANT]  
-> Enter your GitHub username **exactly** as it appears on GitHub—no `@` symbol, no extra spaces, no special characters. For example: `verify export octocat` not `verify export @octocat`.
-
-Save the token it generates — you'll need it to verify your progress at [learntocloud.guide/phase1](https://learntocloud.guide/phase1).
-
-### Timer and progress behavior
-
-- `verify time` shows **wall clock elapsed time** (not active keyboard time).
-- The timer starts when you first submit a challenge with `verify <number> <flag>`.
-- Progress tracks 19 total checks: the example verification plus the 18 real challenges.
-- After `verify 0 CTF{example}`, `verify progress` should show `1/19`.
-- The timer freezes on your first successful `verify export` after you've solved all 18 real challenges.
-
-### Troubleshooting Your Token
-
-Some terminals truncate long lines when copying. If your token isn't being accepted, it may be incomplete. The full token should be around **300+ characters**.
-
-1. **Check the length:**
-   ```bash
-   verify export <your-github-username> 2>/dev/null | sed -n '/BEGIN/,/END/{/BEGIN\|END/d;p}' | wc -c
-   ```
-   If the result is less than 300, your terminal is truncating the token.
-
-2. **Save it to a file:**
-   ```bash
-   verify export <your-github-username> 2>/dev/null | sed -n '/BEGIN/,/END/{/BEGIN\|END/d;p}' > ~/token.txt
-   ```
-
-3. **Open in nano and compare:**
-   ```bash
-   nano ~/token.txt
-   ```
-   `nano` will word-wrap properly. Does it match what you see in terminal? If it's longer in `nano`, your terminal was truncating it, so use the full value from `nano`.
-
-4. **Still not working?** Open a [GitHub issue](https://github.com/learntocloud/linux-ctfs/issues) with the output of `wc -c ~/token.txt`.
-
-## Tips
-
-- Use `man` pages to learn commands (e.g., `man find`)
-- Combine commands with pipes (`|`) to process output
-- Use `verify hint [num]` when stuck on a challenge
-- Experiment freely—you can't break anything permanently
-
-## Getting Help / Reporting Issues
-
-If you're having trouble deploying or accessing the lab (Terraform errors, cloud permissions, SSH issues, the `verify` command not working), please **open a GitHub issue**:
-
-https://github.com/learntocloud/linux-ctfs/issues
-
-To help us troubleshoot quickly, include:
-
-- Cloud provider (AWS/Azure/GCP) and region/zone
-- Your OS and terminal (Windows/macOS/Linux, WSL, etc.)
-- `terraform version`
-- CLI status/output confirming you're authenticated (`aws sts get-caller-identity`, `az account show`, or `gcloud auth list --filter=status:ACTIVE`)
-- The command you ran and the **exact error output** (redact any secrets)
-- Whether the failure is during `terraform apply`, SSH connection, or inside the VM (e.g., `verify progress`)
-- If SSH works but the lab is not ready, check `/var/log/ctf_setup.log`, `/var/lib/cloud/instance/ctf-setup.done`, `/var/lib/linux-ctfs/setup.done`, and `/var/lib/linux-ctfs/setup.failed`
-
-## License
-
-[MIT License](LICENSE)
-
 ## Contributing
 
 Want to help improve the CTF? See our [Contributing Guide](CONTRIBUTING.md).
 
 Please only submit issues with the lab infrastructure, not for help completing challenges—struggling is part of learning!
+
+## License
+
+[MIT License](LICENSE)

@@ -69,6 +69,9 @@ readonly NC='\033[0m'  # No Color
 CURRENT_PROVIDER=""
 CLEANUP_ON_EXIT=false
 
+# One row per provider: "provider deploy ready tests destroy total" in seconds
+TIMING_ROWS=()
+
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
@@ -91,6 +94,30 @@ _log() {
         ERROR) echo -e "[${timestamp}] ${RED}${message}${NC}" ;;
         *)     echo -e "[${timestamp}] ${level} ${message}" ;;
     esac
+}
+
+# Format a number of seconds as "XmYYs"
+# Arguments:
+#   $1 - Duration in seconds
+_format_duration() {
+    printf '%dm%02ds' $(( $1 / 60 )) $(( $1 % 60 ))
+}
+
+# Print the per-provider timing table collected in TIMING_ROWS
+_print_timing_summary() {
+    [[ ${#TIMING_ROWS[@]} -eq 0 ]] && return 0
+
+    echo ""
+    echo "Timing (deploy = terraform apply, ready = SSH + setup wait, tests include any reboot cycle)"
+    printf '  %-8s %8s %8s %8s %8s %8s\n' "Cloud" "Deploy" "Ready" "Tests" "Destroy" "Total"
+    local row provider deploy ready tests destroy total
+    for row in "${TIMING_ROWS[@]}"; do
+        read -r provider deploy ready tests destroy total <<< "${row}"
+        printf '  %-8s %8s %8s %8s %8s %8s\n' "${provider}" \
+            "$(_format_duration "${deploy}")" "$(_format_duration "${ready}")" \
+            "$(_format_duration "${tests}")" "$(_format_duration "${destroy}")" \
+            "$(_format_duration "${total}")"
+    done
 }
 
 # Signal handler for cleanup on interrupt (SIGINT/SIGTERM)
@@ -567,6 +594,7 @@ _run_post_reboot_tests() {
 _test_provider() {
     local provider="$1"
     local result=0
+    local t_start=${SECONDS} t_mark
 
     # Enable cleanup on interrupt for this provider
     CURRENT_PROVIDER="${provider}"
@@ -582,6 +610,7 @@ _test_provider() {
     _check_prerequisites "${provider}"
 
     # Deploy
+    t_mark=${SECONDS}
     if ! _terraform_apply "${provider}"; then
         _log ERROR "Terraform apply failed for ${provider}"
         CLEANUP_ON_EXIT=false
@@ -589,6 +618,8 @@ _test_provider() {
         CURRENT_PROVIDER=""
         return 1
     fi
+
+    local deploy_secs=$(( SECONDS - t_mark ))
 
     # Get IP
     local ip
@@ -602,6 +633,7 @@ _test_provider() {
     _log OK "VM deployed at: ${ip}"
 
     # Wait for SSH
+    t_mark=${SECONDS}
     if ! _wait_for_ssh "${ip}"; then
         _log ERROR "SSH connection failed for ${provider}"
         CLEANUP_ON_EXIT=false
@@ -619,7 +651,10 @@ _test_provider() {
         return 1
     fi
 
+    local ready_secs=$(( SECONDS - t_mark ))
+
     # Run tests
+    t_mark=${SECONDS}
     local test_exit_code=0
     _run_tests "${provider}" "${ip}" || test_exit_code=$?
 
@@ -642,11 +677,17 @@ _test_provider() {
         result=1
     fi
 
+    local tests_secs=$(( SECONDS - t_mark ))
+
     # Cleanup
     echo ""
+    t_mark=${SECONDS}
     CLEANUP_ON_EXIT=false
     _terraform_destroy "${provider}"
     CURRENT_PROVIDER=""
+
+    local destroy_secs=$(( SECONDS - t_mark ))
+    TIMING_ROWS+=("${provider} ${deploy_secs} ${ready_secs} ${tests_secs} ${destroy_secs} $(( SECONDS - t_start ))")
 
     return "${result}"
 }
@@ -674,6 +715,7 @@ _main() {
     done
 
     # Final summary (short pass/fail)
+    _print_timing_summary
     echo ""
     if [[ ${#failed_providers[@]} -gt 0 ]]; then
         _log ERROR "RESULT: FAIL (${failed_providers[*]})"

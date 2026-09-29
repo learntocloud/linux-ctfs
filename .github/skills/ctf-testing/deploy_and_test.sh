@@ -15,7 +15,7 @@
 #                        reboot and progress persists
 #
 # Prerequisites:
-#   - terraform (>= 1.0; Azure requires >= 1.14.0)
+#   - terraform (>= 1.9.0; Azure requires >= 1.14.0)
 #   - jq (for AWS terraform config)
 #   - sshpass (macOS: brew install hudochenkov/sshpass/sshpass)
 #   - aws CLI (for AWS, must be logged in)

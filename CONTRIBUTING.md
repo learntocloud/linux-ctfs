@@ -71,7 +71,7 @@ All PRs that change setup, challenges, verify behavior, or Terraform should be t
 
 Install:
 
-1. `terraform` 1.0 or newer; Azure requires Terraform 1.14.0 or newer
+1. `terraform` 1.9.0 or newer; Azure requires Terraform 1.14.0 or newer
 2. `jq`
 3. `sshpass`
 4. The cloud CLI for the provider you want to test

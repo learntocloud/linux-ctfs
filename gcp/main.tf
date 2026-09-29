@@ -185,7 +185,7 @@ resource "google_compute_firewall" "ctf_firewall_http" {
 
   allow {
     protocol = "tcp"
-    ports    = ["80", "8080", "8083"]
+    ports    = ["80", "8080"]
   }
 
   source_ranges = ["0.0.0.0/0"]

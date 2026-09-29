@@ -15,6 +15,11 @@ This guide shows examples of errors you might see when deploying or using the li
 - [Azure: SkuNotAvailable / Capacity errors](#azure-skunotavailable--capacity-errors)
 - [Azure: Quota limit errors](#azure-quota-limit-errors)
 - [GCP](#gcp)
+- [GCP: API not enabled / Billing errors](#gcp-api-not-enabled--billing-errors)
+- [GCP: Machine type not offered / Zone capacity errors](#gcp-machine-type-not-offered--zone-capacity-errors)
+- [GCP: Quota errors](#gcp-quota-errors)
+- [GCP: Organization policy errors](#gcp-organization-policy-errors)
+- [GCP: Setup readiness errors](#gcp-setup-readiness-errors)
 
 ## Lab not ready after SSH login
 
@@ -327,4 +332,113 @@ terraform apply \
 
 ## GCP
 
-(Coming soon) - common deployment issues and how to adjust `gcp_machine_type`.
+The Terraform commands in this GCP section assume you are running them from the `gcp/` directory. Add `-var gcp_project="YOUR_GCP_PROJECT_ID"` to each `terraform apply`.
+
+The default machine type is `e2-micro`, and the default region is `us-central1`. If you don't set `gcp_zone`, Terraform picks the first zone in the region that offers the machine type. The `zone` output shows which one it used.
+
+### GCP: API not enabled / Billing errors
+
+On a new project, the first `terraform plan` or `apply` may fail with:
+
+```text
+Compute Engine API has not been used in project ... before or it is disabled.
+```
+
+Enable the Compute Engine API, wait a minute, then retry:
+
+```sh
+gcloud services enable compute.googleapis.com --project=YOUR_GCP_PROJECT_ID
+```
+
+If enabling the API fails with a billing error, or Terraform reports `billing account ... is disabled`, the project needs an active billing account. Check it with:
+
+```sh
+gcloud billing projects describe YOUR_GCP_PROJECT_ID
+```
+
+`billingEnabled` should be `true`. If it isn't, link a billing account in the Google Cloud console under **Billing**.
+
+### GCP: Machine type not offered / Zone capacity errors
+
+If no zone offers the machine type, `terraform plan` stops with:
+
+```text
+Machine type <type> is not offered in any zone in <region>.
+```
+
+If the zone offers it but Google Cloud is temporarily out of capacity, `terraform apply` may fail with:
+
+```text
+ZONE_RESOURCE_POOL_EXHAUSTED
+```
+
+To see which zones offer a machine type:
+
+```sh
+gcloud compute machine-types list \
+  --filter="name=e2-micro" \
+  --format="value(zone)" | sort
+```
+
+Then retry in another zone, or in another region and let Terraform pick the zone:
+
+```sh
+terraform apply -var gcp_project="YOUR_GCP_PROJECT_ID" -var gcp_zone="us-central1-b"
+```
+
+```sh
+terraform apply -var gcp_project="YOUR_GCP_PROJECT_ID" -var gcp_region="us-east1"
+```
+
+If you set both `gcp_region` and `gcp_zone`, the zone must be in that region (for example `us-east1-b` for `us-east1`). Otherwise Terraform stops with a validation error.
+
+If you are trying to stay in the Google Cloud Free Tier, `e2-micro` is only free in some US regions. Check the current [Free Tier limits](https://cloud.google.com/free/docs/free-cloud-features#compute) before choosing a region.
+
+### GCP: Quota errors
+
+If Terraform fails with an error like:
+
+```text
+Quota 'CPUS' exceeded.
+```
+
+```text
+Quota 'IN_USE_ADDRESSES' exceeded.
+```
+
+Check whether instances from an earlier deploy are still running:
+
+```sh
+gcloud compute instances list --project=YOUR_GCP_PROJECT_ID
+```
+
+If you find old lab instances, run `terraform destroy` from the directory that created them. Otherwise, try another region or view and request quota increases in the Google Cloud console under **IAM & Admin > Quotas & System Limits**. Free trial accounts have lower quotas and some can't be increased until you upgrade the account.
+
+### GCP: Organization policy errors
+
+If your project belongs to an organization (for example a school or work account), organization policies can block the deployment even if you have permission. You may see errors that mention `constraints/`, such as:
+
+```text
+Constraint constraints/compute.vmExternalIpAccess violated
+```
+
+```text
+Constraint constraints/gcp.resourceLocations violated
+```
+
+- `vmExternalIpAccess` blocks public IP addresses, which the lab needs for SSH.
+- `resourceLocations` limits which regions you can use. Retry with an allowed `gcp_region`.
+
+The linux-ctfs Terraform code cannot override these policies. Use a personal Google Cloud project, or ask your administrator which regions are allowed and whether VMs can have external IPs.
+
+### GCP: Setup readiness errors
+
+GCP runs the lab setup as a startup script and Terraform waits over SSH until it finishes. If Terraform fails while waiting on `null_resource.release_setup_ready`, SSH in and check the setup logs:
+
+```sh
+sudo journalctl -u google-startup-scripts --no-pager | tail -n 50
+```
+
+```sh
+sudo tail -n 50 /var/log/ctf_setup.log
+```

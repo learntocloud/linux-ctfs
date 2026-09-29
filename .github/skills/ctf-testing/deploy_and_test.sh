@@ -423,9 +423,13 @@ _reboot_vm() {
             echo "  Starting instance ${instance_id}..." >&2
             aws ec2 start-instances --instance-ids "${instance_id}" > /dev/null
             aws ec2 wait instance-running --instance-ids "${instance_id}"
-            # IP may change, get new one
-            sleep 10
-            ip=$(_get_public_ip "${provider}")
+            # The public IP changes after stop/start and terraform state is stale, so ask EC2 directly
+            ip=$(aws ec2 describe-instances --instance-ids "${instance_id}" \
+                --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+            if [[ ! "${ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                _log ERROR "Invalid IP address retrieved after restart: '${ip}'" >&2
+                return 1
+            fi
             ;;
         azure)
             echo "  Restarting Azure VM..." >&2

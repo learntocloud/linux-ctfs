@@ -43,13 +43,12 @@ Deploy the lab here, then follow the [Playing the Lab guide](../GUIDE.md) to con
     terraform init
     terraform apply \
       -var gcp_project="YOUR_GCP_PROJECT_ID" \
-      -var gcp_region="YOUR_GCP_REGION" \
-      -var gcp_zone="YOUR_GCP_ZONE"
+      -var gcp_region="YOUR_GCP_REGION"
     ```
 
-    Replace the values with your project ID and preferred region/zone (defaults to us-central1/us-central1-a). Type `yes` when prompted.
+    Replace the values with your project ID and preferred region (defaults to `us-central1`). Terraform picks a zone in that region that offers the machine type. To choose the zone yourself, add `-var gcp_zone="YOUR_GCP_ZONE"`; it must be in the region you chose. Type `yes` when prompted.
 
-4. Note the `public_ip_address` output. You'll use it to connect.
+4. Note the `public_ip_address` output. You'll use it to connect. The `zone` output is the zone your VM is in.
 
 If deployment fails, see [TROUBLESHOOTING.md](../TROUBLESHOOTING.md#gcp).
 
@@ -59,7 +58,7 @@ Continue with the [Playing the Lab guide](../GUIDE.md): connect over SSH, captur
 
 ## Pause the Lab
 
-To reduce cost while you're away, stop the VM. Use the same zone you deployed to (default `us-central1-a`).
+To reduce cost while you're away, stop the VM. Use the zone from the `zone` output. You can print it again from the `gcp/` directory with `terraform output -raw zone`.
 
 ```sh
 gcloud compute instances stop ctf-instance --zone=YOUR_GCP_ZONE

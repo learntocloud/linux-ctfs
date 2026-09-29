@@ -26,9 +26,14 @@ variable "gcp_region" {
 }
 
 variable "gcp_zone" {
-  description = "The GCP zone to deploy the CTF lab"
+  description = "The GCP zone to deploy the CTF lab. Leave unset to use the first zone in gcp_region that offers gcp_machine_type"
   type        = string
-  default     = "us-central1-a"
+  default     = null
+
+  validation {
+    condition     = var.gcp_zone == null ? true : startswith(var.gcp_zone, "${var.gcp_region}-")
+    error_message = "gcp_zone must be a zone in gcp_region (for example us-central1-a for us-central1). Leave gcp_zone unset to pick one automatically."
+  }
 }
 
 variable "gcp_machine_type" {
@@ -53,10 +58,26 @@ variable "setup_release_tag" {
 provider "google" {
   project = var.gcp_project
   region  = var.gcp_region
-  zone    = var.gcp_zone
+}
+
+data "google_compute_zones" "available" {
+  region = var.gcp_region
+  status = "UP"
+}
+
+# Not every machine type is offered in every zone, so only deploy to a zone
+# that actually offers the requested type.
+data "google_compute_machine_types" "ctf" {
+  for_each = toset(var.gcp_zone != null ? [var.gcp_zone] : data.google_compute_zones.available.names)
+
+  zone   = each.key
+  filter = "name = \"${var.gcp_machine_type}\""
 }
 
 locals {
+  ctf_zones = sort([for zone, offering in data.google_compute_machine_types.ctf : zone if length(offering.machine_types) > 0])
+  ctf_zone  = try(local.ctf_zones[0], null)
+
   setup_asset_name   = "linux-ctfs-setup.tar.gz"
   setup_release_base = var.setup_release_tag == "latest" ? "https://github.com/learntocloud/linux-ctfs/releases/latest/download" : "https://github.com/learntocloud/linux-ctfs/releases/download/${var.setup_release_tag}"
   setup_release_url  = "${local.setup_release_base}/${local.setup_asset_name}"
@@ -92,7 +113,7 @@ locals {
     rm -f "$${FAILED_MARKER}"
 
     fail_setup() {
-      echo "CTF setup failed. Check /var/log/cloud-init-output.log and /var/log/ctf_setup.log." >&2
+      echo "CTF setup failed. Check 'journalctl -u google-startup-scripts' and /var/log/ctf_setup.log." >&2
       touch "$${FAILED_MARKER}"
     }
     trap fail_setup ERR
@@ -111,8 +132,23 @@ locals {
       return 1
     }
 
-    apt-get update
-    apt-get install -y ca-certificates curl tar gzip coreutils
+    # First-boot apt jobs (e.g. unattended-upgrades) can hold the dpkg lock, so
+    # wait for it instead of failing immediately.
+    apt_get_update_with_retry() {
+      local attempt
+      for attempt in 1 2 3 4 5; do
+        if apt-get -o DPkg::Lock::Timeout=300 -o Acquire::Retries=3 update; then
+          return 0
+        fi
+        echo "apt-get update failed. Attempt $${attempt}/5."
+        rm -rf /var/lib/apt/lists/partial/*
+        sleep 10
+      done
+      return 1
+    }
+
+    apt_get_update_with_retry
+    apt-get -o DPkg::Lock::Timeout=300 -o Acquire::Retries=3 install -y ca-certificates curl tar gzip coreutils
 
     cd "$${WORK_DIR}"
     download_with_retry "$${SETUP_URL}" "$${ASSET_NAME}"
@@ -135,7 +171,7 @@ locals {
     echo "Waiting for CTF setup to finish..."
     for attempt in $(seq 1 180); do
       if test -f /var/lib/linux-ctfs/setup.failed; then
-        echo "CTF setup failed. Check /var/log/ctf_setup.log and /var/log/cloud-init-output.log." >&2
+        echo "CTF setup failed. Check /var/log/ctf_setup.log and 'journalctl -u google-startup-scripts'." >&2
         exit 1
       fi
 
@@ -148,7 +184,7 @@ locals {
       sleep 10
     done
 
-    echo "Timed out waiting for CTF setup. Check /var/log/ctf_setup.log and /var/log/cloud-init-output.log." >&2
+    echo "Timed out waiting for CTF setup. Check /var/log/ctf_setup.log and 'journalctl -u google-startup-scripts'." >&2
     exit 1
   EOF
 }
@@ -198,7 +234,14 @@ resource "google_compute_firewall" "ctf_firewall_http" {
 resource "google_compute_instance" "ctf_instance" {
   name         = "ctf-instance"
   machine_type = var.gcp_machine_type
-  zone         = var.gcp_zone
+  zone         = local.ctf_zone
+
+  lifecycle {
+    precondition {
+      condition     = local.ctf_zone != null
+      error_message = "Machine type ${var.gcp_machine_type} is not offered in ${var.gcp_zone != null ? "zone ${var.gcp_zone}" : "any zone in ${var.gcp_region}"}. Try a different gcp_machine_type (e.g. e2-micro or e2-small), gcp_zone, or gcp_region. See TROUBLESHOOTING.md."
+    }
+  }
 
   tags = ["ctf-instance"]
 
@@ -295,4 +338,9 @@ resource "null_resource" "release_setup_ready" {
 output "public_ip_address" {
   value      = google_compute_instance.ctf_instance.network_interface[0].access_config[0].nat_ip
   depends_on = [null_resource.local_setup, null_resource.release_setup_ready]
+}
+
+# Output the zone, needed for gcloud stop/start commands
+output "zone" {
+  value = google_compute_instance.ctf_instance.zone
 }

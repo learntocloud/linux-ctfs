@@ -1,3 +1,10 @@
+"""Challenge 10: Remote Upload.
+
+Learner goal: upload a new file into ~/ctf_challenges from their own computer to trigger the flag.
+Skills tested: file transfer.
+Plants: a directory-monitor service that broadcasts flags[10] to open terminals on new files.
+"""
+
 from __future__ import annotations
 
 from helpers import enable_service, write_executable, write_file, write_service

@@ -25,16 +25,16 @@ console = Console()
 
 CHALLENGE_NAMES = [
     "Example Challenge",
-    "Hidden File Discovery",
-    "Basic File Search",
-    "Log Analysis",
-    "User Investigation",
-    "Permission Analysis",
-    "Service Discovery",
-    "Encoding Challenge",
-    "SSH Secrets",
+    "The Hidden File",
+    "The Secret File",
+    "The Odd Log Entry",
+    "The User Detective",
+    "The Permissive File",
+    "The Hidden Service",
+    "The Encoded Secret",
+    "SSH Key Authentication",
     "DNS Inspection",
-    "Remote Upload Detection",
+    "Remote Upload",
     "Web Configuration",
     "Network Traffic Analysis",
     "Cron Job Hunter",
@@ -47,24 +47,24 @@ CHALLENGE_NAMES = [
 
 CHALLENGE_HINTS = [
     "Run: verify 0 CTF{example}",
-    "Hidden files in Linux start with a dot. Try 'ls -la' in the ctf_challenges directory.",
-    "Use 'find' to search by name. Try: find ~ -type f -iname '*secret*' 2>/dev/null",
-    "Every log line looks alike except one. Find the biggest file in /var/log (ls -lS), then filter out the noise with grep (try grep -v).",
-    "Every account has a comment (GECOS) field in /etc/passwd. Compare the users with 'getent passwd' and look at the fifth field.",
-    "Look under /opt for regular files anyone can write to. Try: find /opt -type f -perm -o+w 2>/dev/null. If a file says 'Permission denied', check 'ls -l': who owns it, and what can you change?",
-    "What services are running? Use 'netstat -tulpn' or 'ss -tulpn' to find listening ports.",
-    "The flag is encoded. Look for encoded files and use 'base64 -d' to decode.",
-    "The 'vault' user has no password and only accepts an SSH key. Create a key pair with 'ssh-keygen', authorize the public key in your own ~/.ssh/authorized_keys, then run 'ssh vault@localhost'.",
-    "Find the custom search domain with 'resolvectl status' or /etc/systemd/resolved.conf.d/. The lab's 'intranet' host lives in that domain: resolve its full name with 'getent hosts'.",
-    "Run scp from your own computer, not the VM. The destination must be the ctf_challenges directory (e.g. user@ip:~/ctf_challenges/), and the file must be new - overwriting doesn't count. The flag is broadcast to your open terminals when the upload lands.",
-    "nginx should serve the site on port 80 but doesn't. Check 'ss -tlnp', 'curl -i localhost:<port>', and /var/log/nginx/error.log. Fix the config, then 'sudo nginx -t && sudo systemctl reload nginx'.",
-    "Network traffic can carry hidden messages. The pings run on the loopback interface. Capture ICMP payloads with: sudo tcpdump -i lo -X icmp",
-    "Cron jobs run on schedules. Check /etc/cron.d/ and /etc/crontab, see what the job runs and where it writes, then wait for the next run.",
-    "Process info lives in /proc. Each process has a directory with its environment in /proc/PID/environ.",
-    "Archives can be nested, and each layer may use a different compression. Check every layer with 'file'; 'tar -xf' detects the format for you.",
-    "Follow the chain with 'ls -l' one hop at a time, or jump to the end with 'readlink -f'. The flag is where the trail ends, not what is inside it.",
-    "Bash stores command history in ~/.bash_history. Other users have history files too. Search them for keywords like 'export' or 'key'.",
-    "Filesystems carry metadata besides files. Inspect the disk image in /opt with 'blkid', 'e2label', or 'sudo dumpe2fs -h'.",
+    "Some files aren't shown by default. 'man ls' explains how to list everything in the ctf_challenges directory.",
+    "Search your home directory by name. 'man find' covers matching names and file types. You want a regular file, not a directory.",
+    "Every log line looks alike except one. Sorting files by size helps you spot the big log in /var/log. Then filter out the noise: a search tool can exclude lines as well as match them.",
+    "Accounts store more than a name and ID. Find the other users on this system and read everything their records contain. 'man 5 passwd' explains the fields.",
+    "Look under /opt for regular files anyone can write to; 'man find' covers matching by permission. If a file says 'Permission denied', check 'ls -l': who owns it, and what can you change?",
+    "Something on this machine is listening on a port. 'man ss' shows how to list listening sockets. Once you know the port, connect to it: the service speaks HTTP.",
+    "Look for a file in ctf_challenges that isn't readable as-is. Its look (letters, digits, maybe '=' padding) hints at the encoding, and 'man' pages for that encoding cover reversing it. Check whether the result is readable yet.",
+    "The 'vault' user has no password and only accepts a key. 'man ssh-keygen' covers making one. The sshd settings in /etc/ssh/sshd_config.d/ show where the vault login looks for authorized keys. You can connect from the VM itself.",
+    "The resolver's settings ('man resolvectl') reveal a custom search domain, and the lab's 'intranet' host lives in it. Build its full name, then look it up with a tool that uses the system's own name resolution, not just DNS servers.",
+    "Do this from your own computer, not the VM, with a tool that copies files over SSH. The destination is the ctf_challenges directory on the VM, and the file must be new - overwriting doesn't count. The flag is broadcast to your open terminals when the upload lands.",
+    "nginx should serve the site on port 80 but doesn't. Compare where it is listening with where it should be, and read its error log under /var/log/nginx/. nginx can test a config before you reload it ('man nginx'); then reload the service.",
+    "Capture on the loopback interface with a tool that can print packet contents as hex and ASCII, and filter down to ping traffic so you can see the payload clearly. It needs sudo.",
+    "Find where scheduled jobs are defined on this system ('man 5 crontab' is a start), read what the job runs and where its output goes, then wait for the next run.",
+    "Every running process exposes information about itself in the /proc filesystem ('man proc'). Find the right process, then look at what it was started with.",
+    "Archives can be nested, and each layer may use a different compression. Identify each layer before extracting it; 'man file' and 'man tar' help.",
+    "A long directory listing shows where each link points. Follow the chain hop by hop, or look for a tool that resolves it all at once. Some links may lead nowhere useful, so make sure you start from the right one. The flag is where the trail ends, not what is inside it.",
+    "Shells keep a record of the commands typed, and users other than you have one. Secrets show up in more than variables. Not every secret you find is the flag, so look at what the real one is shaped like.",
+    "A filesystem is more than the files inside it. The image is a file on this machine, but not a normal document. Something that describes a filesystem may not need it mounted. Check the man pages of ext4 tools.",
 ]
 
 
@@ -218,11 +218,11 @@ def export_certificate(state: CtfState, github_username: str | None) -> int:
     console.print(f"  Date: {date_str}")
     console.print("")
     console.print("  Challenges Completed:")
-    console.print("   * Hidden File Discovery      * Service Discovery")
-    console.print("   * Basic File Search          * Encoding Challenge")
-    console.print("   * Log Analysis               * SSH Secrets")
-    console.print("   * User Investigation         * DNS Inspection")
-    console.print("   * Permission Analysis        * Remote Upload Detection")
+    console.print("   * The Hidden File            * The Hidden Service")
+    console.print("   * The Secret File            * The Encoded Secret")
+    console.print("   * The Odd Log Entry          * SSH Key Authentication")
+    console.print("   * The User Detective         * DNS Inspection")
+    console.print("   * The Permissive File        * Remote Upload")
     console.print("   * Web Configuration          * Network Traffic Analysis")
     console.print("   * Cron Job Hunter            * Process Environment")
     console.print("   * Archive Archaeologist      * Symbolic Sleuth")
@@ -247,11 +247,11 @@ def export_certificate(state: CtfState, github_username: str | None) -> int:
   Date: {date_str}
 
   Challenges Completed:
-   * Hidden File Discovery      * Service Discovery
-   * Basic File Search          * Encoding Challenge
-   * Log Analysis               * SSH Secrets
-   * User Investigation         * DNS Inspection
-   * Permission Analysis        * Remote Upload Detection
+   * The Hidden File            * The Hidden Service
+   * The Secret File            * The Encoded Secret
+   * The Odd Log Entry          * SSH Key Authentication
+   * The User Detective         * DNS Inspection
+   * The Permissive File        * Remote Upload
    * Web Configuration          * Network Traffic Analysis
    * Cron Job Hunter            * Process Environment
    * Archive Archaeologist      * Symbolic Sleuth

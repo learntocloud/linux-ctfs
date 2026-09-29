@@ -1,3 +1,10 @@
+"""Challenge 14: Process Environment.
+
+Learner goal: extract a secret from a running process's environment.
+Skills tested: processes, environment variables.
+Plants: a service whose environment contains CTF_SECRET_FLAG=flags[14].
+"""
+
 from __future__ import annotations
 
 from helpers import enable_service, write_executable, write_file, write_service

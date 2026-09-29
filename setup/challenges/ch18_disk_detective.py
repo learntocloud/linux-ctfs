@@ -1,3 +1,10 @@
+"""Challenge 18: Disk Detective.
+
+Learner goal: find a flag hidden in filesystem metadata by inspecting a disk image.
+Skills tested: disk images, filesystem metadata.
+Plants: /opt/ctf_disk.img, an ext4 image whose label is flags[18].
+"""
+
 from __future__ import annotations
 
 from helpers import run

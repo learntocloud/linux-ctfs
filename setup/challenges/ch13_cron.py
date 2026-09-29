@@ -1,3 +1,10 @@
+"""Challenge 13: Cron Job Hunter.
+
+Learner goal: find out what a scheduled job runs and inspect the result.
+Skills tested: cron, scheduling.
+Plants: /etc/cron.d/nightly_backup running a script that handles flags[13].
+"""
+
 from __future__ import annotations
 
 from helpers import write_executable, write_file

@@ -1,3 +1,10 @@
+"""Challenge 15: Archive Archaeologist.
+
+Learner goal: dig a flag out of nested archives.
+Skills tested: archives, compression.
+Plants: /home/ctf_user/ctf_challenges/mystery_archive.tar.gz with flags[15] buried inside.
+"""
+
 from __future__ import annotations
 
 import tarfile

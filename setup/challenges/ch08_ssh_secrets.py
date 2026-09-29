@@ -1,3 +1,10 @@
+"""Challenge 8: SSH Key Authentication.
+
+Learner goal: set up key authentication to log in as the key-only vault user.
+Skills tested: SSH key authentication, users.
+Plants: vault user, sshd config, and login helpers that reveal flags[8] once key auth works.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path

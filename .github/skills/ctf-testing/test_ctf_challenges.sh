@@ -244,9 +244,9 @@ echo ""
 # Store discovered flags
 declare -A FLAGS
 
-# Challenge 1: Hidden File Discovery
+# Challenge 1: The Hidden File
 # Hint: "Hidden files in Linux start with a dot. Try 'ls -la'"
-echo "Challenge 1: Hidden File Discovery"
+echo "Challenge 1: The Hidden File"
 HIDDEN_FILE=$(ls -la /home/ctf_user/ctf_challenges/ 2>/dev/null \
     | awk '/^-.*\./ {print $NF}' \
     | grep '^\.' \
@@ -266,9 +266,9 @@ else
     FLAGS[1]=""
 fi
 
-# Challenge 2: Basic File Search
+# Challenge 2: The Secret File
 # Hint: "Use 'find' to search by name. Try: find ~ -type f -iname '*secret*'"
-echo "Challenge 2: Basic File Search"
+echo "Challenge 2: The Secret File"
 TXT_FILE=$(find /home/ctf_user/documents -name '*.txt' -type f 2>/dev/null | head -1) || true
 if [[ -n "${TXT_FILE}" ]]; then
     FLAG_2=$(cat "${TXT_FILE}" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
@@ -283,9 +283,9 @@ else
     FLAGS[2]=""
 fi
 
-# Challenge 3: Log Analysis
+# Challenge 3: The Odd Log Entry
 # Hint: "Find the biggest file in /var/log (ls -lS), then filter noise with grep -v"
-echo "Challenge 3: Log Analysis"
+echo "Challenge 3: The Odd Log Entry"
 LARGE_LOG=$(ls -S /var/log/*.log 2>/dev/null | head -1) || true
 if [[ -n "${LARGE_LOG}" ]]; then
     FLAG_3=$(grep -v 'Failed password' "${LARGE_LOG}" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
@@ -300,9 +300,9 @@ else
     FLAGS[3]=""
 fi
 
-# Challenge 4: User Investigation
+# Challenge 4: The User Detective
 # Hint: "Compare the users with 'getent passwd' and look at the fifth field"
-echo "Challenge 4: User Investigation"
+echo "Challenge 4: The User Detective"
 FLAG_4=$(getent passwd | awk -F: '$3 >= 1000 && $1 != "ctf_user" && $1 != "nobody" {print $5}' \
     | grep -ao 'CTF{[^}]*}' | head -1) || true
 if [[ -n "${FLAG_4}" ]]; then
@@ -312,9 +312,9 @@ else
     FLAGS[4]=""
 fi
 
-# Challenge 5: Permission Analysis
+# Challenge 5: The Permissive File
 # Hint: "Try: find /opt -type f -perm -o+w"; the file points at a locked key owned by ctf_user
-echo "Challenge 5: Permission Analysis"
+echo "Challenge 5: The Permissive File"
 FLAG_5=""
 POINTER=$(find /opt -type f -perm -o+w -not -path '/opt/uv/*' 2>/dev/null | head -1) || true
 LOCKED=$(grep -ao '/opt/[^ ]*\.key' "${POINTER}" 2>/dev/null | head -1) || true
@@ -334,9 +334,9 @@ else
     FLAGS[5]=""
 fi
 
-# Challenge 6: Service Discovery
+# Challenge 6: The Hidden Service
 # Hint: "What services are running? Use 'ss -tulpn' to find listening ports"
-echo "Challenge 6: Service Discovery"
+echo "Challenge 6: The Hidden Service"
 FLAG_6=""
 for port in $(ss -tulpn 2>/dev/null \
         | awk '/LISTEN/ {split($5,a,":"); print a[length(a)]}' \
@@ -354,9 +354,9 @@ else
     FLAGS[6]=""
 fi
 
-# Challenge 7: Encoding Challenge
+# Challenge 7: The Encoded Secret
 # Hint: "The flag is encoded. Use 'base64 -d' to decode"
-echo "Challenge 7: Encoding Challenge"
+echo "Challenge 7: The Encoded Secret"
 ENCODED_FILE=$(find /home/ctf_user/ctf_challenges -name '*.txt' -type f 2>/dev/null | head -1) || true
 if [[ -n "${ENCODED_FILE}" ]]; then
     FLAG_7=$(cat "${ENCODED_FILE}" 2>/dev/null \
@@ -571,14 +571,14 @@ else
 fi
 
 # Challenge 17: History Mystery
-# Hint: "Search other users' ~/.bash_history for keywords like 'export'"
+# Hint: "Search every user's ~/.bash_history; the flag is not in an export line"
 echo "Challenge 17: History Mystery"
 FLAG_17=""
 for home in /home/*; do
     user=$(basename "${home}")
     [[ "${user}" == "ctf_user" ]] && continue
     [[ -r "${home}/.bash_history" ]] || continue
-    FLAG_17=$(grep -a 'export' "${home}/.bash_history" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    FLAG_17=$(grep -ao 'CTF{[^}]*}' "${home}/.bash_history" 2>/dev/null | head -1) || true
     [[ -n "${FLAG_17}" ]] && break
 done
 if [[ -n "${FLAG_17}" ]]; then
@@ -593,7 +593,7 @@ fi
 echo "Challenge 18: Disk Detective"
 DISK_IMG=$(find /opt /home -name '*.img' -type f 2>/dev/null | head -1) || true
 if [[ -n "${DISK_IMG}" ]]; then
-    FLAG_18=$(echo 'CTFpassword123!' | sudo -S blkid -o value -s LABEL "${DISK_IMG}" 2>/dev/null \
+    FLAG_18=$(blkid -o value -s LABEL "${DISK_IMG}" 2>/dev/null \
         | grep -ao 'CTF{[^}]*}' | head -1) || true
     if [[ -n "${FLAG_18}" ]]; then
         _verify_flag 18 "${FLAG_18}"

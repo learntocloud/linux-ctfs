@@ -1,3 +1,10 @@
+"""Challenge 3: The Odd Log Entry.
+
+Learner goal: find the single successful login among thousands of failed ones in a log under /var/log.
+Skills tested: log analysis, text filtering.
+Plants: /var/log/auth_audit.log with flags[3] on the one "Accepted" line.
+"""
+
 from __future__ import annotations
 
 import random

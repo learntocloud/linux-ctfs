@@ -1,3 +1,10 @@
+"""Challenge 12: Network Traffic Analysis.
+
+Learner goal: read secret messages sent via ping packets on the loopback interface (needs sudo).
+Skills tested: packet inspection.
+Plants: a service that pings 127.0.0.1 with flags[12] (hex-encoded) as the packet payload.
+"""
+
 from __future__ import annotations
 
 from helpers import enable_service, write_executable, write_service

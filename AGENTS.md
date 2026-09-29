@@ -28,7 +28,10 @@ The VM has a built-in hint system. `verify hint <number>` is the sanctioned nudg
 
 You're working on the lab infrastructure, and the normal rules apply. See `.github/copilot-instructions.md` for project structure, challenge authoring, and testing workflow.
 
-Two things specific to this repo:
+Things specific to this repo:
 
 - Flags are derived per instance in `setup/flags.py`; they are never checked into source. Keep it that way.
 - Solution commands belong in `.github/skills/` only. Don't let them leak into `README.md`, challenge text, or setup code.
+- Challenge titles come from the `README.md` table. Keep them identical in `CHALLENGE_NAMES` and the certificate list in `verify/src/verify/commands.py`, and in the labels in `.github/skills/ctf-testing/test_ctf_challenges.sh`.
+- Every `setup/challenges/chNN_*.py` starts with a module docstring: title, learner goal, skills tested, and a one-line "Plants:" note. Say what the challenge tests, never the command that solves it.
+- Hints in `CHALLENGE_HINTS` are nudges. Point at the concept or a `man` page, not the exact tool, field, or flag. The README "Skills" column follows the same rule: name concepts, not the commands that solve the challenge.

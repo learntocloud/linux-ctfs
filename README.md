@@ -29,24 +29,24 @@ Running into problems? See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
 | # | Challenge | Description | Difficulty | Skills |
 |---|-----------|-------------|------------|--------|
-| 1 | The Hidden File | Find and read a hidden file in `ctf_challenges` | ⭐ | Hidden files, `ls` |
-| 2 | The Secret File | Locate a regular file (not a directory) with "secret" in its name under your home directory | ⭐ | File searching, `find` |
-| 3 | The Odd Log Entry | Thousands of failed logins hide a single successful one in a log under `/var/log` | ⭐⭐ | `grep`, log analysis |
-| 4 | The User Detective | Another user's account record carries a flag | ⭐⭐ | Users, `getent passwd` |
-| 5 | The Permissive File | Find a suspicious file with wide-open permissions under `/opt`, then follow where it leads | ⭐⭐ | Permissions, `chmod` |
+| 1 | The Hidden File | Find and read a hidden file in `ctf_challenges` | ⭐ | Hidden files, directory listing |
+| 2 | The Secret File | Locate a regular file (not a directory) with "secret" in its name under your home directory | ⭐ | File searching |
+| 3 | The Odd Log Entry | Thousands of failed logins hide a single successful one in a log under `/var/log` | ⭐⭐ | Log analysis, text filtering |
+| 4 | The User Detective | Another user's account record carries a flag | ⭐⭐ | Users, account records |
+| 5 | The Permissive File | Find a suspicious file with wide-open permissions under `/opt`, then follow where it leads | ⭐⭐ | Permissions, file ownership |
 | 6 | The Hidden Service | Something is listening on port 8080. Connect to it | ⭐⭐ | Networking, ports |
-| 7 | The Encoded Secret | Find and decode an encoded flag in `ctf_challenges` | ⭐⭐ | Base64, encoding |
-| 8 | SSH Key Authentication | Set up SSH key authentication to log in as the key-only `vault` user | ⭐⭐⭐ | `ssh-keygen`, `authorized_keys` |
-| 9 | DNS Inspection | Find the lab's custom search domain and resolve a host inside it | ⭐⭐ | DNS, `resolvectl`, `getent hosts` |
-| 10 | Remote Upload | From your own computer, upload a new file into `~/ctf_challenges` on the VM to trigger the flag. It is broadcast to your open terminals | ⭐⭐ | File transfer, SCP |
-| 11 | Web Configuration | nginx should serve the site on port 80 but is misconfigured. Find and fix it | ⭐⭐ | Nginx, `nginx -t`, services |
-| 12 | Network Traffic Analysis | Someone is sending secret messages via ping packets on the loopback interface (needs `sudo`) | ⭐⭐⭐ | Packet inspection, tcpdump |
+| 7 | The Encoded Secret | Find and decode an encoded flag in `ctf_challenges` | ⭐⭐ | Encoding, decoding |
+| 8 | SSH Key Authentication | Set up SSH key authentication to log in as the key-only `vault` user | ⭐⭐⭐ | SSH key authentication, users |
+| 9 | DNS Inspection | Find the lab's custom search domain and resolve a host inside it | ⭐⭐ | DNS, name resolution |
+| 10 | Remote Upload | From your own computer, upload a new file into `~/ctf_challenges` on the VM to trigger the flag. It is broadcast to your open terminals | ⭐⭐ | File transfer |
+| 11 | Web Configuration | nginx should serve the site on port 80 but is misconfigured. Find and fix it | ⭐⭐ | Web servers, services, config debugging |
+| 12 | Network Traffic Analysis | Someone is sending secret messages via ping packets on the loopback interface (needs `sudo`) | ⭐⭐⭐ | Packet inspection |
 | 13 | Cron Job Hunter | A scheduled job handles a secret. Find out what it runs and inspect the result | ⭐⭐ | Cron, scheduling |
-| 14 | Process Environment | A running process has a secret in its environment. Extract it | ⭐⭐⭐ | `/proc`, environment vars |
-| 15 | Archive Archaeologist | A flag is buried inside nested archives. Dig it out | ⭐⭐ | tar, gzip, archives |
-| 16 | Symbolic Sleuth | Follow the trail of symbolic links. The flag is where the trail ends | ⭐⭐ | Symlinks, `readlink` |
-| 17 | History Mystery | Someone typed a secret into their command line. Search their history | ⭐⭐ | Bash history, `grep` |
-| 18 | Disk Detective | A flag is hidden in filesystem metadata. Inspect the disk image | ⭐⭐⭐ | Disk images, `blkid` |
+| 14 | Process Environment | A running process has a secret in its environment. Extract it | ⭐⭐⭐ | Processes, environment variables |
+| 15 | Archive Archaeologist | A flag is buried inside nested archives. Dig it out | ⭐⭐ | Archives, compression |
+| 16 | Symbolic Sleuth | Start at `follow_me` in `~/ctf_challenges` and follow the trail of symbolic links. The flag is where the trail ends | ⭐⭐ | Symbolic links |
+| 17 | History Mystery | Someone typed a secret into their command line. Find it. Not every secret is the real one | ⭐⭐ | Shell history, text search |
+| 18 | Disk Detective | A flag is hidden in filesystem metadata. Inspect the disk image | ⭐⭐⭐ | Disk images, filesystem metadata |
 
 **Difficulty:** ⭐ Beginner | ⭐⭐ Intermediate | ⭐⭐⭐ Advanced
 

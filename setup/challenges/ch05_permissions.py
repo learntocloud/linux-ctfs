@@ -1,3 +1,10 @@
+"""Challenge 5: The Permissive File.
+
+Learner goal: find a suspicious wide-open file under /opt, then follow where it leads.
+Skills tested: permissions, file ownership.
+Plants: /opt/systems config that points to /opt/systems/keys/master.key (mode 000) holding flags[5].
+"""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -267,7 +267,7 @@ else
 fi
 
 # Challenge 2: Basic File Search
-# Hint: "Use find to search for files. Try: find ~ -name '*.txt'"
+# Hint: "Use 'find' to search by name. Try: find ~ -type f -iname '*secret*'"
 echo "Challenge 2: Basic File Search"
 TXT_FILE=$(find /home/ctf_user/documents -name '*.txt' -type f 2>/dev/null | head -1) || true
 if [[ -n "${TXT_FILE}" ]]; then
@@ -318,7 +318,7 @@ else
 fi
 
 # Challenge 5: Permission Analysis
-# Hint: "Look for files with unusual permissions. Try: find / -perm 777"
+# Hint: "Try: find /opt -type f -perm -o+w"
 echo "Challenge 5: Permission Analysis"
 FLAG_5=""
 for path in /opt /etc /var; do

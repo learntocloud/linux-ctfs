@@ -24,7 +24,7 @@ Running into problems? See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 | # | Challenge | Description | Difficulty | Skills |
 |---|-----------|-------------|------------|--------|
 | 1 | The Hidden File | Find and read a hidden file in `ctf_challenges` | ⭐ | Hidden files, `ls` |
-| 2 | The Secret File | Locate a file containing "secret" in its name under your home directory | ⭐ | File searching, `find` |
+| 2 | The Secret File | Locate a regular file (not a directory) with "secret" in its name under your home directory | ⭐ | File searching, `find` |
 | 3 | The Largest Log | Find and read an unusually large file in `/var/log` | ⭐⭐ | File sizes, log navigation |
 | 4 | The User Detective | Another user has a flag in their login configuration | ⭐⭐ | User management, UIDs |
 | 5 | The Permissive File | Find a suspicious file with wide-open permissions under `/opt` | ⭐⭐ | Permissions |
@@ -32,9 +32,9 @@ Running into problems? See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 | 7 | The Encoded Secret | Find and decode an encoded flag in `ctf_challenges` | ⭐⭐ | Base64, encoding |
 | 8 | SSH Key Authentication | Configure SSH key authentication and find a hidden flag | ⭐⭐ | SSH configuration |
 | 9 | DNS Inspection | Inspect the system DNS configuration without changing live resolver files | ⭐⭐ | DNS, `systemd-resolved` |
-| 10 | Remote Upload | From your own computer, upload a new file into `~/ctf_challenges` on the VM to trigger the flag | ⭐⭐ | File transfer, SCP |
+| 10 | Remote Upload | From your own computer, upload a new file into `~/ctf_challenges` on the VM to trigger the flag. It is broadcast to your open terminals | ⭐⭐ | File transfer, SCP |
 | 11 | Web Configuration | The web server is running on a non-standard port. Find and fix it | ⭐⭐ | Nginx, services |
-| 12 | Network Traffic Analysis | Someone is sending secret messages via ping packets | ⭐⭐⭐ | Packet inspection, tcpdump |
+| 12 | Network Traffic Analysis | Someone is sending secret messages via ping packets on the loopback interface (needs `sudo`) | ⭐⭐⭐ | Packet inspection, tcpdump |
 | 13 | Cron Job Hunter | A scheduled task contains a hidden flag. Find and read it | ⭐⭐ | Cron, scheduling |
 | 14 | Process Environment | A running process has a secret in its environment. Extract it | ⭐⭐⭐ | `/proc`, environment vars |
 | 15 | Archive Archaeologist | A flag is buried inside nested archives. Dig it out | ⭐⭐ | tar, gzip, archives |

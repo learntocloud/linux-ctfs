@@ -6,10 +6,12 @@ from helpers import write_file
 
 
 def setup(flags: dict[int, str]) -> None:
-    write_file("/var/lib/ctf/secrets/deep/hidden/final_flag.txt", f"{flags[16]}\n", mode=0o644)
+    hidden = Path("/var/lib/ctf/secrets/deep/hidden")
+    final_target = hidden / flags[16]
+    write_file(final_target, "You reached the end of the trail. The flag is the name of this file.\n", mode=0o644)
     links = [
-        (Path("/var/lib/ctf/secrets/deep/hidden/final_flag.txt"), Path("/var/lib/ctf/secrets/deep/link3")),
-        (Path("/var/lib/ctf/secrets/deep/link3"), Path("/var/lib/ctf/secrets/link2")),
+        (final_target, Path("/var/lib/ctf/secrets/deep/link3")),
+        (Path("deep/link3"), Path("/var/lib/ctf/secrets/link2")),
         (Path("/var/lib/ctf/secrets/link2"), Path("/home/ctf_user/ctf_challenges/follow_me")),
     ]
     for target, link in links:
@@ -19,6 +21,6 @@ def setup(flags: dict[int, str]) -> None:
         Path("/var/lib/ctf"),
         Path("/var/lib/ctf/secrets"),
         Path("/var/lib/ctf/secrets/deep"),
-        Path("/var/lib/ctf/secrets/deep/hidden"),
     ):
         directory.chmod(0o755)
+    hidden.chmod(0o711)  # traversable but not listable, so the name only shows via readlink

@@ -284,11 +284,11 @@ else
 fi
 
 # Challenge 3: Log Analysis
-# Hint: "Large log files can hide secrets. Check /var/log and use 'tail'"
+# Hint: "Find the biggest file in /var/log (ls -lS), then filter noise with grep -v"
 echo "Challenge 3: Log Analysis"
-LARGE_LOG=$(find /var/log -type f -size +100M 2>/dev/null | head -1) || true
+LARGE_LOG=$(ls -S /var/log/*.log 2>/dev/null | head -1) || true
 if [[ -n "${LARGE_LOG}" ]]; then
-    FLAG_3=$(tail -1 "${LARGE_LOG}" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    FLAG_3=$(grep -v 'Failed password' "${LARGE_LOG}" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
     if [[ -n "${FLAG_3}" ]]; then
         _verify_flag 3 "${FLAG_3}"
     else
@@ -296,42 +296,41 @@ if [[ -n "${LARGE_LOG}" ]]; then
         FLAGS[3]=""
     fi
 else
-    _fail "Challenge 3: No large log files found"
+    _fail "Challenge 3: No log files found"
     FLAGS[3]=""
 fi
 
 # Challenge 4: User Investigation
-# Hint: "Investigate other users. Check /etc/passwd or use 'getent passwd'"
+# Hint: "Compare the users with 'getent passwd' and look at the fifth field"
 echo "Challenge 4: User Investigation"
-FLAG_4=""
-for user in $(getent passwd | awk -F: '$3 >= 1000 && $1 != "ctf_user" && $1 != "nobody" {print $1}'); do
-    if [[ -r "/home/${user}/.profile" ]]; then
-        FLAG_4=$(grep -ao 'CTF{[^}]*}' "/home/${user}/.profile" 2>/dev/null | head -1) || true
-        [[ -n "${FLAG_4}" ]] && break
-    fi
-done
+FLAG_4=$(getent passwd | awk -F: '$3 >= 1000 && $1 != "ctf_user" && $1 != "nobody" {print $5}' \
+    | grep -ao 'CTF{[^}]*}' | head -1) || true
 if [[ -n "${FLAG_4}" ]]; then
     _verify_flag 4 "${FLAG_4}"
 else
-    _fail "Challenge 4: Could not find flag in user profiles"
+    _fail "Challenge 4: Could not find flag in user comment fields"
     FLAGS[4]=""
 fi
 
 # Challenge 5: Permission Analysis
-# Hint: "Try: find /opt -type f -perm -o+w"
+# Hint: "Try: find /opt -type f -perm -o+w"; the file points at a locked key owned by ctf_user
 echo "Challenge 5: Permission Analysis"
 FLAG_5=""
-for path in /opt /etc /var; do
-    PERM_FILE=$(find "${path}" -type f -perm 777 2>/dev/null | head -1) || true
-    if [[ -n "${PERM_FILE}" ]]; then
-        FLAG_5=$(cat "${PERM_FILE}" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
-        [[ -n "${FLAG_5}" ]] && break
+POINTER=$(find /opt -type f -perm -o+w -not -path '/opt/uv/*' 2>/dev/null | head -1) || true
+LOCKED=$(grep -ao '/opt/[^ ]*\.key' "${POINTER}" 2>/dev/null | head -1) || true
+if [[ -n "${LOCKED}" ]]; then
+    if cat "${LOCKED}" >/dev/null 2>&1; then
+        _fail "Challenge 5: Locked key was readable without chmod - SETUP BUG"
+    else
+        chmod u+r "${LOCKED}"
+        FLAG_5=$(grep -ao 'CTF{[^}]*}' "${LOCKED}" 2>/dev/null | head -1) || true
+        chmod 000 "${LOCKED}"
     fi
-done
+fi
 if [[ -n "${FLAG_5}" ]]; then
     _verify_flag 5 "${FLAG_5}"
 else
-    _fail "Challenge 5: Could not find flag in 777 permission files"
+    _fail "Challenge 5: Could not read the locked key"
     FLAGS[5]=""
 fi
 
@@ -376,35 +375,44 @@ else
     FLAGS[7]=""
 fi
 
-# Challenge 8: SSH Secrets
-# Hint: "SSH configurations often hide secrets. Explore ~/.ssh thoroughly"
-echo "Challenge 8: SSH Secrets"
-FLAG_8=""
-while IFS= read -r -d '' f; do
-    FLAG_8=$(grep -ao 'CTF{[^}]*}' "${f}" 2>/dev/null | head -1) || true
-    [[ -n "${FLAG_8}" ]] && break
-done < <(find /home/ctf_user/.ssh -type f -print0 2>/dev/null)
+# Challenge 8: SSH Key Authentication
+# Hint: "Create a key with ssh-keygen, authorize it in ~/.ssh/authorized_keys, ssh vault@localhost"
+echo "Challenge 8: SSH Key Authentication"
+KEY_DIR=$(mktemp -d)
+ssh-keygen -q -t ed25519 -N '' -f "${KEY_DIR}/id" >/dev/null
+mkdir -p ~/.ssh
+cat "${KEY_DIR}/id.pub" >> ~/.ssh/authorized_keys
+FLAG_8=$(ssh -i "${KEY_DIR}/id" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR vault@localhost 2>/dev/null \
+    | grep -ao 'CTF{[^}]*}' | head -1) || true
+if sshpass -p 'CTFpassword123!' ssh -o PubkeyAuthentication=no -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR vault@localhost true 2>/dev/null; then
+    _fail "Challenge 8: vault accepted password auth - SETUP BUG"
+fi
+grep -vF "$(cut -d' ' -f2 "${KEY_DIR}/id.pub")" ~/.ssh/authorized_keys > "${KEY_DIR}/ak" || true
+cat "${KEY_DIR}/ak" > ~/.ssh/authorized_keys
+rm -rf "${KEY_DIR}"
 if [[ -n "${FLAG_8}" ]]; then
     _verify_flag 8 "${FLAG_8}"
 else
-    _fail "Challenge 8: Could not find flag in .ssh directory"
+    _fail "Challenge 8: Key login as vault did not return a flag - SETUP BUG"
     FLAGS[8]=""
 fi
 
 # Challenge 9: DNS Inspection
-# Hint: "Inspect systemd-resolved configuration safely"
+# Hint: "Find the search domain (resolvectl status), then 'getent hosts' the intranet host"
 echo "Challenge 9: DNS Inspection"
-DNS_DROP_IN="/etc/systemd/resolved.conf.d/ctf-dns.conf"
-if [[ -r "${DNS_DROP_IN}" ]]; then
-    FLAG_9=$(grep -ao 'CTF{[^}]*}' "${DNS_DROP_IN}" 2>/dev/null | head -1) || true
+SEARCH_DOMAIN=$(resolvectl status 2>/dev/null | awk '/DNS Domain:/ {for (i=3;i<=NF;i++) print $i}' | grep -m1 '^ctf-lab') || true
+if [[ -n "${SEARCH_DOMAIN}" ]]; then
+    FLAG_9=$(getent hosts "intranet.${SEARCH_DOMAIN}" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
     if [[ -n "${FLAG_9}" ]]; then
         _verify_flag 9 "${FLAG_9}" "Solved challenge 9" "Challenge 9: Found flag but verify rejected it - SETUP BUG"
     else
-        _fail "Challenge 9: DNS drop-in has no CTF flag - SETUP BUG"
+        _fail "Challenge 9: getent hosts did not return a flag - SETUP BUG"
         FLAGS[9]=""
     fi
 else
-    _fail "Challenge 9: DNS drop-in not readable - SETUP BUG"
+    _fail "Challenge 9: Custom search domain not shown by resolvectl - SETUP BUG"
     FLAGS[9]=""
 fi
 
@@ -434,24 +442,26 @@ else
 fi
 
 # Challenge 11: Web Configuration
-# Hint: "Check what ports nginx is listening on"
+# Hint: "nginx should serve on port 80. Check ss, curl, error.log, fix config, reload"
 echo "Challenge 11: Web Configuration"
-NGINX_PORT=$(grep -r 'listen' /etc/nginx/ 2>/dev/null \
-    | grep -oP 'listen\s+\K[0-9]+' \
-    | grep -v '^80$' \
-    | head -1) || true
-if [[ -n "${NGINX_PORT}" ]]; then
-    FLAG_11=$(curl -s "localhost:${NGINX_PORT}" 2>/dev/null \
-        | grep -ao 'CTF{[^}]*}' \
-        | head -1) || true
-    if [[ -n "${FLAG_11}" ]]; then
-        _verify_flag 11 "${FLAG_11}"
-    else
-        _fail "Challenge 11: Could not get flag from nginx"
-        FLAGS[11]=""
-    fi
+FLAG_11=""
+if curl -s "localhost:80" 2>/dev/null | grep -aq 'CTF{'; then
+    _fail "Challenge 11: Flag served on port 80 before any fix - SETUP BUG"
+elif curl -s "localhost:8083" 2>/dev/null | grep -aq 'CTF{'; then
+    _fail "Challenge 11: Flag served on 8083 before any fix - SETUP BUG"
 else
-    _fail "Challenge 11: Could not find nginx non-standard port"
+    SITE=/etc/nginx/sites-available/default
+    echo 'CTFpassword123!' | sudo -S sed -i -e 's/listen 8083/listen 80/;s/listen \[::\]:8083/listen [::]:80/;s|/var/www/htm;|/var/www/html;|' "${SITE}" 2>/dev/null
+    if echo 'CTFpassword123!' | sudo -S nginx -t &>/dev/null \
+        && echo 'CTFpassword123!' | sudo -S systemctl reload nginx &>/dev/null; then
+        sleep 1
+        FLAG_11=$(curl -s "localhost:80" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+    fi
+fi
+if [[ -n "${FLAG_11}" ]]; then
+    _verify_flag 11 "${FLAG_11}"
+else
+    _fail "Challenge 11: Could not get flag from nginx after fixing config"
     FLAGS[11]=""
 fi
 
@@ -479,18 +489,22 @@ else
 fi
 
 # Challenge 13: Cron Job Hunter
-# Hint: "Check /etc/cron.d/, /etc/crontab, and user crontabs"
+# Hint: "Check /etc/cron.d, see what the job runs and where it writes, wait for the next run"
 echo "Challenge 13: Cron Job Hunter"
 FLAG_13=""
-for dir in /etc/cron.d /etc/cron.daily /etc/cron.hourly; do
-    [[ -d "${dir}" ]] || continue
-    FLAG_13=$(grep -rh 'CTF{' "${dir}" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
-    [[ -n "${FLAG_13}" ]] && break
-done
+CRON_SCRIPT=$(grep -rhao '/opt/scripts/[^ ]*' /etc/cron.d 2>/dev/null | head -1) || true
+JOB_LOG=$(grep -ao '/var/tmp/[^" ]*' "${CRON_SCRIPT}" 2>/dev/null | head -1) || true
+if [[ -n "${JOB_LOG}" ]]; then
+    for _ in {1..35}; do
+        FLAG_13=$(grep -ao 'CTF{[^}]*}' "${JOB_LOG}" 2>/dev/null | head -1) || true
+        [[ -n "${FLAG_13}" ]] && break
+        sleep 2
+    done
+fi
 if [[ -n "${FLAG_13}" ]]; then
     _verify_flag 13 "${FLAG_13}"
 else
-    _fail "Challenge 13: Could not find flag in cron directories"
+    _fail "Challenge 13: Cron job did not produce the flag"
     FLAGS[13]=""
 fi
 
@@ -498,6 +512,9 @@ fi
 # Hint: "Process info lives in /proc. Check /proc/PID/environ"
 echo "Challenge 14: Process Environment"
 FLAG_14=""
+if systemctl show ctf-secret-process -p Environment 2>/dev/null | grep -q 'CTF{'; then
+    _fail "Challenge 14: Flag leaks through systemctl show - SETUP BUG"
+fi
 for pid in $(pgrep -u ctf_user 2>/dev/null); do
     [[ -r "/proc/${pid}/environ" ]] || continue
     FLAG_14=$(tr '\0' '\n' < "/proc/${pid}/environ" 2>/dev/null | grep -ao 'CTF{[^}]*}') || true
@@ -511,17 +528,17 @@ else
 fi
 
 # Challenge 15: Archive Archaeologist
-# Hint: "Archives can be nested. Use 'tar -xzf' to extract layers"
+# Hint: "Each layer may use different compression. 'tar -xf' detects the format"
 echo "Challenge 15: Archive Archaeologist"
 ARCHIVE=$(find /home/ctf_user/ctf_challenges -name '*.tar.gz' 2>/dev/null | head -1) || true
 if [[ -n "${ARCHIVE}" ]]; then
     TMPDIR=$(mktemp -d)
     cd "${TMPDIR}"
-    tar -xzf "${ARCHIVE}" 2>/dev/null || true
+    tar -xf "${ARCHIVE}" 2>/dev/null || true
     for _ in {1..5}; do
-        INNER=$(find . -maxdepth 1 -name '*.tar.gz' 2>/dev/null | head -1) || true
+        INNER=$(find . -maxdepth 1 -name '*.tar.*' 2>/dev/null | head -1) || true
         [[ -z "${INNER}" ]] && break
-        tar -xzf "${INNER}" 2>/dev/null || true
+        tar -xf "${INNER}" 2>/dev/null || true
         rm -f "${INNER}"
     done
     FLAG_15=$(grep -rh 'CTF{' . 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
@@ -540,15 +557,12 @@ else
 fi
 
 # Challenge 16: Symbolic Sleuth
-# Hint: "Use 'readlink -f' to find the final target"
+# Hint: "Use 'readlink -f' to find the end of the trail; the flag is the final name"
 echo "Challenge 16: Symbolic Sleuth"
-FLAG_16=""
-while IFS= read -r -d '' link; do
-    TARGET=$(readlink -f "${link}" 2>/dev/null) || true
-    [[ -r "${TARGET}" ]] || continue
-    FLAG_16=$(grep -ao 'CTF{[^}]*}' "${TARGET}" 2>/dev/null | head -1) || true
-    [[ -n "${FLAG_16}" ]] && break
-done < <(find /home/ctf_user/ctf_challenges -type l -print0 2>/dev/null)
+FLAG_16=$(readlink -f /home/ctf_user/ctf_challenges/follow_me 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
+if grep -aq 'CTF{' /home/ctf_user/ctf_challenges/follow_me 2>/dev/null; then
+    _fail "Challenge 16: Flag readable inside the target file - SETUP BUG"
+fi
 if [[ -n "${FLAG_16}" ]]; then
     _verify_flag 16 "${FLAG_16}"
 else
@@ -557,14 +571,14 @@ else
 fi
 
 # Challenge 17: History Mystery
-# Hint: "Bash stores history in ~/.bash_history. Other users may have history too"
+# Hint: "Search other users' ~/.bash_history for keywords like 'export'"
 echo "Challenge 17: History Mystery"
 FLAG_17=""
 for home in /home/*; do
     user=$(basename "${home}")
     [[ "${user}" == "ctf_user" ]] && continue
     [[ -r "${home}/.bash_history" ]] || continue
-    FLAG_17=$(grep -ao 'CTF{[^}]*}' "${home}/.bash_history" 2>/dev/null | head -1) || true
+    FLAG_17=$(grep -a 'export' "${home}/.bash_history" 2>/dev/null | grep -ao 'CTF{[^}]*}' | head -1) || true
     [[ -n "${FLAG_17}" ]] && break
 done
 if [[ -n "${FLAG_17}" ]]; then
@@ -575,23 +589,16 @@ else
 fi
 
 # Challenge 18: Disk Detective
-# Hint: "Try mounting disk images with 'sudo mount -o loop'"
+# Hint: "Inspect the disk image metadata with blkid, e2label or dumpe2fs -h"
 echo "Challenge 18: Disk Detective"
 DISK_IMG=$(find /opt /home -name '*.img' -type f 2>/dev/null | head -1) || true
 if [[ -n "${DISK_IMG}" ]]; then
-    MNTDIR=$(mktemp -d)
-    echo 'CTFpassword123!' | sudo -S mount -o loop "${DISK_IMG}" "${MNTDIR}" 2>/dev/null
-    FLAG_18=$(find "${MNTDIR}" -type f -print0 2>/dev/null \
-        | xargs -0 grep -ah 'CTF{' 2>/dev/null \
-        | grep -ao 'CTF{[^}]*}' \
-        | head -1) || true
-    echo 'CTFpassword123!' | sudo -S umount "${MNTDIR}" 2>/dev/null || true
-    rmdir "${MNTDIR}" 2>/dev/null || true
-    
+    FLAG_18=$(echo 'CTFpassword123!' | sudo -S blkid -o value -s LABEL "${DISK_IMG}" 2>/dev/null \
+        | grep -ao 'CTF{[^}]*}' | head -1) || true
     if [[ -n "${FLAG_18}" ]]; then
         _verify_flag 18 "${FLAG_18}"
     else
-        _fail "Challenge 18: Could not find flag in disk image"
+        _fail "Challenge 18: Could not read flag from filesystem label"
         FLAGS[18]=""
     fi
 else

@@ -14,5 +14,7 @@ def setup(flags: dict[int, str]) -> None:
     content = nginx_default.read_text()
     content = content.replace("listen 80 default_server;", "listen 8083 default_server;")
     content = content.replace("listen [::]:80 default_server;", "listen [::]:8083 default_server;")
+    # Wrong port and a typo in the document root: both must be fixed to serve the flag on port 80.
+    content = content.replace("root /var/www/html;", "root /var/www/htm;")
     nginx_default.write_text(content)
     restart_service("nginx")

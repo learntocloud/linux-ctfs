@@ -9,7 +9,7 @@ def setup(flags: dict[int, str]) -> None:
         "/usr/local/bin/ping_message.sh",
         f"""#!/bin/bash
 while true; do
-    ping -p {flag_hex} -c 1 127.0.0.1
+    ping -p {flag_hex} -c 1 127.0.0.1 >/dev/null
     sleep 1
 done
 """,
@@ -25,8 +25,8 @@ Type=simple
 ExecStart=/usr/local/bin/ping_message.sh
 Restart=always
 RestartSec=1
-StandardOutput=append:/var/log/ping_message.log
-StandardError=append:/var/log/ping_message.log
+StandardOutput=null
+StandardError=null
 
 [Install]
 WantedBy=multi-user.target

@@ -1,15 +1,28 @@
+"""Challenge 13: Cron Job Hunter.
+
+Learner goal: find out what a scheduled job runs and inspect the result.
+Skills tested: cron, scheduling.
+Plants: /etc/cron.d/nightly_backup running a script that handles flags[13].
+"""
+
 from __future__ import annotations
 
-from helpers import write_file
+from helpers import write_executable, write_file
 
 
 def setup(flags: dict[int, str]) -> None:
+    write_file("/etc/ctf/flag_13", f"{flags[13]}\n", mode=0o600)
+    write_executable(
+        "/opt/scripts/nightly_backup.sh",
+        """#!/bin/bash
+umask 022
+echo "$(date -Is) backup ok, audit token: $(cat /etc/ctf/flag_13)" > /var/tmp/backup_status.log
+""",
+    )
     write_file(
-        "/etc/cron.d/ctf_secret_task",
-        f"""# CTF Challenge - Secret scheduled task
-# This task runs every minute but the flag is hidden here
-# FLAG: {flags[13]}
-* * * * * root /bin/true
+        "/etc/cron.d/nightly_backup",
+        """# Nightly backup (runs every minute in the lab)
+* * * * * root /opt/scripts/nightly_backup.sh
 """,
         mode=0o644,
     )

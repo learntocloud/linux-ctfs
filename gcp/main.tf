@@ -29,7 +29,7 @@ variable "gcp_zone" {
   default     = null
 
   validation {
-    condition     = startswith(coalesce(var.gcp_zone, "${var.gcp_region}-"), "${var.gcp_region}-")
+    condition     = var.gcp_zone == null ? true : startswith(var.gcp_zone, "${var.gcp_region}-")
     error_message = "gcp_zone must be a zone in gcp_region (for example us-central1-a for us-central1). Leave gcp_zone unset to pick one automatically."
   }
 }

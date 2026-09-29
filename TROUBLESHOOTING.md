@@ -433,7 +433,24 @@ The linux-ctfs Terraform code cannot override these policies. Use a personal Goo
 
 ### GCP: Setup readiness errors
 
-GCP runs the lab setup as a startup script and Terraform waits over SSH until it finishes. If Terraform fails while waiting on `null_resource.release_setup_ready`, SSH in and check the setup logs:
+GCP runs the lab setup as a startup script and Terraform waits over SSH until it finishes. If Terraform fails or times out while waiting on `null_resource.release_setup_ready`, check the setup output.
+
+If setup failed early, `ctf_user` may not exist yet, so the normal SSH login won't work. The startup script output is also written to the VM's serial console, which you can read without SSH:
+
+```sh
+gcloud compute instances get-serial-port-output ctf-instance \
+  --zone="$(terraform output -raw zone)" | grep -i startup-script | tail -n 50
+```
+
+If `terraform output -raw zone` prints nothing, find the zone with `gcloud compute instances list`.
+
+If you need a shell on the VM, `gcloud compute ssh` works even when `ctf_user` doesn't exist. It creates an SSH key on your computer and adds it to your project's metadata:
+
+```sh
+gcloud compute ssh ctf-instance --zone="$(terraform output -raw zone)"
+```
+
+Then check the setup logs:
 
 ```sh
 sudo journalctl -u google-startup-scripts --no-pager | tail -n 50

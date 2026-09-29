@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from helpers import recursive_chown
+
 from . import (
     ch01_hidden_file,
     ch02_file_search,
@@ -44,3 +46,4 @@ def setup_all_challenges(flags: dict[int, str]) -> None:
         ch18_disk_detective,
     ):
         module.setup(flags)
+    recursive_chown("/home/ctf_user/ctf_challenges", "ctf_user", "ctf_user")

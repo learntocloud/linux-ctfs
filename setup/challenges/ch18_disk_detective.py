@@ -1,15 +1,16 @@
+"""Challenge 18: Disk Detective.
+
+Learner goal: find a flag hidden in filesystem metadata by inspecting a disk image.
+Skills tested: disk images, filesystem metadata.
+Plants: /opt/ctf_disk.img, an ext4 image whose label is flags[18].
+"""
+
 from __future__ import annotations
 
-from helpers import recursive_chown, run, write_file
+from helpers import run
 
 
 def setup(flags: dict[int, str]) -> None:
     run(["dd", "if=/dev/zero", "of=/opt/ctf_disk.img", "bs=1M", "count=10"])
-    run(["mkfs.ext4", "-F", "-L", "ctf_disk", "/opt/ctf_disk.img"])
-    run(["mkdir", "-p", "/mnt/ctf_disk"])
-    run(["mount", "-o", "loop", "/opt/ctf_disk.img", "/mnt/ctf_disk"])
-    try:
-        write_file("/mnt/ctf_disk/.flag", f"{flags[18]}\n")
-    finally:
-        run(["umount", "/mnt/ctf_disk"])
-    recursive_chown("/home/ctf_user/ctf_challenges", "ctf_user", "ctf_user")
+    # ext4 labels hold 16 bytes, exactly the length of a flag.
+    run(["mkfs.ext4", "-F", "-L", flags[18], "/opt/ctf_disk.img"])

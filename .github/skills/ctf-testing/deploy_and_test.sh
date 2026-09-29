@@ -15,7 +15,7 @@
 #                        reboot and progress persists
 #
 # Prerequisites:
-#   - terraform (>= 1.0; Azure requires >= 1.14.0)
+#   - terraform (>= 1.9.0; Azure requires >= 1.14.0)
 #   - jq (for AWS terraform config)
 #   - sshpass (macOS: brew install hudochenkov/sshpass/sshpass)
 #   - aws CLI (for AWS, must be logged in)
@@ -69,6 +69,9 @@ readonly NC='\033[0m'  # No Color
 CURRENT_PROVIDER=""
 CLEANUP_ON_EXIT=false
 
+# One row per provider: "provider deploy ready tests destroy total" in seconds
+TIMING_ROWS=()
+
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
@@ -91,6 +94,30 @@ _log() {
         ERROR) echo -e "[${timestamp}] ${RED}${message}${NC}" ;;
         *)     echo -e "[${timestamp}] ${level} ${message}" ;;
     esac
+}
+
+# Format a number of seconds as "XmYYs"
+# Arguments:
+#   $1 - Duration in seconds
+_format_duration() {
+    printf '%dm%02ds' $(( $1 / 60 )) $(( $1 % 60 ))
+}
+
+# Print the per-provider timing table collected in TIMING_ROWS
+_print_timing_summary() {
+    [[ ${#TIMING_ROWS[@]} -eq 0 ]] && return 0
+
+    echo ""
+    echo "Timing (deploy = terraform apply, ready = SSH + setup wait, tests include any reboot cycle)"
+    printf '  %-8s %8s %8s %8s %8s %8s\n' "Cloud" "Deploy" "Ready" "Tests" "Destroy" "Total"
+    local row provider deploy ready tests destroy total
+    for row in "${TIMING_ROWS[@]}"; do
+        read -r provider deploy ready tests destroy total <<< "${row}"
+        printf '  %-8s %8s %8s %8s %8s %8s\n' "${provider}" \
+            "$(_format_duration "${deploy}")" "$(_format_duration "${ready}")" \
+            "$(_format_duration "${tests}")" "$(_format_duration "${destroy}")" \
+            "$(_format_duration "${total}")"
+    done
 }
 
 # Signal handler for cleanup on interrupt (SIGINT/SIGTERM)
@@ -423,9 +450,13 @@ _reboot_vm() {
             echo "  Starting instance ${instance_id}..." >&2
             aws ec2 start-instances --instance-ids "${instance_id}" > /dev/null
             aws ec2 wait instance-running --instance-ids "${instance_id}"
-            # IP may change, get new one
-            sleep 10
-            ip=$(_get_public_ip "${provider}")
+            # The public IP changes after stop/start and terraform state is stale, so ask EC2 directly
+            ip=$(aws ec2 describe-instances --instance-ids "${instance_id}" \
+                --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+            if [[ ! "${ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                _log ERROR "Invalid IP address retrieved after restart: '${ip}'" >&2
+                return 1
+            fi
             ;;
         azure)
             echo "  Restarting Azure VM..." >&2
@@ -563,6 +594,7 @@ _run_post_reboot_tests() {
 _test_provider() {
     local provider="$1"
     local result=0
+    local t_start=${SECONDS} t_mark
 
     # Enable cleanup on interrupt for this provider
     CURRENT_PROVIDER="${provider}"
@@ -578,6 +610,7 @@ _test_provider() {
     _check_prerequisites "${provider}"
 
     # Deploy
+    t_mark=${SECONDS}
     if ! _terraform_apply "${provider}"; then
         _log ERROR "Terraform apply failed for ${provider}"
         CLEANUP_ON_EXIT=false
@@ -585,6 +618,8 @@ _test_provider() {
         CURRENT_PROVIDER=""
         return 1
     fi
+
+    local deploy_secs=$(( SECONDS - t_mark ))
 
     # Get IP
     local ip
@@ -598,6 +633,7 @@ _test_provider() {
     _log OK "VM deployed at: ${ip}"
 
     # Wait for SSH
+    t_mark=${SECONDS}
     if ! _wait_for_ssh "${ip}"; then
         _log ERROR "SSH connection failed for ${provider}"
         CLEANUP_ON_EXIT=false
@@ -615,7 +651,10 @@ _test_provider() {
         return 1
     fi
 
+    local ready_secs=$(( SECONDS - t_mark ))
+
     # Run tests
+    t_mark=${SECONDS}
     local test_exit_code=0
     _run_tests "${provider}" "${ip}" || test_exit_code=$?
 
@@ -638,11 +677,17 @@ _test_provider() {
         result=1
     fi
 
+    local tests_secs=$(( SECONDS - t_mark ))
+
     # Cleanup
     echo ""
+    t_mark=${SECONDS}
     CLEANUP_ON_EXIT=false
     _terraform_destroy "${provider}"
     CURRENT_PROVIDER=""
+
+    local destroy_secs=$(( SECONDS - t_mark ))
+    TIMING_ROWS+=("${provider} ${deploy_secs} ${ready_secs} ${tests_secs} ${destroy_secs} $(( SECONDS - t_start ))")
 
     return "${result}"
 }
@@ -670,6 +715,7 @@ _main() {
     done
 
     # Final summary (short pass/fail)
+    _print_timing_summary
     echo ""
     if [[ ${#failed_providers[@]} -gt 0 ]]; then
         _log ERROR "RESULT: FAIL (${failed_providers[*]})"

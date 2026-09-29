@@ -1,17 +1,23 @@
+"""Challenge 9: DNS Inspection.
+
+Learner goal: find the lab's custom search domain and resolve a host inside it.
+Skills tested: DNS, name resolution.
+Plants: a resolved.conf.d search domain and an /etc/hosts entry carrying flags[9].
+"""
+
 from __future__ import annotations
 
-from helpers import write_file
+from helpers import append_line_once, restart_service, write_file
 
 
 def setup(flags: dict[int, str]) -> None:
     write_file(
         "/etc/systemd/resolved.conf.d/ctf-dns.conf",
-        f"""# CTF Challenge 9: DNS inspection
-# The live resolver file is intentionally left untouched.
-# FLAG: {flags[9]}
-
+        """# Internal search domain for the lab intranet.
 [Resolve]
-# This drop-in is harmless. It exists so learners can inspect systemd-resolved config safely.
+Domains=ctf-lab.internal
 """,
         mode=0o644,
     )
+    append_line_once("/etc/hosts", f"10.10.10.10 intranet.ctf-lab.internal {flags[9]}")
+    restart_service("systemd-resolved")

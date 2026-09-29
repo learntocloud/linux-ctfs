@@ -25,16 +25,16 @@ console = Console()
 
 CHALLENGE_NAMES = [
     "Example Challenge",
-    "Hidden File Discovery",
-    "Basic File Search",
-    "Log Analysis",
-    "User Investigation",
-    "Permission Analysis",
-    "Service Discovery",
-    "Encoding Challenge",
-    "SSH Secrets",
+    "The Hidden File",
+    "The Secret File",
+    "The Odd Log Entry",
+    "The User Detective",
+    "The Permissive File",
+    "The Hidden Service",
+    "The Encoded Secret",
+    "SSH Key Authentication",
     "DNS Inspection",
-    "Remote Upload Detection",
+    "Remote Upload",
     "Web Configuration",
     "Network Traffic Analysis",
     "Cron Job Hunter",
@@ -47,24 +47,24 @@ CHALLENGE_NAMES = [
 
 CHALLENGE_HINTS = [
     "Run: verify 0 CTF{example}",
-    "Hidden files in Linux start with a dot. Try 'ls -la' in the ctf_challenges directory.",
-    "Use the 'find' command to search for files. Try: find ~ -name '*.txt' 2>/dev/null",
-    "Large log files can hide secrets. Check /var/log and use 'tail' to see the end of files.",
-    "Investigate other users on the system. Check /etc/passwd or use 'getent passwd'.",
-    "Look for files with unusual permissions. Try: find / -perm 777 2>/dev/null",
-    "What services are running? Use 'netstat -tulpn' or 'ss -tulpn' to find listening ports.",
-    "The flag is encoded. Look for encoded files and use 'base64 -d' to decode.",
-    "SSH configurations often hide secrets. Explore ~/.ssh directory thoroughly.",
-    "Modern Ubuntu DNS is usually managed by systemd-resolved. Inspect /etc/resolv.conf, resolvectl status, and /etc/systemd/resolved.conf.d/.",
-    "Run scp from your own computer, not the VM. The destination must be the ctf_challenges directory (e.g. user@ip:~/ctf_challenges/), and the file must be new - overwriting doesn't count.",
-    "Web servers serve content from specific directories. Check what ports nginx is listening on.",
-    "Network traffic can carry hidden messages. Look at ping patterns with tcpdump.",
-    "Cron jobs run on schedules. Check /etc/cron.d/, /etc/crontab, and user crontabs with 'crontab -l'.",
-    "Process info lives in /proc. Each process has a directory with its environment in /proc/PID/environ.",
-    "Archives can be nested. Use 'tar -xzf' or 'gunzip' to extract layers. Check file types with 'file' command.",
-    "Symlinks can chain together. Use 'readlink -f' to find the final target, or 'ls -la' to see link targets.",
-    "Bash stores command history in ~/.bash_history. Other users may have history files too.",
-    "A disk image file exists on the system. Try mounting it with 'sudo mount -o loop <image> <mountpoint>' to explore its contents.",
+    "Some files aren't shown by default. 'man ls' explains how to list everything in the ctf_challenges directory.",
+    "Search your home directory by name. 'man find' covers matching names and file types. You want a regular file, not a directory.",
+    "Every log line looks alike except one. Sorting files by size helps you spot the big log in /var/log. Then filter out the noise: a search tool can exclude lines as well as match them.",
+    "Accounts store more than a name and ID. Find the other users on this system and read everything their records contain. 'man 5 passwd' explains the fields.",
+    "Look under /opt for regular files anyone can write to; 'man find' covers matching by permission. If a file says 'Permission denied', check 'ls -l': who owns it, and what can you change?",
+    "Something on this machine is listening on a port. 'man ss' shows how to list listening sockets. Once you know the port, connect to it: the service speaks HTTP.",
+    "Look for a file in ctf_challenges that isn't readable as-is. Its look (letters, digits, maybe '=' padding) hints at the encoding, and 'man' pages for that encoding cover reversing it. Check whether the result is readable yet.",
+    "The 'vault' user has no password and only accepts a key. 'man ssh-keygen' covers making one. The sshd settings in /etc/ssh/sshd_config.d/ show where the vault login looks for authorized keys. You can connect from the VM itself.",
+    "The resolver's settings ('man resolvectl') reveal a custom search domain, and the lab's 'intranet' host lives in it. Build its full name, then look it up with a tool that uses the system's own name resolution, not just DNS servers.",
+    "Do this from your own computer, not the VM, with a tool that copies files over SSH. The destination is the ctf_challenges directory on the VM, and the file must be new - overwriting doesn't count. The flag is broadcast to your open terminals when the upload lands.",
+    "nginx should serve the site on port 80 but doesn't. Compare where it is listening with where it should be, and read its error log under /var/log/nginx/. nginx can test a config before you reload it ('man nginx'); then reload the service.",
+    "Capture on the loopback interface with a tool that can print packet contents as hex and ASCII, and filter down to ping traffic so you can see the payload clearly. It needs sudo.",
+    "Find where scheduled jobs are defined on this system ('man 5 crontab' is a start), read what the job runs and where its output goes, then wait for the next run.",
+    "Every running process exposes information about itself in the /proc filesystem ('man proc'). Find the right process, then look at what it was started with.",
+    "Archives can be nested, and each layer may use a different compression. Identify each layer before extracting it; 'man file' and 'man tar' help.",
+    "A long directory listing shows where each link points. Follow the chain hop by hop, or look for a tool that resolves it all at once. Some links may lead nowhere useful, so make sure you start from the right one. The flag is where the trail ends, not what is inside it.",
+    "Shells keep a record of the commands typed, and users other than you have one. Secrets show up in more than variables. Not every secret you find is the flag, so look at what the real one is shaped like.",
+    "A filesystem is more than the files inside it. The image is a file on this machine, but not a normal document. Something that describes a filesystem may not need it mounted. Check the man pages of ext4 tools.",
 ]
 
 
@@ -218,11 +218,11 @@ def export_certificate(state: CtfState, github_username: str | None) -> int:
     console.print(f"  Date: {date_str}")
     console.print("")
     console.print("  Challenges Completed:")
-    console.print("   * Hidden File Discovery      * Service Discovery")
-    console.print("   * Basic File Search          * Encoding Challenge")
-    console.print("   * Log Analysis               * SSH Secrets")
-    console.print("   * User Investigation         * DNS Inspection")
-    console.print("   * Permission Analysis        * Remote Upload Detection")
+    console.print("   * The Hidden File            * The Hidden Service")
+    console.print("   * The Secret File            * The Encoded Secret")
+    console.print("   * The Odd Log Entry          * SSH Key Authentication")
+    console.print("   * The User Detective         * DNS Inspection")
+    console.print("   * The Permissive File        * Remote Upload")
     console.print("   * Web Configuration          * Network Traffic Analysis")
     console.print("   * Cron Job Hunter            * Process Environment")
     console.print("   * Archive Archaeologist      * Symbolic Sleuth")
@@ -247,11 +247,11 @@ def export_certificate(state: CtfState, github_username: str | None) -> int:
   Date: {date_str}
 
   Challenges Completed:
-   * Hidden File Discovery      * Service Discovery
-   * Basic File Search          * Encoding Challenge
-   * Log Analysis               * SSH Secrets
-   * User Investigation         * DNS Inspection
-   * Permission Analysis        * Remote Upload Detection
+   * The Hidden File            * The Hidden Service
+   * The Secret File            * The Encoded Secret
+   * The Odd Log Entry          * SSH Key Authentication
+   * The User Detective         * DNS Inspection
+   * The Permissive File        * Remote Upload
    * Web Configuration          * Network Traffic Analysis
    * Cron Job Hunter            * Process Environment
    * Archive Archaeologist      * Symbolic Sleuth

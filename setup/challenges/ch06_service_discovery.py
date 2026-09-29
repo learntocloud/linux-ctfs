@@ -1,3 +1,10 @@
+"""Challenge 6: The Hidden Service.
+
+Learner goal: discover what is listening on port 8080 and connect to it.
+Skills tested: networking, ports.
+Plants: a systemd service that serves flags[6] over HTTP on port 8080.
+"""
+
 from __future__ import annotations
 
 from helpers import enable_service, write_executable, write_file, write_service

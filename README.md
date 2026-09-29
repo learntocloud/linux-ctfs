@@ -7,13 +7,19 @@ Test your Linux command line skills with 18 progressive Capture The Flag challen
 
 ## Get Started
 
-Start by [forking this repository](https://github.com/learntocloud/linux-ctfs/fork) to your GitHub account—completion verification checks that you have a fork. Then pick a cloud provider and follow its guide. Each guide covers deploying the lab, connecting, capturing flags, using the `verify` command, exporting your completion token, and cleaning up.
+**You'll need:** a cloud account (AWS, Azure, or GCP), [Terraform](https://developer.hashicorp.com/terraform/install), your provider's CLI, and about 3-4 hours.
 
-| Provider | Cost for ~4 hours | Guide |
-|----------|-------------------|-------|
-| AWS | ~$0.01 (Free Tier eligible) | [AWS Guide](./aws/README.md) |
-| Azure | ~$0.05 | [Azure Guide](./azure/README.md) |
-| GCP | ~$0.03 | [GCP Guide](./gcp/README.md) |
+1. **Fork** this repository to your GitHub account. Completion verification checks that you have a fork.
+2. **Deploy** the lab with your provider's guide:
+
+    | Provider | Cost for ~4 hours | Guide |
+    |----------|-------------------|-------|
+    | AWS | ~$0.01 (Free Tier eligible) | [AWS Guide](./aws/README.md) |
+    | Azure | ~$0.05 | [Azure Guide](./azure/README.md) |
+    | GCP | ~$0.03 | [GCP Guide](./gcp/README.md) |
+
+3. **Play** by connecting over SSH and solving challenges with the [Playing the Lab guide](./GUIDE.md). It covers the `verify` command and exporting your completion token.
+4. **Clean up** with `terraform destroy` when you're done, after saving your token, so you aren't billed for a VM you've finished with.
 
 Running into problems? See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
@@ -23,26 +29,28 @@ Running into problems? See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
 | # | Challenge | Description | Difficulty | Skills |
 |---|-----------|-------------|------------|--------|
-| 1 | The Hidden File | Find and read a hidden file in `ctf_challenges` | ⭐ | Hidden files, `ls` |
-| 2 | The Secret File | Locate a file containing "secret" in its name under your home directory | ⭐ | File searching, `find` |
-| 3 | The Largest Log | Find and read an unusually large file in `/var/log` | ⭐⭐ | File sizes, log navigation |
-| 4 | The User Detective | Another user has a flag in their login configuration | ⭐⭐ | User management, UIDs |
-| 5 | The Permissive File | Find a suspicious file with wide-open permissions under `/opt` | ⭐⭐ | Permissions |
+| 1 | The Hidden File | Find and read a hidden file in `ctf_challenges` | ⭐ | Hidden files, directory listing |
+| 2 | The Secret File | Locate a regular file (not a directory) with "secret" in its name under your home directory | ⭐ | File searching |
+| 3 | The Odd Log Entry | Thousands of failed logins hide a single successful one in a log under `/var/log` | ⭐⭐ | Log analysis, text filtering |
+| 4 | The User Detective | Another user's account record carries a flag | ⭐⭐ | Users, account records |
+| 5 | The Permissive File | Find a suspicious file with wide-open permissions under `/opt`, then follow where it leads | ⭐⭐ | Permissions, file ownership |
 | 6 | The Hidden Service | Something is listening on port 8080. Connect to it | ⭐⭐ | Networking, ports |
-| 7 | The Encoded Secret | Find and decode an encoded flag in `ctf_challenges` | ⭐⭐ | Base64, encoding |
-| 8 | SSH Key Authentication | Configure SSH key authentication and find a hidden flag | ⭐⭐ | SSH configuration |
-| 9 | DNS Inspection | Inspect the system DNS configuration without changing live resolver files | ⭐⭐ | DNS, `systemd-resolved` |
-| 10 | Remote Upload | From your own computer, upload a new file into `~/ctf_challenges` on the VM to trigger the flag | ⭐⭐ | File transfer, SCP |
-| 11 | Web Configuration | The web server is running on a non-standard port. Find and fix it | ⭐⭐ | Nginx, services |
-| 12 | Network Traffic Analysis | Someone is sending secret messages via ping packets | ⭐⭐⭐ | Packet inspection, tcpdump |
-| 13 | Cron Job Hunter | A scheduled task contains a hidden flag. Find and read it | ⭐⭐ | Cron, scheduling |
-| 14 | Process Environment | A running process has a secret in its environment. Extract it | ⭐⭐⭐ | `/proc`, environment vars |
-| 15 | Archive Archaeologist | A flag is buried inside nested archives. Dig it out | ⭐⭐ | tar, gzip, archives |
-| 16 | Symbolic Sleuth | Follow the trail of symbolic links to find the flag | ⭐⭐ | Symlinks, `readlink` |
-| 17 | History Mystery | Someone typed a flag in their command history. Find it | ⭐⭐ | Bash history |
-| 18 | Disk Detective | A flag is hidden in filesystem metadata. Investigate mounted filesystems | ⭐⭐⭐ | Disk images, mounting |
+| 7 | The Encoded Secret | Find and decode an encoded flag in `ctf_challenges` | ⭐⭐ | Encoding, decoding |
+| 8 | SSH Key Authentication | Set up SSH key authentication to log in as the key-only `vault` user | ⭐⭐⭐ | SSH key authentication, users |
+| 9 | DNS Inspection | Find the lab's custom search domain and resolve a host inside it | ⭐⭐ | DNS, name resolution |
+| 10 | Remote Upload | From your own computer, upload a new file into `~/ctf_challenges` on the VM to trigger the flag. It is broadcast to your open terminals | ⭐⭐ | File transfer |
+| 11 | Web Configuration | nginx should serve the site on port 80 but is misconfigured. Find and fix it | ⭐⭐ | Web servers, services, config debugging |
+| 12 | Network Traffic Analysis | Someone is sending secret messages via ping packets on the loopback interface (needs `sudo`) | ⭐⭐⭐ | Packet inspection |
+| 13 | Cron Job Hunter | A scheduled job handles a secret. Find out what it runs and inspect the result | ⭐⭐ | Cron, scheduling |
+| 14 | Process Environment | A running process has a secret in its environment. Extract it | ⭐⭐⭐ | Processes, environment variables |
+| 15 | Archive Archaeologist | A flag is buried inside nested archives. Dig it out | ⭐⭐ | Archives, compression |
+| 16 | Symbolic Sleuth | Start at `follow_me` in `~/ctf_challenges` and follow the trail of symbolic links. The flag is where the trail ends | ⭐⭐ | Symbolic links |
+| 17 | History Mystery | Someone typed a secret into their command line. Find it. Not every secret is the real one | ⭐⭐ | Shell history, text search |
+| 18 | Disk Detective | A flag is hidden in filesystem metadata. Inspect the disk image | ⭐⭐⭐ | Disk images, filesystem metadata |
 
 **Difficulty:** ⭐ Beginner | ⭐⭐ Intermediate | ⭐⭐⭐ Advanced
+
+There are 18 challenges. `verify progress` reports `/19` because it also counts the practice flag (challenge 0) that checks `verify` works.
 
 ## About Your Completion Certificate
 

@@ -29,6 +29,8 @@ def install_packages() -> None:
         "inotify-tools",
         "netcat-openbsd",
         "tcpdump",
+        "bzip2",
+        "xz-utils",
     ]
     apt_get("update")
     apt_get("install", "-y", *packages)

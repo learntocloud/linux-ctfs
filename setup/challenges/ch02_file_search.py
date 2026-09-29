@@ -1,3 +1,10 @@
+"""Challenge 2: The Secret File.
+
+Learner goal: locate a regular file with "secret" in its name under the home directory.
+Skills tested: file searching.
+Plants: a nested file under /home/ctf_user/documents containing flags[2].
+"""
+
 from __future__ import annotations
 
 from helpers import write_file

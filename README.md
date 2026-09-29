@@ -41,7 +41,7 @@ Running into problems? See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 | 10 | Remote Upload | From your own computer, upload a new file into `~/ctf_challenges` on the VM to trigger the flag. It is broadcast to your open terminals | ⭐⭐ | File transfer, SCP |
 | 11 | Web Configuration | nginx should serve the site on port 80 but is misconfigured. Find and fix it | ⭐⭐ | Nginx, `nginx -t`, services |
 | 12 | Network Traffic Analysis | Someone is sending secret messages via ping packets on the loopback interface (needs `sudo`) | ⭐⭐⭐ | Packet inspection, tcpdump |
-| 13 | Cron Job Hunter | A scheduled job handles a secret. Find out what it does and catch it in the act | ⭐⭐ | Cron, scheduling |
+| 13 | Cron Job Hunter | A scheduled job handles a secret. Find out what it runs and inspect the result | ⭐⭐ | Cron, scheduling |
 | 14 | Process Environment | A running process has a secret in its environment. Extract it | ⭐⭐⭐ | `/proc`, environment vars |
 | 15 | Archive Archaeologist | A flag is buried inside nested archives. Dig it out | ⭐⭐ | tar, gzip, archives |
 | 16 | Symbolic Sleuth | Follow the trail of symbolic links. The flag is where the trail ends | ⭐⭐ | Symlinks, `readlink` |

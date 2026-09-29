@@ -7,13 +7,19 @@ Test your Linux command line skills with 18 progressive Capture The Flag challen
 
 ## Get Started
 
-Start by [forking this repository](https://github.com/learntocloud/linux-ctfs/fork) to your GitHub account—completion verification checks that you have a fork. Then pick a cloud provider and follow its guide. Each guide covers deploying the lab, connecting, capturing flags, using the `verify` command, exporting your completion token, and cleaning up.
+**You'll need:** a cloud account (AWS, Azure, or GCP), [Terraform](https://developer.hashicorp.com/terraform/install), your provider's CLI, and about 3-4 hours.
 
-| Provider | Cost for ~4 hours | Guide |
-|----------|-------------------|-------|
-| AWS | ~$0.01 (Free Tier eligible) | [AWS Guide](./aws/README.md) |
-| Azure | ~$0.05 | [Azure Guide](./azure/README.md) |
-| GCP | ~$0.03 | [GCP Guide](./gcp/README.md) |
+1. **Fork** this repository to your GitHub account. Completion verification checks that you have a fork.
+2. **Deploy** the lab with your provider's guide:
+
+    | Provider | Cost for ~4 hours | Guide |
+    |----------|-------------------|-------|
+    | AWS | ~$0.01 (Free Tier eligible) | [AWS Guide](./aws/README.md) |
+    | Azure | ~$0.05 | [Azure Guide](./azure/README.md) |
+    | GCP | ~$0.03 | [GCP Guide](./gcp/README.md) |
+
+3. **Play** by connecting over SSH and solving challenges with the [Playing the Lab guide](./GUIDE.md). It covers the `verify` command and exporting your completion token.
+4. **Clean up** with `terraform destroy` when you're done, after saving your token, so you aren't billed for a VM you've finished with.
 
 Running into problems? See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
@@ -43,6 +49,8 @@ Running into problems? See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 | 18 | Disk Detective | A flag is hidden in filesystem metadata. Inspect the disk image | ⭐⭐⭐ | Disk images, `blkid` |
 
 **Difficulty:** ⭐ Beginner | ⭐⭐ Intermediate | ⭐⭐⭐ Advanced
+
+There are 18 challenges. `verify progress` reports `/19` because it also counts the practice flag (challenge 0) that checks `verify` works.
 
 ## About Your Completion Certificate
 

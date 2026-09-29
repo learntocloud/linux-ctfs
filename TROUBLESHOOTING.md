@@ -92,7 +92,7 @@ First, check whether instances from an earlier deploy are still running and usin
 ```sh
 aws ec2 describe-instances \
   --region us-east-1 \
-  --filters Name=instance-state-name,Values=pending,running,stopped \
+  --filters Name=instance-state-name,Values=pending,running \
   --query "Reservations[].Instances[].{Id:InstanceId,Type:InstanceType,State:State.Name}" \
   --output table
 ```

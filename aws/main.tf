@@ -97,8 +97,23 @@ locals {
       return 1
     }
 
-    apt-get update
-    apt-get install -y ca-certificates curl tar gzip coreutils
+    # SSM default associations (e.g. AWS-RunPatchBaseline) can run apt on first
+    # boot, so wait for the dpkg lock instead of failing immediately.
+    apt_get_update_with_retry() {
+      local attempt
+      for attempt in 1 2 3 4 5; do
+        if apt-get -o DPkg::Lock::Timeout=300 -o Acquire::Retries=3 update; then
+          return 0
+        fi
+        echo "apt-get update failed. Attempt $${attempt}/5."
+        rm -rf /var/lib/apt/lists/partial/*
+        sleep 10
+      done
+      return 1
+    }
+
+    apt_get_update_with_retry
+    apt-get -o DPkg::Lock::Timeout=300 -o Acquire::Retries=3 install -y ca-certificates curl tar gzip coreutils
 
     cd "$${WORK_DIR}"
     download_with_retry "$${SETUP_URL}" "$${ASSET_NAME}"
@@ -144,6 +159,26 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+# Not every instance type is offered in every AZ (e.g. us-east-1e), so only
+# place the subnet in a zone that actually offers the requested type.
+data "aws_ec2_instance_type_offerings" "ctf" {
+  location_type = "availability-zone"
+
+  filter {
+    name   = "instance-type"
+    values = [var.aws_instance_type]
+  }
+
+  filter {
+    name   = "location"
+    values = data.aws_availability_zones.available.names
+  }
+}
+
+locals {
+  ctf_availability_zones = sort(data.aws_ec2_instance_type_offerings.ctf.locations)
+}
+
 # Create a VPC
 resource "aws_vpc" "ctf_vpc" {
   cidr_block = "10.0.0.0/16"
@@ -166,10 +201,17 @@ resource "aws_internet_gateway" "ctf_igw" {
 resource "aws_subnet" "ctf_subnet" {
   vpc_id            = aws_vpc.ctf_vpc.id
   cidr_block        = "10.0.1.0/24"
-  availability_zone = data.aws_availability_zones.available.names[0]
+  availability_zone = try(local.ctf_availability_zones[0], null)
 
   tags = {
     Name = "CTF Lab Subnet"
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(local.ctf_availability_zones) > 0
+      error_message = "Instance type ${var.aws_instance_type} is not offered in any availability zone in ${var.aws_region}. Try a different aws_instance_type (e.g. t2.micro or t3.micro) or aws_region. See TROUBLESHOOTING.md."
+    }
   }
 }
 

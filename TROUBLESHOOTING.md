@@ -5,6 +5,7 @@ This guide shows examples of errors you might see when deploying the linux-ctfs 
 - [AWS](#aws)
 - [AWS: Region / endpoint / Auth errors](#aws-region--endpoint--auth-errors)
 - [AWS: Quota / vCPU limit errors](#aws-quota--vcpu-limit-errors)
+- [AWS: Instance type not offered / Insufficient capacity errors](#aws-instance-type-not-offered--insufficient-capacity-errors)
 - [AWS: SSM setup readiness errors](#aws-ssm-setup-readiness-errors)
 - [AWS: Service Control Policy (SCP) / Explicit deny errors](#aws-service-control-policy-scp--explicit-deny-errors)
 - [Azure](#azure)
@@ -86,13 +87,63 @@ EC2 QUOTA EXCEEDED
 
 This usually means the account does not have enough EC2 vCPU quota available in that region for the requested instance type.
 
-Try a smaller instance type:
+First, check whether instances from an earlier deploy are still running and using your quota:
 
 ```sh
-terraform apply -var="aws_instance_type=t3.micro"
+aws ec2 describe-instances \
+  --region us-east-1 \
+  --filters Name=instance-state-name,Values=pending,running,stopped \
+  --query "Reservations[].Instances[].{Id:InstanceId,Type:InstanceType,State:State.Name}" \
+  --output table
 ```
 
-If you need a larger size, you can request a quota increase in the AWS console for the region you want to use.
+If you find old lab instances, run `terraform destroy` from the directory that created them.
+
+The default instance type, `t3.micro`, uses 2 vCPUs. `t2.micro` uses 1 vCPU, so it fits in a smaller quota:
+
+```sh
+terraform apply -var="aws_instance_type=t2.micro"
+```
+
+If that still fails, request a quota increase for **Running On-Demand Standard (A, C, D, H, I, M, R, T, Z) instances** in the [Service Quotas console](https://console.aws.amazon.com/servicequotas/home/services/ec2/quotas) for the region you are deploying to. New accounts can take a while to get approved.
+
+### AWS: Instance type not offered / Insufficient capacity errors
+
+Terraform picks an availability zone that offers your instance type. If no zone in the region offers it, `terraform plan` stops with:
+
+```text
+Instance type <type> is not offered in any availability zone in <region>.
+```
+
+If the zone is offered but AWS is temporarily out of capacity, `terraform apply` may fail with:
+
+```text
+InsufficientInstanceCapacity
+```
+
+To see which instance types are offered in a region:
+
+```sh
+aws ec2 describe-instance-type-offerings \
+  --region us-east-1 \
+  --location-type region \
+  --filters Name=instance-type,Values=t2.micro,t3.micro \
+  --output table
+```
+
+Then retry with an instance type from that list, or with a different region:
+
+```sh
+terraform apply -var="aws_instance_type=t2.micro"
+```
+
+```sh
+terraform apply -var="aws_region=us-east-2"
+```
+
+For `InsufficientInstanceCapacity`, waiting a few minutes and running `terraform apply` again often works.
+
+If you are trying to stay in the AWS Free Tier, which instance types are eligible depends on your account and region. Check the **Free Tier** page in the AWS Billing console before choosing one.
 
 ### AWS: SSM setup readiness errors
 

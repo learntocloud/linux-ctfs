@@ -22,7 +22,7 @@ Deploy the lab here, then follow the [Playing the Lab guide](../GUIDE.md) to con
 4. A GitHub fork of this repository
 
 > [!NOTE]
-> If you have an Azure Student account, you may encounter errors. See [this workaround](https://github.com/g-now-zero/l2c-guides/blob/main/posts/ctf-azure-spot-instances-guide.md).
+> Azure for Students subscriptions often restrict VM sizes and regions. If you're using one, see [Azure for Students errors](../TROUBLESHOOTING.md#azure-azure-for-students-errors).
 
 ## Deploy the Lab
 
@@ -56,10 +56,11 @@ If deployment fails, see [TROUBLESHOOTING.md](../TROUBLESHOOTING.md#azure).
 
 ### VM size / capacity errors
 
-If `terraform apply` fails with `SkuNotAvailable` or quota/capacity errors, switching region and/or VM size (`azure_vm_size`, default `Standard_B1s`) is usually the fastest fix. See:
+`terraform plan` checks that the VM size (`azure_vm_size`, default `Standard_B1s`) is available for your subscription in your region. If it isn't, or `terraform apply` fails with `SkuNotAvailable` or quota errors, switching region and/or VM size is usually the fastest fix. See:
 
 - [Azure: SkuNotAvailable / Capacity errors](../TROUBLESHOOTING.md#azure-skunotavailable--capacity-errors)
 - [Azure: Quota limit errors](../TROUBLESHOOTING.md#azure-quota-limit-errors)
+- [Azure: Azure for Students errors](../TROUBLESHOOTING.md#azure-azure-for-students-errors)
 
 ## Play the Lab
 

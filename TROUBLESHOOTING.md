@@ -14,6 +14,8 @@ This guide shows examples of errors you might see when deploying or using the li
 - [Azure](#azure)
 - [Azure: SkuNotAvailable / Capacity errors](#azure-skunotavailable--capacity-errors)
 - [Azure: Quota limit errors](#azure-quota-limit-errors)
+- [Azure: Azure for Students errors](#azure-azure-for-students-errors)
+- [Azure: Resource group already exists](#azure-resource-group-already-exists)
 - [GCP](#gcp)
 - [GCP: API not enabled / Billing errors](#gcp-api-not-enabled--billing-errors)
 - [GCP: Machine type not offered / Zone capacity errors](#gcp-machine-type-not-offered--zone-capacity-errors)
@@ -263,17 +265,31 @@ terraform apply \
 
 The Terraform commands in this Azure section assume you are running them from the `azure/` directory.
 
-The default VM size is `Standard_B1s`, and the default region is `East US`.
+The default VM size is `Standard_B1s`, and the default region is `East US`. The lab uses an x64 Ubuntu image, so the VM size must be x64. Arm64 sizes such as `Standard_B2pts_v2` won't work.
 
 ### Azure: SkuNotAvailable / Capacity errors
 
-If Terraform fails with an error like:
+`terraform plan` checks the VM size before creating anything. If the size can't be used, it stops with one of these messages:
+
+```text
+VM size <size> is not offered in <region>.
+```
+
+```text
+VM size <size> is not available for your subscription in <region> (NotAvailableForSubscription).
+```
+
+The second one is common on Azure for Students, where `Standard_B1s` is often restricted in `East US`. Switch region or VM size and retry.
+
+If the check passes but `terraform apply` still fails with an error like:
 
 ```text
 SkuNotAvailable: The requested VM size ... is currently not available in location "your location"
 ```
 
-This usually means the selected region does not currently have capacity for that SKU, or your subscription is restricted in that region.
+the region is temporarily out of capacity for that size. Retry later, or switch region or VM size.
+
+To find a size that works, x64 sizes that are small enough for the lab include `Standard_B1s`, `Standard_B1ms`, `Standard_B2s`, and `Standard_B2ats_v2`.
 
 Check whether `Standard_B1s` is available in a region:
 
@@ -328,6 +344,62 @@ Or retry with a different VM size:
 terraform apply \
   -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID" \
   -var azure_vm_size="Standard_B1ms"
+```
+
+### Azure: Azure for Students errors
+
+Azure for Students subscriptions have extra limits beyond VM size restrictions.
+
+**Allowed regions.** Many Student subscriptions only allow deployments to a small set of regions. Deploying elsewhere fails with an error like:
+
+```text
+RequestDisallowedByAzure: Resource 'ctf-resources' was disallowed by Azure: This policy maintains a set of best available regions where your subscription can deploy resources.
+```
+
+List the regions your subscription allows:
+
+```sh
+az policy assignment list \
+  --query "[].parameters.listOfAllowedLocations.value" \
+  -o json
+```
+
+If that prints an empty list, the restriction is set above your subscription and isn't visible to you. Try another region, such as `eastus2`, `westus2`, or `centralus`.
+
+Retry with an allowed region:
+
+```sh
+terraform apply \
+  -var subscription_id="YOUR_AZURE_SUBSCRIPTION_ID" \
+  -var az_region="eastus2"
+```
+
+**Credits used up.** When the Student credit runs out, the subscription is disabled and deployments fail with errors like `ReadOnlyDisabledSubscription`. Check the subscription state:
+
+```sh
+az account show --query state -o tsv
+```
+
+If it isn't `Enabled`, check your remaining credit in the Azure portal under **Subscriptions**, or upgrade to Pay-As-You-Go.
+
+### Azure: Resource group already exists
+
+If Terraform fails with:
+
+```text
+A resource with the ID "/subscriptions/.../resourceGroups/ctf-resources" already exists
+```
+
+a lab from an earlier deploy is still there, but this Terraform directory has no record of it (for example, you deployed from another clone or deleted `terraform.tfstate`). Check what's in it first:
+
+```sh
+az resource list --resource-group ctf-resources -o table
+```
+
+If it only contains old lab resources, delete it and retry. This permanently deletes everything in the group:
+
+```sh
+az group delete --name ctf-resources
 ```
 
 ## GCP

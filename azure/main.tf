@@ -7,6 +7,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 5.6"
     }
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.13"
+    }
     null = {
       source  = "hashicorp/null"
       version = "~> 3.0"
@@ -44,6 +48,12 @@ variable "setup_release_tag" {
 }
 
 locals {
+  # "East US" -> "eastus", the form the SKU API uses
+  az_location = lower(replace(var.az_region, " ", ""))
+  vm_size_sku = try(data.azapi_resource_list.vm_size.output.skus[0], null)
+  # Sizes that don't report an architecture are x64
+  vm_size_architecture = coalesce(try(local.vm_size_sku.architecture, null), "x64")
+
   setup_asset_name   = "linux-ctfs-setup.tar.gz"
   setup_release_base = var.setup_release_tag == "latest" ? "https://github.com/learntocloud/linux-ctfs/releases/latest/download" : "https://github.com/learntocloud/linux-ctfs/releases/download/${var.setup_release_tag}"
   setup_release_url  = "${local.setup_release_base}/${local.setup_asset_name}"
@@ -107,7 +117,7 @@ locals {
     apt_get_update_with_retry() {
       local attempt
       for attempt in 1 2 3 4 5; do
-        if apt-get -o DPkg::Lock::Timeout=120 -o Acquire::Retries=3 update; then
+        if apt-get -o DPkg::Lock::Timeout=300 -o Acquire::Retries=3 update; then
           return 0
         fi
         echo "apt-get update failed. Attempt $${attempt}/5."
@@ -119,7 +129,7 @@ locals {
 
     wait_for_cloud_init
     apt_get_update_with_retry
-    apt-get -o DPkg::Lock::Timeout=120 -o Acquire::Retries=3 install -y ca-certificates curl tar gzip coreutils
+    apt-get -o DPkg::Lock::Timeout=300 -o Acquire::Retries=3 install -y ca-certificates curl tar gzip coreutils
 
     cd "$${WORK_DIR}"
     download_with_retry "$${SETUP_URL}" "$${ASSET_NAME}"
@@ -149,6 +159,25 @@ provider "azurerm" {
   features {}
   subscription_id                 = var.subscription_id
   resource_provider_registrations = "core"
+}
+
+# azapi is only used to look up VM size availability, which azurerm can't do.
+provider "azapi" {
+  subscription_id            = var.subscription_id
+  skip_provider_registration = true
+}
+
+# Student and free subscriptions often can't use some VM sizes in some regions
+# (SkuNotAvailable). Look the size up at plan time so that fails early.
+data "azapi_resource_list" "vm_size" {
+  type      = "Microsoft.Compute/skus@2021-07-01"
+  parent_id = "/subscriptions/${var.subscription_id}"
+  query_parameters = {
+    "$filter" = ["location eq '${local.az_location}'"]
+  }
+  response_export_values = {
+    skus = "value[?resourceType=='virtualMachines' && name=='${var.azure_vm_size}'].{restrictions: restrictions[?type=='Location'].reasonCode, architecture: capabilities[?name=='CpuArchitectureType'].value | [0]}"
+  }
 }
 
 # Create a resource group
@@ -271,6 +300,21 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
   }
 
   custom_data = var.use_local_setup ? base64encode(local.local_bootstrap_script) : null
+
+  lifecycle {
+    precondition {
+      condition     = local.vm_size_sku != null
+      error_message = "VM size ${var.azure_vm_size} is not offered in ${var.az_region}. Try a different azure_vm_size (e.g. Standard_B1s or Standard_B1ms) or az_region. See TROUBLESHOOTING.md."
+    }
+    precondition {
+      condition     = try(length(local.vm_size_sku.restrictions), 0) == 0
+      error_message = "VM size ${var.azure_vm_size} is not available for your subscription in ${var.az_region} (${join(", ", try(local.vm_size_sku.restrictions, []))}). This is common on Azure for Students. Try a different azure_vm_size or az_region. See TROUBLESHOOTING.md."
+    }
+    precondition {
+      condition     = local.vm_size_architecture == "x64"
+      error_message = "VM size ${var.azure_vm_size} is ${local.vm_size_architecture}, but the lab uses an x64 Ubuntu image. Choose an x64 size such as Standard_B1s, Standard_B1ms, or Standard_B2ats_v2."
+    }
+  }
 }
 
 resource "azurerm_virtual_machine_extension" "release_setup" {

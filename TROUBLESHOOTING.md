@@ -360,11 +360,13 @@ List the regions your subscription allows:
 
 ```sh
 az policy assignment list \
+  --subscription "YOUR_AZURE_SUBSCRIPTION_ID" \
+  --disable-scope-strict-match \
   --query "[].parameters.listOfAllowedLocations.value" \
   -o json
 ```
 
-If that prints an empty list, the restriction is set above your subscription and isn't visible to you. Try another region, such as `eastus2`, `westus2`, or `centralus`.
+If that prints an empty list, the restriction isn't visible to your account. Try another region, such as `eastus2`, `westus2`, or `centralus`.
 
 Retry with an allowed region:
 
@@ -377,7 +379,7 @@ terraform apply \
 **Credits used up.** When the Student credit runs out, the subscription is disabled and deployments fail with errors like `ReadOnlyDisabledSubscription`. Check the subscription state:
 
 ```sh
-az account show --query state -o tsv
+az account show --subscription "YOUR_AZURE_SUBSCRIPTION_ID" --query state -o tsv
 ```
 
 If it isn't `Enabled`, check your remaining credit in the Azure portal under **Subscriptions**, or upgrade to Pay-As-You-Go.
@@ -393,13 +395,16 @@ A resource with the ID "/subscriptions/.../resourceGroups/ctf-resources" already
 a lab from an earlier deploy is still there, but this Terraform directory has no record of it (for example, you deployed from another clone or deleted `terraform.tfstate`). Check what's in it first:
 
 ```sh
-az resource list --resource-group ctf-resources -o table
+az resource list \
+  --subscription "YOUR_AZURE_SUBSCRIPTION_ID" \
+  --resource-group ctf-resources \
+  -o table
 ```
 
 If it only contains old lab resources, delete it and retry. This permanently deletes everything in the group:
 
 ```sh
-az group delete --name ctf-resources
+az group delete --subscription "YOUR_AZURE_SUBSCRIPTION_ID" --name ctf-resources
 ```
 
 ## GCP

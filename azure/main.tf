@@ -51,6 +51,8 @@ locals {
   # "East US" -> "eastus", the form the SKU API uses
   az_location = lower(replace(var.az_region, " ", ""))
   vm_size_sku = try(data.azapi_resource_list.vm_size.output.skus[0], null)
+  # Sizes that don't report an architecture are x64
+  vm_size_architecture = coalesce(try(local.vm_size_sku.architecture, null), "x64")
 
   setup_asset_name   = "linux-ctfs-setup.tar.gz"
   setup_release_base = var.setup_release_tag == "latest" ? "https://github.com/learntocloud/linux-ctfs/releases/latest/download" : "https://github.com/learntocloud/linux-ctfs/releases/download/${var.setup_release_tag}"
@@ -309,8 +311,8 @@ resource "azurerm_linux_virtual_machine" "ctf_vm" {
       error_message = "VM size ${var.azure_vm_size} is not available for your subscription in ${var.az_region} (${join(", ", try(local.vm_size_sku.restrictions, []))}). This is common on Azure for Students. Try a different azure_vm_size or az_region. See TROUBLESHOOTING.md."
     }
     precondition {
-      condition     = try(local.vm_size_sku.architecture, "x64") == "x64"
-      error_message = "VM size ${var.azure_vm_size} is ${try(local.vm_size_sku.architecture, "unknown")}, but the lab uses an x64 Ubuntu image. Choose an x64 size such as Standard_B1s, Standard_B1ms, or Standard_B2ats_v2."
+      condition     = local.vm_size_architecture == "x64"
+      error_message = "VM size ${var.azure_vm_size} is ${local.vm_size_architecture}, but the lab uses an x64 Ubuntu image. Choose an x64 size such as Standard_B1s, Standard_B1ms, or Standard_B2ats_v2."
     }
   }
 }

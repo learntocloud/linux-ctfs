@@ -181,9 +181,38 @@ locals {
   ctf_availability_zones = sort(data.aws_ec2_instance_type_offerings.ctf.locations)
 }
 
+# The release readiness check runs `aws ssm send-command` locally. Older AWS
+# CLI builds crash on Python 3.14 when parsing that command ("badly formed help
+# string", aws/aws-cli#10038), so fail before creating anything billable. This
+# runs on create only, so `terraform destroy` still works with a broken CLI.
+resource "terraform_data" "aws_cli_preflight" {
+  count = var.use_local_setup ? 0 : 1
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/sh", "-c"]
+    command     = <<-EOF
+      if ! command -v aws >/dev/null 2>&1; then
+        echo "AWS CLI not found. Install AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html" >&2
+        exit 1
+      fi
+
+      if ! aws ssm send-command --generate-cli-skeleton >/dev/null 2>&1; then
+        echo "Your AWS CLI cannot run 'aws ssm send-command', which the setup readiness check needs." >&2
+        echo "Detected: $(aws --version 2>&1)" >&2
+        echo "Older AWS CLI versions fail this way on Python 3.14. Install the latest AWS CLI v2 from" >&2
+        echo "https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html and run terraform apply again." >&2
+        echo "See TROUBLESHOOTING.md (AWS: CLI fails with badly formed help string)." >&2
+        exit 1
+      fi
+    EOF
+  }
+}
+
 # Create a VPC
 resource "aws_vpc" "ctf_vpc" {
   cidr_block = "10.0.0.0/16"
+
+  depends_on = [terraform_data.aws_cli_preflight]
 
   tags = {
     Name = "CTF Lab VPC"
@@ -311,6 +340,8 @@ resource "aws_iam_role" "ctf_ssm" {
 
   name_prefix        = "linux-ctfs-ssm-${var.aws_region}-"
   assume_role_policy = data.aws_iam_policy_document.ctf_ssm_assume_role[0].json
+
+  depends_on = [terraform_data.aws_cli_preflight]
 
   tags = {
     Name = "CTF Lab SSM Role"

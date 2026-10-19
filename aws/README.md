@@ -17,7 +17,7 @@ Deploy the lab here, then follow the [Playing the Lab guide](../GUIDE.md) to con
 ## Prerequisites
 
 1. [Terraform](https://www.terraform.io/downloads.html) (v1.9.0 or later)
-2. [AWS CLI](https://aws.amazon.com/cli/) configured with your credentials
+2. A current [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) configured with your credentials. Older AWS CLI versions installed from `apt`, `pip`, or `snap` can fail on Python 3.14; see [TROUBLESHOOTING.md](../TROUBLESHOOTING.md#aws-cli-fails-with-badly-formed-help-string).
 3. A GitHub fork of this repository
 
 ### Windows

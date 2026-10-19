@@ -10,6 +10,7 @@ This guide shows examples of errors you might see when deploying or using the li
 - [AWS: Quota / vCPU limit errors](#aws-quota--vcpu-limit-errors)
 - [AWS: Instance type not offered / Insufficient capacity errors](#aws-instance-type-not-offered--insufficient-capacity-errors)
 - [AWS: SSM setup readiness errors](#aws-ssm-setup-readiness-errors)
+- [AWS: CLI fails with badly formed help string](#aws-cli-fails-with-badly-formed-help-string)
 - [AWS: Service Control Policy (SCP) / Explicit deny errors](#aws-service-control-policy-scp--explicit-deny-errors)
 - [Azure](#azure)
 - [Azure: SkuNotAvailable / Capacity errors](#azure-skunotavailable--capacity-errors)
@@ -237,6 +238,34 @@ Common causes:
 - Account-level SSM maintenance commands are still running during first boot.
 - The instance cannot reach Systems Manager endpoints over outbound HTTPS.
 - Setup failed before writing `/var/lib/linux-ctfs/setup.done`; check `/var/log/cloud-init-output.log` and `/var/log/ctf_setup.log`.
+
+### AWS: CLI fails with badly formed help string
+
+AWS release mode runs `aws ssm send-command` from your machine to wait for setup readiness. Older AWS CLI versions crash on Python 3.14 when parsing that command, so Terraform stops before creating any resources with a message like:
+
+```
+Your AWS CLI cannot run 'aws ssm send-command', which the setup readiness check needs.
+```
+
+If you're on an older copy of this repo, the same problem shows up later, while waiting on `null_resource.release_setup_ready`, as:
+
+```
+badly formed help string
+```
+
+Check which AWS CLI and Python you have:
+
+```sh
+aws --version
+```
+
+An AWS CLI installed with `apt`, `pip`, or `snap` on a newer Linux distribution (for example Ubuntu 26.04 in WSL) is often an older CLI running on the system's Python 3.14. To fix it:
+
+1. Remove that AWS CLI with the tool that installed it (for example `sudo apt remove awscli`).
+2. Install the latest AWS CLI v2 with the [official installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).
+3. Open a new terminal, confirm `aws ssm send-command --generate-cli-skeleton` prints JSON, and run `terraform apply` again.
+
+This is an upstream AWS CLI bug ([aws/aws-cli#10038](https://github.com/aws/aws-cli/issues/10038)), already fixed in current releases.
 
 ### AWS: Service Control Policy (SCP) / Explicit deny errors
 

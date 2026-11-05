@@ -9,12 +9,18 @@ from pathlib import Path
 from typing import Iterable
 
 
-def run(command: Iterable[str], *, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+def run(
+    command: Iterable[str],
+    *,
+    input_text: str | None = None,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         list(command),
         input=input_text,
         text=True,
         check=True,
+        env={**os.environ, **env} if env else None,
     )
 
 

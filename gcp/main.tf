@@ -132,24 +132,6 @@ locals {
       return 1
     }
 
-    # First-boot apt jobs (e.g. unattended-upgrades) can hold the dpkg lock, so
-    # wait for it instead of failing immediately.
-    apt_get_update_with_retry() {
-      local attempt
-      for attempt in 1 2 3 4 5; do
-        if apt-get -o DPkg::Lock::Timeout=300 -o Acquire::Retries=3 update; then
-          return 0
-        fi
-        echo "apt-get update failed. Attempt $${attempt}/5."
-        rm -rf /var/lib/apt/lists/partial/*
-        sleep 10
-      done
-      return 1
-    }
-
-    apt_get_update_with_retry
-    apt-get -o DPkg::Lock::Timeout=300 -o Acquire::Retries=3 install -y ca-certificates curl tar gzip coreutils
-
     cd "$${WORK_DIR}"
     download_with_retry "$${SETUP_URL}" "$${ASSET_NAME}"
     download_with_retry "$${CHECKSUM_URL}" "$${ASSET_NAME}.sha256"

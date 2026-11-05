@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import shutil
 import socket
+import subprocess
+import time
 from pathlib import Path
 
 from helpers import append_line_once, ensure_user, restart_service, run, set_password, write_file
@@ -8,16 +11,41 @@ from helpers import append_line_once, ensure_user, restart_service, run, set_pas
 
 CTF_PASSWORD = "CTFpassword123!"
 DONE_MARKER = "/var/lib/cloud/instance/ctf-setup.done"
+APT_SETUP_CONFIG = Path(__file__).with_name("apt-setup.conf")
+# First-boot apt jobs (e.g. unattended-upgrades) can hold the dpkg lock, so
+# wait for it instead of failing immediately.
 APT_OPTIONS = [
+    "-c",
+    str(APT_SETUP_CONFIG),
     "-o",
-    "DPkg::Lock::Timeout=120",
+    "DPkg::Lock::Timeout=300",
     "-o",
     "Acquire::Retries=3",
 ]
+APT_ENVIRONMENT = {"DEBIAN_FRONTEND": "noninteractive"}
+APT_UPDATE_ATTEMPTS = 5
+APT_PARTIAL_LISTS = Path("/var/lib/apt/lists/partial")
 
 
 def apt_get(*arguments: str) -> None:
-    run(["apt-get", *APT_OPTIONS, *arguments])
+    run(["apt-get", *APT_OPTIONS, *arguments], env=APT_ENVIRONMENT)
+
+
+def apt_get_update() -> None:
+    for attempt in range(1, APT_UPDATE_ATTEMPTS + 1):
+        try:
+            apt_get("update")
+            return
+        except subprocess.CalledProcessError:
+            if attempt == APT_UPDATE_ATTEMPTS:
+                raise
+            print(f"apt-get update failed. Attempt {attempt}/{APT_UPDATE_ATTEMPTS}.", flush=True)
+            for partial in APT_PARTIAL_LISTS.glob("*"):
+                if partial.is_dir():
+                    shutil.rmtree(partial, ignore_errors=True)
+                else:
+                    partial.unlink(missing_ok=True)
+            time.sleep(10)
 
 
 def install_packages() -> None:
@@ -32,7 +60,7 @@ def install_packages() -> None:
         "bzip2",
         "xz-utils",
     ]
-    apt_get("update")
+    apt_get_update()
     apt_get("install", "-y", *packages)
 
 

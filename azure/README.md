@@ -68,11 +68,13 @@ Continue with the [Playing the Lab guide](../GUIDE.md): connect over SSH, captur
 
 ## Pause the Lab
 
-To reduce cost while you're away, power off the VM:
+To reduce cost while you're away, stop and deallocate the VM:
 
 ```sh
 terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_off
 ```
+
+Deallocating stops compute billing. The OS disk and the static public IP are still billed while the VM is stopped, but at a much lower rate. Your files and progress are kept, and the public IP stays the same.
 
 Power it back on:
 
@@ -81,6 +83,8 @@ terraform apply -invoke=action.azurerm_virtual_machine_power.ctf_power_on
 ```
 
 Type `yes` when prompted for each. Then reconnect with `ssh ctf_user@<public_ip_address>`.
+
+Because a deallocated VM gives up its compute capacity, powering it back on can fail if the region is temporarily out of capacity for your VM size. If that happens, wait a few minutes and try again. See [Azure: SkuNotAvailable / Capacity errors](../TROUBLESHOOTING.md#azure-skunotavailable--capacity-errors).
 
 > [!NOTE]
 > `verify time` uses wall clock time, so powered-off time still counts.
